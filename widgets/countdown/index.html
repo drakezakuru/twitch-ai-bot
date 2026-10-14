@@ -1,0 +1,138 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title data-widget-i18n="countdown.title"></title>
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;width:100vw}
+.timer-wrap{position:relative;text-align:center;padding:30px 50px;border-radius:16px;transition:all .3s}
+.timer-title{font-size:1.2em;margin-bottom:8px;opacity:.9}
+.timer-display{font-size:4em;font-weight:bold;font-variant-numeric:tabular-nums;letter-spacing:2px}
+.timer-state{font-size:.8em;letter-spacing:2px;text-transform:uppercase;opacity:.6;margin-top:6px;min-height:1em}
+.timer-wrap.st-error .timer-state{color:#fbbf24;opacity:.95}
+/* Themes */
+.theme-neon{background:rgba(0,0,0,var(--widget-opacity,.7));color:#0f0;border:2px solid #0f0;box-shadow:0 0 20px #0f080,inset 0 0 20px #0f020}
+.theme-neon .timer-display{text-shadow:0 0 10px #0f0,0 0 20px #0f0}
+.theme-glass{background:rgba(255,255,255,var(--widget-opacity,.08));color:#fff;border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(10px)}
+.theme-fire{background:rgba(30,0,0,var(--widget-opacity,.8));color:#ff4500;border:2px solid #ff4500;box-shadow:0 0 20px #ff450040}
+.theme-fire .timer-display{text-shadow:0 0 10px #ff4500,0 0 20px #ff6600}
+.theme-minimal{background:transparent;color:#fff}
+/* Effects */
+@keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-5px)}20%,40%,60%,80%{transform:translateX(5px)}}
+@keyframes glow-pulse{0%,100%{box-shadow:0 0 20px #0f0}50%{box-shadow:0 0 60px #0f0,0 0 100px #0f0}}
+@keyframes confetti-fall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.shake{animation:shake .5s ease-in-out 3}
+.glow-pulse{animation:glow-pulse 1s ease-in-out 5}
+.confetti-piece{position:fixed;width:10px;height:10px;top:-10px;animation:confetti-fall 3s linear forwards}
+</style></head><body>
+<div class="timer-wrap widget-theme-surface" id="wrap">
+  <div class="timer-title" id="title"></div>
+  <div class="timer-display widget-theme-accent" id="display">00:00</div>
+  <div class="timer-state" id="state" aria-live="polite"></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "countdown.title": "Таймер обратного отсчёта",
+    "countdown.paused": "ПАУЗА",
+    "countdown.stopped": "ОСТАНОВЛЕН",
+    "countdown.idle": "НЕ ЗАПУЩЕН",
+    "countdown.demo": "Демо-таймер"
+  },
+  "en": {
+    "countdown.title": "Countdown timer",
+    "countdown.paused": "PAUSED",
+    "countdown.stopped": "STOPPED",
+    "countdown.idle": "NOT STARTED",
+    "countdown.demo": "Demo timer"
+  },
+  "ua": {
+    "countdown.title": "Таймер зворотного відліку",
+    "countdown.paused": "ПАУЗА",
+    "countdown.stopped": "ЗУПИНЕНО",
+    "countdown.idle": "НЕ ЗАПУЩЕНО",
+    "countdown.demo": "Демо-таймер"
+  }
+});
+WidgetI18n.apply();
+document.getElementById('state').textContent=WidgetI18n.t('common.loading');
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const params=new URLSearchParams(location.search);
+const requestedTheme=params.get('theme');
+const THEMES=new Set(['dark','light','neon','fire','glass','mono','minimal']);
+const THEME=THEMES.has(requestedTheme)?requestedTheme:'neon';
+const PREVIEW=params.get('preview')==='1';
+const wrapEl=document.getElementById('wrap');
+wrapEl.classList.add('theme-'+THEME);
+let lastState={},completed=false;
+const stateEl=document.getElementById('state');
+// Одно место, где состояние таймера превращается в подпись: idle/paused/error
+// не должны выглядеть как «идёт отсчёт».
+const STATE_LABELS={running:'',paused:WidgetI18n.t('countdown.paused'),stopped:WidgetI18n.t('countdown.stopped'),idle:WidgetI18n.t('countdown.idle'),error:WidgetI18n.t('common.disconnected')};
+function setState(name){
+  wrapEl.classList.toggle('st-error',name==='error');
+  stateEl.textContent=STATE_LABELS[name]!==undefined?STATE_LABELS[name]:STATE_LABELS.idle;
+}
+
+function fmt(sec){
+  sec=Math.max(0,Math.floor(sec));
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+  if(h>0)return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+function computeRemaining(d){
+  if(d.state!=='running')return d.remaining_sec||0;
+  if(!d.started_at)return d.remaining_sec||0;
+  const started=new Date(d.started_at).getTime();
+  const elapsed=Math.floor((Date.now()-started)/1000);
+  if(d.mode==='countdown')return Math.max(0,(d.remaining_sec||0)-elapsed);
+  return (d.remaining_sec||0)+elapsed;
+}
+function explode(){
+  const wrap=document.getElementById('wrap');
+  wrap.classList.add('shake','glow-pulse');
+  const colors=['#ff0','#0f0','#f0f','#0ff','#f00','#ff8800'];
+  for(let i=0;i<40;i++){
+    const p=document.createElement('div');
+    p.className='confetti-piece';
+    p.style.left=Math.random()*100+'vw';
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.animationDelay=(Math.random()*2)+'s';
+    p.style.width=(6+Math.random()*8)+'px';
+    p.style.height=(6+Math.random()*8)+'px';
+    p.style.borderRadius=Math.random()>.5?'50%':'0';
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),5000);
+  }
+  setTimeout(()=>{wrap.classList.remove('shake','glow-pulse')},5000);
+}
+async function poll(){
+  try{
+    const r=await fetch(widgetScopedUrl(_WIDGET_API_BASE + '/api/widgets/public/countdown?t='+Date.now()));
+    if(!r.ok){setState('error');return;}
+    const d=await r.json();
+    document.getElementById('title').textContent=d.title||'';
+    const rem=computeRemaining(d);
+    document.getElementById('display').textContent=fmt(rem);
+    setState(d.state||'idle');
+    if(d.mode==='countdown'&&d.state==='running'&&rem<=0&&!completed){
+      completed=true;explode();
+    }
+    if(d.state!=='running'||rem>0)completed=false;
+    lastState=d;
+  }catch(e){setState('error')}
+}
+if(PREVIEW){
+  // Панельное превью: представительный идущий отсчёт вместо «00:00» без контекста.
+  document.body.style.background='#0f0f1a';
+  document.getElementById('title').textContent=WidgetI18n.t('countdown.demo');
+  let rem=305;
+  setState('running');
+  setInterval(()=>{rem=rem>0?rem-1:305;document.getElementById('display').textContent=fmt(rem)},1000);
+  document.getElementById('display').textContent=fmt(rem);
+}else{
+  poll();setInterval(poll,2000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

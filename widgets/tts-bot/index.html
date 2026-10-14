@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-widget-i18n="tts-bot.title">Озвучка бота · Golden Voice</title>
+    <style>
+:root{color-scheme:dark}
+        :root {
+            --tts-accent: __TTS_ACCENT__;
+            --tts-accent-soft: __TTS_ACCENT_SOFT__;
+            --tts-glow: __TTS_GLOW__;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: transparent;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+        }
+        #tts-container {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            max-width: 800px;
+            background: rgba(15, 12, 4, var(--widget-opacity, 0.92));
+            border: 2px solid var(--tts-accent);
+            border-radius: 16px;
+            padding: 16px 20px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px var(--tts-glow);
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to   { opacity: 0; }
+        }
+        #speaker {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--tts-accent);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 12px var(--tts-glow);
+        }
+        #text {
+            font-size: 22px;
+            color: #fef9e7;
+            line-height: 1.4;
+            word-wrap: break-word;
+            font-weight: 500;
+        }
+        #emotion {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--tts-accent-soft);
+            color: var(--tts-accent);
+            border: 1px solid var(--tts-accent);
+        }
+        #player { display: none; }
+        .hidden   { display: none !important; }
+        .visible  { display: block !important; }
+        #status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            border-radius: 50%;
+            background: #64748b;
+            transition: background 0.3s;
+            padding: 5px 8px;
+            color: #e2e8f0;
+            font-size: 11px;
+        }
+        #status.connected { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,.5); }
+        #status.speaking  { background: var(--tts-accent); box-shadow: 0 0 12px var(--tts-glow); animation: pulse 1s ease-in-out infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+        .icon {
+            display: inline-block;
+            margin-right: 6px;
+            font-size: 16px;
+            vertical-align: middle;
+        }
+        [data-widget-theme] #tts-container {
+            background: color-mix(in srgb, var(--widget-theme-surface) var(--widget-opacity-percent, 100%), transparent);
+            border-color: var(--widget-theme-border);
+            color: var(--widget-theme-text);
+            box-shadow: 0 8px 32px var(--widget-theme-shadow);
+        }
+        [data-widget-theme] #speaker { color: var(--widget-theme-accent); text-shadow: none; }
+        [data-widget-theme] #text { color: var(--widget-theme-text); }
+        [data-widget-theme] #emotion { color: var(--widget-theme-accent); border-color: var(--widget-theme-accent); }
+    </style>
+</head>
+<body>
+    <div id="status" role="status" aria-live="polite"></div>
+    <div id="tts-container" class="widget-theme-surface">
+        <div id="speaker" class="widget-theme-accent"><span class="icon">__TTS_ICON__</span><span id="speaker-name"></span></div>
+        <div id="text" class="widget-theme-text"></div>
+        <div id="emotion" class="widget-theme-accent"></div>
+    </div>
+    <audio id="player" autoplay></audio>
+
+    <script src="/widget/_shared/tts-core.js"></script>
+    <script>
+WidgetI18n.add({
+  "ru": {
+    "tts-bot.title": "Озвучка бота · Golden Voice",
+    "tts-bot.neutral": "😐 Нейтрально",
+    "tts-bot.angry": "😠 Злость",
+    "tts-bot.sad": "😢 Грусть",
+    "tts-bot.happy": "😊 Радость",
+    "tts-bot.surprised": "😮 Удивление",
+    "tts-bot.fear": "😨 Страх",
+    "tts-bot.bot": "Бот",
+    "tts-bot.waiting": "Ожидание озвучки",
+    "tts-bot.demo": "Так выглядит реплика Golden Voice в OBS.",
+    "tts-bot.demo_status": "Демо озвучки"
+  },
+  "en": {
+    "tts-bot.title": "Bot speech · Golden Voice",
+    "tts-bot.neutral": "😐 Neutral",
+    "tts-bot.angry": "😠 Angry",
+    "tts-bot.sad": "😢 Sad",
+    "tts-bot.happy": "😊 Happy",
+    "tts-bot.surprised": "😮 Surprised",
+    "tts-bot.fear": "😨 Fear",
+    "tts-bot.bot": "Bot",
+    "tts-bot.waiting": "Waiting for speech",
+    "tts-bot.demo": "This is how a Golden Voice message looks in OBS.",
+    "tts-bot.demo_status": "Speech demo"
+  },
+  "ua": {
+    "tts-bot.title": "Озвучення бота · Golden Voice",
+    "tts-bot.neutral": "😐 Нейтрально",
+    "tts-bot.angry": "😠 Злість",
+    "tts-bot.sad": "😢 Сум",
+    "tts-bot.happy": "😊 Радість",
+    "tts-bot.surprised": "😮 Здивування",
+    "tts-bot.fear": "😨 Страх",
+    "tts-bot.bot": "Бот",
+    "tts-bot.waiting": "Очікування озвучення",
+    "tts-bot.demo": "Так виглядає репліка Golden Voice в OBS.",
+    "tts-bot.demo_status": "Демо озвучення"
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+        const TTS_ACCOUNT_ID = __ACCOUNT_ID__;
+        const container = document.getElementById('tts-container');
+        const speakerEl = document.getElementById('speaker-name');
+        const textEl = document.getElementById('text');
+        const emotionEl = document.getElementById('emotion');
+        const player = document.getElementById('player');
+        const statusEl = document.getElementById('status');
+
+        statusEl.textContent = wt('common.disconnected');
+        const emotionLabels = Object.fromEntries(['neutral','angry','sad','happy','surprised','fear'].map(key => [key, wt('tts-bot.'+key)]));
+
+        let ws = null;
+        let reconnectTimer = null;
+
+        // Wave 5: транспорт и очередь озвучки — общие (_shared/tts-core.js).
+        // Golden Voice остаётся своим режимом: карточка, эмоция, статус-точка.
+        const ttsQueue = TtsCore.queue({ max: 20 });
+        let audioOutputAllowed = true;
+        TtsCore.outputAllowed('tts-bot').then(value => { audioOutputAllowed = value; });
+
+        function enqueue(msg) {
+            if (!audioOutputAllowed) return;
+            const show = () => {
+                speakerEl.textContent = msg.speaker || msg.channel || wt('tts-bot.bot');
+                textEl.textContent = msg.display_text || msg.text || '';
+                emotionEl.textContent = msg.emotion ? (Object.hasOwn(emotionLabels,msg.emotion) ? emotionLabels[msg.emotion] : emotionLabels.neutral) : '';
+                container.style.display = 'block';
+                container.style.animation = 'fadeIn 0.3s ease-out';
+                statusEl.className = 'speaking';
+            };
+            if (msg.provider === 'web_speech') {
+                ttsQueue.push({
+                    speech: { text: msg.text, voice: msg.voice, lang: 'ru-RU',
+                              rate: msg.rate || 1.0, pitch: msg.pitch || 1.0 },
+                    onStart: show, onEnd: hideContainer,
+                });
+            } else if (msg.audio_b64) {
+                ttsQueue.push({
+                    audio_b64: msg.audio_b64, mime: msg.mime, volume: msg.volume || 1.0,
+                    element: player, onStart: show, onEnd: hideContainer,
+                });
+            } else {
+                show();
+                hideContainer();
+            }
+        }
+
+        function connect() {
+            TtsCore.connect({
+                types: ['tts'],
+                accountId: TTS_ACCOUNT_ID,
+                onOpen: () => { statusEl.className = 'connected'; statusEl.textContent = wt('tts-bot.waiting'); },
+                onClose: () => { statusEl.className = ''; statusEl.textContent = wt('common.disconnected'); },
+                onMessage: enqueue,
+            });
+        }
+
+        function hideContainer() {
+            container.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => {
+                container.style.display = 'none';
+                statusEl.className = 'connected';
+                statusEl.textContent = wt('tts-bot.waiting');
+            }, 300);
+        }
+
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+        }
+        if (new URLSearchParams(location.search).get('preview') === '1') {
+            // Превью не подключается к WS и ничего не озвучивает: только показывает,
+            // как выглядит реплика Golden Voice в кадре.
+            document.body.style.background = '#0f0f1a';
+            speakerEl.textContent = 'DemoBot';
+            textEl.textContent = wt('tts-bot.demo');
+            emotionEl.textContent = emotionLabels.happy || '';
+            container.style.display = 'block';
+            statusEl.className = 'speaking';
+            statusEl.textContent = wt('tts-bot.demo_status');
+        } else {
+            connect();
+        }
+    </script>
+</body>
+</html>

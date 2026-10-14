@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<title data-widget-i18n="follower-ticker.title">Лента событий</title>
+<style>
+:root{color-scheme:dark}
+html,body{margin:0;padding:0;background:transparent;color:#fff;font-family:'Inter','Segoe UI',Arial,sans-serif;overflow:hidden}
+.bar{position:fixed;left:0;right:0;bottom:0;height:60px;display:flex;align-items:center;background:linear-gradient(90deg,rgba(0,0,0,var(--widget-opacity,.85)),rgba(20,0,40,var(--widget-opacity,.85)));border-top:2px solid #b388ff;overflow:hidden}
+.title{padding:0 16px;font-weight:900;font-size:14px;letter-spacing:1px;color:#b388ff;text-transform:uppercase;border-right:2px solid #b388ff;height:100%;display:flex;align-items:center;flex-shrink:0}
+.title.empty{display:none}
+.track{flex:1;display:flex;align-items:center;gap:36px;height:100%;animation:slide 30s linear infinite;padding-left:36px;will-change:transform}
+.event{display:flex;align-items:center;gap:8px;font-size:18px;white-space:nowrap}
+.event b{color:#ffeb3b}
+.event .ico{font-size:24px}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+body.theme-minimal .bar{background:rgba(0,0,0,var(--widget-opacity,.7));border-top:1px solid #555}
+body.theme-minimal .title{color:#ccc;border-right:1px solid #555}
+body.theme-minimal .event b{color:#fff}
+body.theme-rainbow .bar{background:linear-gradient(90deg,rgba(255,0,110,var(--widget-opacity,1)),rgba(251,86,7,var(--widget-opacity,1)),rgba(255,190,11,var(--widget-opacity,1)),rgba(131,56,236,var(--widget-opacity,1)),rgba(58,134,255,var(--widget-opacity,1)));border:none}
+body.theme-rainbow .title{color:#fff;background:rgba(0,0,0,.4);border-right:none}
+body.theme-rainbow .event b{color:#fff;text-shadow:0 0 6px #000}
+</style></head>
+<body class="theme-__THEME__">
+<div class="bar widget-theme-surface">
+  <div class="title widget-theme-accent" id=titleBlock>__TITLE__</div>
+  <div class=track id=track></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "follower-ticker.title": "Лента событий",
+    "follower-ticker.follow": "Спасибо {user} за фолл!",
+    "follower-ticker.subscribe": "{user} подарил саб!",
+    "follower-ticker.cheer": "{user} отправил {amount} Bits!",
+    "follower-ticker.raid": "{user} пришёл с рейдом: {amount} зрителей!",
+    "follower-ticker.empty": "👋 Ждём первых фолловеров / сабов…"
+  },
+  "en": {
+    "follower-ticker.title": "Event ticker",
+    "follower-ticker.follow": "Thanks {user} for following!",
+    "follower-ticker.subscribe": "{user} gifted a sub!",
+    "follower-ticker.cheer": "{user} sent {amount} Bits!",
+    "follower-ticker.raid": "{user} raided with {amount} viewers!",
+    "follower-ticker.empty": "👋 Waiting for the first followers / subscribers…"
+  },
+  "ua": {
+    "follower-ticker.title": "Рухома стрічка подій",
+    "follower-ticker.follow": "Дякуємо {user} за фоллов!",
+    "follower-ticker.subscribe": "{user} подарував підписку!",
+    "follower-ticker.cheer": "{user} надіслав {amount} Bits!",
+    "follower-ticker.raid": "{user} прийшов із рейдом: {amount} глядачів!",
+    "follower-ticker.empty": "👋 Чекаємо на перших фолловерів / підписників…"
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const TITLE="__TITLE__";
+const titleBlock=document.getElementById('titleBlock');
+if(!TITLE) titleBlock.classList.add('empty');
+const track=document.getElementById('track');
+const ICONS={follow:'❤️',subscribe:'⭐',cheer:'💎',raid:'🚀',manual:'✨'};
+const TEXT={
+  follow:(u)=>wt('follower-ticker.follow',{user:`<b>@${esc(u)}</b>`}),
+  subscribe:(u)=>wt('follower-ticker.subscribe',{user:`<b>@${esc(u)}</b>`}),
+  cheer:(u,a)=>wt('follower-ticker.cheer',{user:`<b>@${esc(u)}</b>`,amount:esc(a||0)}),
+  raid:(u,a)=>wt('follower-ticker.raid',{user:`<b>@${esc(u)}</b>`,amount:esc(a||0)}),
+  manual:(u)=>`<b>@${esc(u||wt('common.viewer'))}</b>`
+};
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function render(evs){
+    if(!evs.length){track.innerHTML='<div class="event widget-theme-muted" style=opacity:.4>'+wt('follower-ticker.empty')+'</div>';return}
+    const html=evs.concat(evs).map(e=>{
+      const tx=(Object.hasOwn(TEXT,e.kind)?TEXT[e.kind]:TEXT.manual)(e.username||wt('common.viewer'),e.amount||0);
+      return `<div class="event widget-theme-text"><span class=ico>${Object.hasOwn(ICONS,e.kind)?ICONS[e.kind]:'•'}</span><span>${tx}</span></div>`;
+    }).join('');
+    track.innerHTML=html;
+    const w=track.scrollWidth;
+    // Скорость привязана к длине ленты, но ограничена: без потолка длинная
+    // лента улетает мимо зрителя, короткая — ползёт бесконечно.
+    track.style.animationDuration=Math.min(60,Math.max(20,w/40))+'s';
+}
+async function poll(){
+  try{
+    const r=await fetch(_WIDGET_API_BASE + '/api/widgets/public/recent-events?limit=10&t='+Date.now());
+    if(!r.ok){track.innerHTML='<div class="event widget-theme-muted" style=opacity:.5>'+wt('common.unavailable_http',{status:r.status})+'</div>';return}
+    render(await r.json());
+  }catch(e){track.innerHTML='<div class="event widget-theme-muted" style=opacity:.5>'+wt('common.disconnected')+'</div>'}
+}
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  document.body.style.background='#0f0f1a';
+  render([
+    {kind:'follow',username:'DemoViewer'},
+    {kind:'subscribe',username:'DemoSub'},
+    {kind:'cheer',username:'DemoBits',amount:500},
+  ]);
+}else{
+  poll();setInterval(poll,15000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

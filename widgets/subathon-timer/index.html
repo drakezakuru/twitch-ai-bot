@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="subathon-timer.title"></title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:transparent;padding:10px}
+.box{background:rgba(15,15,25,var(--widget-opacity,0.85));backdrop-filter:blur(8px);border-radius:14px;
+  padding:14px 20px;border:1px solid rgba(255,215,0,0.3);text-align:center;
+  box-shadow:0 0 24px rgba(255,215,0,0.15)}
+.title{font-size:14px;font-weight:700;letter-spacing:3px;color:#FFD700;margin-bottom:6px}
+.time{font-size:44px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums}
+.hint{font-size:11px;color:#999;margin-top:4px}
+.box.idle{border-color:rgba(255,255,255,.15);box-shadow:none}
+.box.idle .title{color:#94a3b8}
+.box.error{border-color:rgba(245,158,11,.5)}
+.box.error .title{color:#fbbf24}
+@keyframes pulse{from{opacity:1}to{opacity:0.75}}
+.box.critical .time{color:#f87171;animation:pulse 1s infinite}
+</style></head><body>
+<div class="box widget-theme-surface" id="box">
+  <div class="title widget-theme-accent" id="title"></div>
+  <div class="time widget-theme-text" id="time">00:00:00</div>
+  <div class="hint widget-theme-muted" aria-live="polite"></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "subathon-timer.title": "Таймер сабатона",
+    "subathon-timer.heading": "САБАТОН",
+    "subathon-timer.hint": "+время за подписки и донаты",
+    "subathon-timer.idle": "Марафон не запущен"
+  },
+  "en": {
+    "subathon-timer.title": "Subathon timer",
+    "subathon-timer.heading": "SUBATHON",
+    "subathon-timer.hint": "+time for subscriptions and donations",
+    "subathon-timer.idle": "Marathon not started"
+  },
+  "ua": {
+    "subathon-timer.title": "Таймер сабатону",
+    "subathon-timer.heading": "САБАТОН",
+    "subathon-timer.hint": "+час за підписки й донати",
+    "subathon-timer.idle": "Марафон не запущено"
+  }
+});
+WidgetI18n.apply();
+document.getElementById('title').textContent=WidgetI18n.t('subathon-timer.heading');
+document.querySelector('.hint').textContent=WidgetI18n.t('common.loading');
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const qs = new URLSearchParams(location.search);
+const API = qs.get('api') || '';
+const PREVIEW = qs.get('preview') === '1';
+const timeEl = document.getElementById('time'), box = document.getElementById('box'),
+      titleEl = document.getElementById('title'), hintEl = document.querySelector('.hint');
+function fmt(s){
+  s = Math.max(0, Math.floor(s));
+  const h = String(Math.floor(s/3600)).padStart(2,'0'),
+        m = String(Math.floor(s%3600/60)).padStart(2,'0'),
+        ss = String(s%60).padStart(2,'0');
+  return h+':'+m+':'+ss;
+}
+let last = null, endAt = Date.now() + 0, running = false, failed = false;
+async function load(){
+  try{
+    const query = new URLSearchParams();
+    const params = new URLSearchParams(location.search);
+    if (params.has('account_id')) query.set('account_id', params.get('account_id'));
+    if (params.has('channel')) query.set('channel', params.get('channel'));
+    const suffix = query.toString() ? '?' + query.toString() : '';
+    const r = await fetch((API || '') + '/api/widgets/public/subathon' + suffix);
+    if(!r.ok){failed=true;running=false;return;}
+    const d = await r.json();
+    failed = false;
+    titleEl.textContent = d.title || WidgetI18n.t('subathon-timer.heading');
+    if (running && last != null && d.remaining < last - 2 && d.remaining > 0) return; // не откатывать
+    last = d.remaining; running = d.running;
+    endAt = Date.now() + d.remaining * 1000;
+  }catch(e){ failed = true; running = false; }
+}
+setInterval(() => {
+  if (!running) {
+    // Остановленный/недоступный марафон честно называет причину, а не «—:—:—» без контекста.
+    box.classList.toggle('error', failed);
+    box.classList.toggle('idle', !failed);
+    box.classList.remove('critical');
+    timeEl.textContent = '—:—:—';
+    hintEl.textContent = failed ? WidgetI18n.t('common.disconnected') : WidgetI18n.t('subathon-timer.idle');
+    return;
+  }
+  box.classList.remove('idle','error');
+  hintEl.textContent = WidgetI18n.t('subathon-timer.hint');
+  const rem = Math.max(0, (endAt - Date.now()) / 1000);
+  timeEl.textContent = fmt(rem);
+  box.classList.toggle('critical', rem < 120);
+}, 250);
+if (PREVIEW){
+  document.body.style.background = '#0f0f1a';
+  running = true; endAt = Date.now() + 4225 * 1000;
+} else {
+  load(); setInterval(load, 10000);
+}
+</script></body></html>

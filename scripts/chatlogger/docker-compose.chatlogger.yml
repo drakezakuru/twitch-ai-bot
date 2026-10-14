@@ -1,0 +1,15 @@
+# PLAN.md «Чат-логгер»: v1 — Steam Deck рядом с панелью; VPS — потом ($3-5/мес).
+# Панель не нужна. Токен и каналы — в sqlite (config/channels) или из панели.
+version: "3.8"
+services:
+  chatlogger:
+    build:
+      context: ..
+      dockerfile: scripts/chatlogger/Dockerfile
+    container_name: twitch-chatlogger
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - ../../data:/app/data
+    command: ["python3", "scripts/chatlogger/logger.py", "--config", "/app/data/chatlogger.sqlite3"]

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="chat-reader.title">Чтение чата</title>
+<style>
+:root{color-scheme:dark;--accent:__DESIGN_ACCENT__;--bubble-bg:__DESIGN_BG_RGBA__;
+  --radius:__DESIGN_RADIUS__px;--font:__DESIGN_FONT__;--size:__DESIGN_SIZE__px;
+  --maxw:__DESIGN_MAXW__px;--shadow:__DESIGN_SHADOW__;--show-transform:translateX(-50%);
+  --hide-transform:translateX(-50%) translateY(20px)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:transparent;overflow:hidden}
+.bubble{position:fixed;bottom:20px;left:50%;transform:translate(-50%,20px);
+  background:var(--bubble-bg);backdrop-filter:blur(8px);border-radius:var(--radius);
+  padding:14px 22px;color:#eee;font-size:var(--size);line-height:1.4;max-width:var(--maxw);
+  border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);
+  box-shadow:var(--shadow);opacity:0;transition:all 0.4s;transform:var(--hide-transform)}
+.bubble.show{opacity:1;transform:var(--show-transform)}
+.who{font-size:12px;color:var(--accent);letter-spacing:1px;text-transform:uppercase;
+  font-weight:700;margin-bottom:4px}
+.hint{position:fixed;bottom:8px;left:10px;font-size:11px;color:rgba(255,255,255,0.4)}
+</style></head><body>
+<div class="bubble" id="bubble"><div class="who" id="who"></div>
+  <div class="text" id="text"></div></div>
+<div class="hint" id="hint" role="status" aria-live="polite"></div>
+<script src="/widget/_shared/tts-core.js"></script>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "chat-reader.title": "Чтение чата",
+    "chat-reader.label": "Читаем чат",
+    "chat-reader.connected": "Чтение чата · подключено, ожидаем сообщения",
+    "chat-reader.disconnected": "Чтение чата · нет связи с панелью",
+    "chat-reader.preview": "Чтение чата · демо-превью",
+    "chat-reader.demo": "Так выглядит сообщение, которое бот читает вслух."
+  },
+  "en": {
+    "chat-reader.title": "Chat reader",
+    "chat-reader.label": "Reading chat",
+    "chat-reader.connected": "Chat reader · connected, waiting for messages",
+    "chat-reader.disconnected": "Chat reader · panel disconnected",
+    "chat-reader.preview": "Chat reader · demo preview",
+    "chat-reader.demo": "This is how a message read aloud by the bot looks."
+  },
+  "ua": {
+    "chat-reader.title": "Читання чату",
+    "chat-reader.label": "Читаємо чат",
+    "chat-reader.connected": "Читання чату · підключено, очікуємо повідомлення",
+    "chat-reader.disconnected": "Читання чату · немає зв’язку з панеллю",
+    "chat-reader.preview": "Читання чату · демонстраційний перегляд",
+    "chat-reader.demo": "Так виглядає повідомлення, яке бот читає вголос."
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// §6.1 WIDGETS_PLAN: виджет chat-reader — озвучка сообщений чата.
+// Слушает type:"tts" события TTS-движка (через общую аудио-очередь §7).
+// Фильтр: ?account_id=<id> — только события конкретного бота.
+// Wave 5: транспорт и очередь озвучки — общие (_shared/tts-core.js),
+// свой здесь только режим показа «пузырь с репликой».
+const qs = new URLSearchParams(location.search);
+const API = qs.get('api') || '';
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+const _S = __DESIGN_SCALE__;
+if (_S !== 1) document.body.style.zoom = _S;
+const POSITION = __DESIGN_POS__;
+const HOLD_MS = __DESIGN_HOLD_MS__;
+const ACCOUNT_ID = qs.get('account_id');
+let audioOutputAllowed = true;
+TtsCore.outputAllowed('chat-reader').then(value => { audioOutputAllowed = value; });
+const bubble = document.getElementById('bubble'),
+      whoEl = document.getElementById('who'),
+      hint = document.getElementById('hint'),
+      textEl = document.getElementById('text');
+hint.textContent = wt('chat-reader.disconnected');
+let hideTimer = null;
+
+function applyPosition(el, pos){
+  const top = pos[0] === 't';
+  const side = pos[1];
+  el.style.top = top ? '20px' : 'auto';
+  el.style.bottom = top ? 'auto' : '20px';
+  el.style.left = side === 'r' ? 'auto' : (side === 'c' ? '50%' : '20px');
+  el.style.right = side === 'r' ? '20px' : 'auto';
+  const x = side === 'c' ? 'translateX(-50%)' : '';
+  document.documentElement.style.setProperty('--show-transform', x || 'none');
+  document.documentElement.style.setProperty('--hide-transform', `${x} translateY(${top ? '-20px' : '20px'})`);
+}
+applyPosition(bubble, POSITION);
+
+function show(text){
+  textEl.textContent = text;
+  whoEl.textContent = '🗣 ' + (qs.get('label') || wt('chat-reader.label'));
+  bubble.classList.add('show');
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => bubble.classList.remove('show'), HOLD_MS);
+}
+function playAudio(b64, mime, volume){
+  if (!audioOutputAllowed) return;
+  ttsQueue.push({ audio_b64: b64, mime: mime, volume: volume });
+}
+const ttsQueue = TtsCore.queue({ max: 20 });
+function connect(){
+  TtsCore.connect({
+    types: ['tts'],
+    accountId: ACCOUNT_ID,
+    onOpen: () => { hint.textContent = wt('chat-reader.connected'); },
+    onClose: () => { hint.textContent = wt('chat-reader.disconnected'); },
+    onMessage: (d) => {
+      if (d.text) show(d.text);
+      if (d.audio_b64) playAudio(d.audio_b64, d.mime, d.volume);
+    },
+  });
+}
+if (qs.get('preview') === '1'){
+  // Превью не подключается к живому WS и ничего не проигрывает:
+  // только показывает, как выглядит озвучиваемая реплика.
+  document.body.style.background = '#0f0f1a';
+  hint.textContent = wt('chat-reader.preview');
+  show(wt('chat-reader.demo'));
+  clearTimeout(hideTimer);
+} else {
+  connect();
+}
+</script></body></html>

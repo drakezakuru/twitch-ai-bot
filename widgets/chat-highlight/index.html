@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden;font-family:'Segoe UI',sans-serif}
+.wrap{position:fixed;bottom:20px;left:20px;right:20px;pointer-events:none}
+.bubble{
+  background:rgba(18,18,30,var(--widget-opacity,.88));
+  border-radius:14px;padding:14px 20px;
+  color:#e8e8f0;font-size:18px;line-height:1.45;
+  max-width:600px;
+  box-shadow:0 0 20px rgba(100,70,255,.35),0 4px 12px rgba(0,0,0,.5);
+  border:1px solid rgba(145,100,255,.25);
+  transform:translateY(30px);opacity:0;
+  transition:opacity .5s ease,transform .5s ease;
+  position:relative;
+}
+.bubble.show{transform:translateY(0);opacity:1}
+.bubble.hide{transform:translateY(-20px);opacity:0}
+.bubble .author{
+  font-size:12px;font-weight:700;text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:4px;
+  color:rgba(160,140,255,.85);
+}
+.bubble .msg{word-wrap:break-word}
+/* glow theme */
+.bubble.theme-glow{
+  border-color:rgba(145,100,255,.35);
+  box-shadow:0 0 24px rgba(100,70,255,.4),0 4px 14px rgba(0,0,0,.5);
+}
+/* neon theme */
+.bubble.theme-neon{
+  border-color:rgba(0,255,200,.4);
+  background:rgba(10,20,15,var(--widget-opacity,.88));
+  box-shadow:0 0 20px rgba(0,255,180,.3),0 4px 14px rgba(0,0,0,.5);
+}
+.bubble.theme-neon .author{color:rgba(0,255,200,.85)}
+/* minimal theme */
+.bubble.theme-minimal{
+  border-color:rgba(200,200,200,.15);
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.bubble.theme-minimal .author{color:rgba(200,200,200,.6)}
+/* fire theme */
+.bubble.theme-fire{
+  border-color:rgba(255,120,0,.35);
+  background:rgba(30,15,5,var(--widget-opacity,.88));
+  box-shadow:0 0 24px rgba(255,100,0,.3),0 4px 14px rgba(0,0,0,.5);
+}
+.bubble.theme-fire .author{color:rgba(255,160,60,.85)}
+[data-widget-theme] .bubble.widget-theme-surface{
+  background:color-mix(in srgb,var(--widget-theme-surface) var(--widget-opacity-percent,100%),transparent);
+  border-color:var(--widget-theme-border);color:var(--widget-theme-text);
+  box-shadow:0 4px 24px var(--widget-theme-shadow)}
+[data-widget-theme] .bubble .widget-theme-accent{color:var(--widget-theme-accent);text-shadow:none}
+</style>
+</head><body>
+<div class="wrap">
+  <div class="bubble widget-theme-surface" id="bubble">
+    <div class="author widget-theme-accent" id="bAuthor"></div>
+    <div class="msg widget-theme-text" id="bMsg"></div>
+  </div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "chat-highlight.demo": "Так выглядит выделенное сообщение чата в OBS."
+  },
+  "en": {
+    "chat-highlight.demo": "This is how a highlighted chat message looks in OBS."
+  },
+  "ua": {
+    "chat-highlight.demo": "Так виглядає виділене повідомлення чату в OBS."
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+const query=new URLSearchParams(location.search);
+const scope=new URLSearchParams();
+if(query.get('account_id'))scope.set('account_id',query.get('account_id'));
+if(query.get('channel'))scope.set('channel',query.get('channel'));
+const stateUrl='/api/widgets/public/chat-highlight'+(scope.toString()?'?'+scope.toString():'');
+
+const bubble=document.getElementById('bubble');
+const bAuthor=document.getElementById('bAuthor');
+const bMsg=document.getElementById('bMsg');
+let lastText='';let hideTimer=null;
+function show(d){
+  bubble.className='bubble widget-theme-surface theme-'+(d.theme||'glow');
+  bAuthor.textContent=d.author||'';
+  bMsg.textContent=d.text;
+  bubble.classList.remove('hide');bubble.classList.add('show');
+  clearTimeout(hideTimer);
+  if(d.display_sec!==0){
+    hideTimer=setTimeout(()=>{
+      bubble.classList.remove('show');bubble.classList.add('hide');
+    },(d.display_sec||15)*1000);
+  }
+}
+async function poll(){
+  try{
+    const r=await fetch(_WIDGET_API_BASE + stateUrl+(stateUrl.includes('?')?'&':'?')+'t='+Date.now());
+    if(!r.ok){bubble.classList.add('hide');bubble.classList.remove('show');return}
+    const d=await r.json();
+    bubble.className='bubble widget-theme-surface theme-'+(d.theme||'glow');
+    if(!d.visible||!d.text){
+      bubble.classList.add('hide');bubble.classList.remove('show');
+      return;
+    }
+    if(d.text!==lastText){lastText=d.text;show(d);}
+  }catch(e){
+    // Панель недоступна — убираем плашку, а не морозим старое сообщение в кадре.
+    bubble.classList.add('hide');bubble.classList.remove('show');
+  }
+}
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  document.body.style.background='#0f0f1a';
+  show({theme:'glow',author:'DemoViewer',display_sec:0,
+        text:wt('chat-highlight.demo')});
+}else{
+  poll();setInterval(poll,2000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<title data-widget-i18n="lower-third.title">Плашка стримера</title>
+<style>
+:root{color-scheme:dark}
+html,body{margin:0;padding:0;background:transparent;color:#fff;font-family:'Inter','Segoe UI',Arial,sans-serif;overflow:hidden}
+.lt{position:fixed;left:32px;bottom:48px;display:none;align-items:center;gap:14px;background:rgba(0,0,0,var(--widget-opacity,.75));padding:14px 22px;border-radius:8px;backdrop-filter:blur(8px);transform:translateX(-150%);transition:transform .55s cubic-bezier(.5,1.7,.55,1);min-width:340px;border-left:5px solid #b388ff}
+.lt.show{display:flex;transform:translateX(0)}
+.avatar{width:64px;height:64px;border-radius:50%;background:#444 center/cover;flex-shrink:0;border:2px solid #b388ff}
+.avatar.empty{display:none}
+.txt{display:flex;flex-direction:column;gap:2px;line-height:1.2}
+.name{font-size:24px;font-weight:900;letter-spacing:.3px}
+.tagline{font-size:14px;color:#bbb}
+.social{font-size:12px;color:#b388ff;margin-top:4px;font-weight:600;letter-spacing:.5px}
+body.theme-neon .lt{background:rgba(0,0,40,var(--widget-opacity,.85));box-shadow:0 0 20px #b388ff,inset 0 0 20px rgba(179,136,255,.2)}
+body.theme-neon .name{color:#fff;text-shadow:0 0 8px #b388ff}
+body.theme-neon .social{color:#80deea}
+body.theme-corporate .lt{background:rgba(255,255,255,var(--widget-opacity,1));color:#222;border-left:5px solid #1976d2}
+body.theme-corporate .name{color:#222}
+body.theme-corporate .tagline{color:#666}
+body.theme-corporate .social{color:#1976d2}
+body.theme-corporate .avatar{border-color:#1976d2}
+[data-widget-theme] .lt{border-left-color:var(--widget-theme-accent)}
+[data-widget-theme] .avatar{border-color:var(--widget-theme-accent)}
+</style></head>
+<body class="theme-minimal">
+<div class="lt widget-theme-surface" id=lt>
+  <div class="avatar empty" id=avatar></div>
+  <div class=txt>
+    <div class="name widget-theme-text" id=name></div>
+    <div class="tagline widget-theme-muted" id=tagline></div>
+    <div class="social widget-theme-accent" id=social></div>
+  </div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "lower-third.title": "Плашка стримера",
+    "lower-third.demo_name": "Демо-стример",
+    "lower-third.demo_tagline": "Превью плашки стримера"
+  },
+  "en": {
+    "lower-third.title": "Lower third",
+    "lower-third.demo_name": "Demo streamer",
+    "lower-third.demo_tagline": "Streamer nameplate preview"
+  },
+  "ua": {
+    "lower-third.title": "Плашка стримера",
+    "lower-third.demo_name": "Демо-стример",
+    "lower-third.demo_tagline": "Попередній перегляд плашки стримера"
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const TITLE_OV="__TITLE_OVERRIDE__";
+const THEME_OV="__THEME_OVERRIDE__";
+const THEMES=new Set(['dark','light','neon','fire','glass','mono','minimal','corporate']);
+const lt=document.getElementById('lt');
+function apply(d){
+    const requested=THEME_OV||d.theme;
+    const theme=THEMES.has(requested)?requested:'minimal';
+    document.body.className='theme-'+theme;
+    document.getElementById('name').textContent=TITLE_OV||d.name||'';
+    document.getElementById('tagline').textContent=d.tagline||'';
+    document.getElementById('social').textContent=d.social||'';
+    const av=document.getElementById('avatar');
+    if(d.avatar_url){
+      av.style.backgroundImage='url('+JSON.stringify(d.avatar_url).slice(1,-1)+')';
+      av.classList.remove('empty');
+    }else{av.style.backgroundImage='';av.classList.add('empty')}
+    const hasContent=(TITLE_OV||d.name)||d.tagline||d.social;
+    if(d.visible&&hasContent)lt.classList.add('show');else lt.classList.remove('show');
+}
+async function poll(){
+  try{
+    const r=await fetch(widgetScopedUrl(_WIDGET_API_BASE + '/api/widgets/public/lower-third?t='+Date.now()));
+    if(!r.ok){lt.classList.remove('show');return}
+    apply(await r.json());
+  }catch(e){
+    // Панель недоступна — прячем плашку, а не оставляем в кадре устаревшее имя.
+    lt.classList.remove('show');
+  }
+}
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  document.body.style.background='#0f0f1a';
+  apply({visible:true,name:wt('lower-third.demo_name'),tagline:wt('lower-third.demo_tagline'),
+         social:'@demo_streamer',theme:'neon'});
+}else{
+  poll();setInterval(poll,4000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

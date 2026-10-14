@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="schedule.title"></title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:transparent;
+  color:#fff;padding:14px;overflow:hidden}
+.wrap{max-width:520px;margin:0 auto;
+  background:rgba(20,20,30,var(--widget-opacity,0.85));backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;padding:18px 22px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  transition:opacity 0.3s}
+.wrap.light{background:rgba(250,250,250,var(--widget-opacity,0.95));color:#222;
+  border-color:rgba(0,0,0,0.08)}
+.wrap.arcade{background:linear-gradient(135deg,rgba(255,0,110,var(--widget-opacity,1)) 0%,rgba(131,56,236,var(--widget-opacity,1)) 50%,rgba(58,134,255,var(--widget-opacity,1)) 100%);
+  border:3px solid #fff;font-family:'Press Start 2P','Courier New',monospace}
+.wrap.cyber{background:rgba(10,10,20,var(--widget-opacity,0.92));
+  border:1px solid #0ff;box-shadow:0 0 24px #0ff,inset 0 0 24px rgba(0,255,255,0.05);
+  color:#0ff}
+.title{font-size:13px;text-transform:uppercase;letter-spacing:2px;
+  color:#a78bfa;font-weight:700;margin-bottom:14px;text-align:center}
+.wrap.light .title{color:#7c3aed}
+.wrap.arcade .title{color:#fff;text-shadow:2px 2px 0 #000}
+.wrap.cyber .title{color:#0ff;text-shadow:0 0 8px #0ff}
+.now{display:flex;align-items:center;gap:14px;
+  background:linear-gradient(90deg,rgba(167,139,250,0.18),rgba(34,197,94,0.18));
+  border:1px solid rgba(167,139,250,0.3);
+  border-radius:10px;padding:14px;margin-bottom:10px;
+  position:relative;overflow:hidden}
+.wrap.cyber .now{background:rgba(0,255,255,0.08);border-color:#0ff}
+.wrap.arcade .now{background:rgba(0,0,0,0.4);border-color:#fff}
+.now::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:#22c55e;animation:pulseBorder 1.5s ease-in-out infinite}
+[data-widget-theme] .now::before{background:var(--widget-theme-accent)}
+@keyframes pulseBorder{0%,100%{opacity:1}50%{opacity:0.4}}
+.wrap.cyber .now::before{background:#0ff}
+.now .badge{font-size:10px;font-weight:700;color:#22c55e;
+  text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px}
+.wrap.cyber .now .badge{color:#0ff}
+.wrap.arcade .now .badge{color:#fff}
+.now .label{font-size:18px;font-weight:600;line-height:1.25}
+.now .emoji{font-size:34px;flex-shrink:0}
+.now .time{font-size:13px;color:#aaa;margin-top:2px}
+.wrap.light .now .time{color:#666}
+.next{display:flex;align-items:center;gap:12px;padding:8px 12px;
+  border-left:2px solid rgba(167,139,250,0.4);
+  margin-left:6px;font-size:13px;color:#bbb;opacity:0.85}
+.wrap.cyber .next{border-color:#0ff;color:#aff}
+.wrap.light .next{color:#444;border-color:#7c3aed}
+.next .emoji{font-size:18px}
+.next .time{font-weight:700;color:#a78bfa;margin-right:6px}
+.wrap.cyber .next .time{color:#0ff}
+.empty{text-align:center;padding:24px;color:#666;font-style:italic}
+.wrap.hidden{opacity:0;pointer-events:none}
+</style></head><body>
+<div class="wrap widget-theme-surface __THEME__" id="wrap">
+  <div class="title widget-theme-accent" id="title">__TITLE__</div>
+  <div id="content" aria-live="polite"></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "schedule.title": "Расписание",
+    "schedule.empty": "Расписание пустое",
+    "schedule.now": "● Сейчас",
+    "schedule.since": "с {time}",
+    "schedule.no_blocks": "Нет блоков",
+    "schedule.demo_game": "Кооп-игра со зрителями",
+    "schedule.demo_clips": "Разбор клипов"
+  },
+  "en": {
+    "schedule.title": "Schedule",
+    "schedule.empty": "The schedule is empty",
+    "schedule.now": "● Now",
+    "schedule.since": "since {time}",
+    "schedule.no_blocks": "No segments",
+    "schedule.demo_game": "Co-op game with viewers",
+    "schedule.demo_clips": "Clip review"
+  },
+  "ua": {
+    "schedule.title": "Розклад",
+    "schedule.empty": "Розклад порожній",
+    "schedule.now": "● Зараз",
+    "schedule.since": "з {time}",
+    "schedule.no_blocks": "Немає блоків",
+    "schedule.demo_game": "Кооперативна гра з глядачами",
+    "schedule.demo_clips": "Перегляд кліпів"
+  }
+});
+WidgetI18n.apply();
+const defaultTitle=document.getElementById('title');
+if(!defaultTitle.textContent)defaultTitle.textContent=WidgetI18n.t('schedule.title');
+document.getElementById('content').textContent=WidgetI18n.t('common.loading');
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const wrap=document.getElementById('wrap'),content=document.getElementById('content');
+const TZ_PARAM="__TZ__";
+
+function nowMinutes(){
+  const d=new Date();
+  if(TZ_PARAM&&TZ_PARAM!=='local'&&/^[+-]?\d+$/.test(TZ_PARAM)){
+    const offset=parseInt(TZ_PARAM,10);
+    const utc=d.getUTCHours()*60+d.getUTCMinutes();
+    return ((utc+offset*60)%(24*60)+24*60)%(24*60);
+  }
+  return d.getHours()*60+d.getMinutes();
+}
+function parseTime(s){
+  const m=s.match(/^(\d{1,2}):(\d{2})/);
+  if(!m)return null;
+  return parseInt(m[1],10)*60+parseInt(m[2],10);
+}
+function findCurrent(items,now){
+  // current = последний блок, старт которого ≤ now; next = первый блок старт > now.
+  if(!items.length)return {current:null,next:null};
+  const sorted=items.map(b=>({...b,_min:parseTime(b.start_time)}))
+    .filter(b=>b._min!==null).sort((a,b)=>a._min-b._min);
+  let current=null,next=null;
+  for(const b of sorted){
+    if(b._min<=now)current=b;
+    else if(!next)next=b;
+  }
+  // Если ничего не идёт, current = последний блок (т.е. «вчерашний» хвост).
+  if(!current&&sorted.length)current=sorted[sorted.length-1];
+  return {current,next};
+}
+async function poll(){
+  try{
+    const res=await fetch(_WIDGET_API_BASE + '/api/widgets/public/schedule');
+    if(!res.ok){
+      content.innerHTML='<div class="empty widget-theme-muted">'+escapeHtml(WidgetI18n.t('common.unavailable_http',{status:res.status}))+'</div>';
+      return;
+    }
+    const items=await res.json();
+    render(items);
+  }catch(e){
+    content.innerHTML='<div class="empty widget-theme-muted">'+escapeHtml(WidgetI18n.t('common.disconnected'))+'</div>';
+  }
+}
+function render(items){
+    if(!Array.isArray(items)||!items.length){
+      content.innerHTML='<div class="empty widget-theme-muted">'+escapeHtml(WidgetI18n.t('schedule.empty'))+'</div>';
+      return;
+    }
+    const now=nowMinutes();
+    const {current,next}=findCurrent(items,now);
+    let html='';
+    if(current){
+      html+='<div class="now"><div class="emoji">'+escapeHtml(current.emoji||'🎮')+'</div>'
+          +'<div><div class="badge widget-theme-accent">'+escapeHtml(WidgetI18n.t('schedule.now'))+'</div>'
+          +'<div class="label widget-theme-text">'+escapeHtml(current.title)+'</div>'
+          +'<div class="time widget-theme-muted">'+escapeHtml(WidgetI18n.t('schedule.since',{time:current.start_time}))+'</div></div></div>';
+    }
+    if(next){
+      html+='<div class="next widget-theme-muted"><span class="time widget-theme-accent">'+escapeHtml(next.start_time)+'</span>'
+          +'<span class="emoji">'+escapeHtml(next.emoji||'➡️')+'</span>'
+          +'<span>'+escapeHtml(next.title)+'</span></div>';
+    }
+    content.innerHTML=html||'<div class="empty widget-theme-muted">'+escapeHtml(WidgetI18n.t('schedule.no_blocks'))+'</div>';
+}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>(
+  {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  // Демо-блоки строятся вокруг текущего времени, чтобы карточка всегда
+  // показывала обе секции — «сейчас» и «дальше».
+  document.body.style.background='#0f0f1a';
+  const pad=n=>String(n).padStart(2,'0');
+  const fmt=m=>{const x=((m%1440)+1440)%1440;return pad(Math.floor(x/60))+':'+pad(x%60);};
+  const now=nowMinutes();
+  render([
+    {start_time:fmt(now-30),title:WidgetI18n.t('schedule.demo_game'),emoji:'🎮'},
+    {start_time:fmt(now+90),title:WidgetI18n.t('schedule.demo_clips'),emoji:'🎬'},
+  ]);
+}else{
+  poll();setInterval(poll,15000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

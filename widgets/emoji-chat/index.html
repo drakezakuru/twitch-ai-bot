@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="emoji-chat.title"></title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:transparent;
+  overflow:hidden;padding:10px}
+.list{display:flex;flex-direction:column;gap:6px}
+.msg{background:rgba(20,20,30,var(--widget-opacity,0.85));backdrop-filter:blur(8px);
+  border-radius:10px;padding:8px 12px;font-size:18px;line-height:1.4;
+  color:#eee;border:1px solid rgba(255,255,255,0.08);
+  animation:slideIn 0.3s ease;word-wrap:break-word}
+.msg .nick{font-weight:700;margin-right:8px}
+.msg .emote{font-size:22px}
+.list.light .msg{background:rgba(250,250,250,var(--widget-opacity,0.95));color:#222;
+  border-color:rgba(0,0,0,0.08)}
+/* themes */
+.list.neon .msg{background:rgba(8,16,14,var(--widget-opacity,0.85));
+  border-color:rgba(0,255,180,0.25)}
+.list.fire .msg{background:rgba(28,14,4,var(--widget-opacity,0.85));
+  border-color:rgba(255,120,0,0.3)}
+.list.glass .msg{background:rgba(255,255,255,var(--widget-opacity,0.08));
+  border-color:rgba(255,255,255,0.18)}
+@keyframes slideIn{from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}}
+.msg.out{opacity:0;transition:opacity 0.4s}
+.state{align-self:flex-start;padding:7px 10px;border-radius:8px;background:rgba(20,20,30,.85);color:#a5b4c7;font-size:12px}
+.state[hidden]{display:none}
+</style></head><body>
+<div class="list __THEME__" id="list"><div class="state" id="state" aria-live="polite"></div></div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "emoji-chat.title": "Чат с эмодзи",
+    "emoji-chat.empty": "Нет сообщений с эмодзи",
+    "emoji-chat.demo_hi": "Привет 👋🔥",
+    "emoji-chat.demo_laugh": "😂😂😂 это было сильно",
+    "emoji-chat.demo_gg": "Отличная игра 🎉"
+  },
+  "en": {
+    "emoji-chat.title": "Emoji chat",
+    "emoji-chat.empty": "No messages with emoji",
+    "emoji-chat.demo_hi": "Hello 👋🔥",
+    "emoji-chat.demo_laugh": "😂😂😂 that was awesome",
+    "emoji-chat.demo_gg": "Good game 🎉"
+  },
+  "ua": {
+    "emoji-chat.title": "Чат з емодзі",
+    "emoji-chat.empty": "Немає повідомлень з емодзі",
+    "emoji-chat.demo_hi": "Привіт 👋🔥",
+    "emoji-chat.demo_laugh": "😂😂😂 це було круто",
+    "emoji-chat.demo_gg": "Гарна гра 🎉"
+  }
+});
+WidgetI18n.apply();
+document.getElementById('state').textContent=WidgetI18n.t('emoji-chat.empty');
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const qs = new URLSearchParams(location.search);
+const API = qs.get('api') || '';
+const CHANNEL = (qs.get('channel') || '').toLowerCase().replace(/^#/, '');
+const MAX = Math.max(1, parseInt(qs.get('max') || '10', 10) || 10);
+const SHOW_BOTS = qs.get('bots') !== '0';
+const list = document.getElementById('list');
+const state = document.getElementById('state');
+
+// §9.2: цветные ники — детерминированный hash->hue (как в /obs-widget getColor).
+function nickColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `hsl(${h},70%,65%)`;
+}
+function esc(s) {
+  return (s || '').replace(/[&<>"']/g, c =>
+    ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+}
+// Twitch/BTTV/7TV emote-картинки (решение владельца 28.08.2026):
+// карта code->URL грузится с нашего публичного API (только whitelisted URL).
+let EMOTES = {};
+// Wave 7 (Q34/Q35): общее ядро распознавания эмодзи с emoji-leaderboard —
+// паттерн приходит из app/emoji_core.py, чтобы лента и рейтинг считали эмодзи
+// одинаково. Значение ниже — фолбэк, если API недоступен.
+let EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u2600-\u27BF\u2B00-\u2BFF\uFE0F]/gu;
+async function loadEmojiCore(){
+  try{
+    const r = await fetch((API || '') + '/api/widgets/public/emoji-core');
+    const d = await r.json();
+    if (d && d.pattern) EMOJI_RE = new RegExp(d.pattern, d.flags || 'gu');
+  }catch(e){}
+}
+async function loadEmotes(){
+  try{
+    const r = await fetch((API || '') + '/api/widgets/public/emotes?channel=' + encodeURIComponent(CHANNEL));
+    const d = await r.json();
+    EMOTES = d.emotes || {};
+  }catch(e){}
+}
+// Раскладываем текст: emote-коды → <img>, unicode-эмодзи → крупный span,
+// остальное — экранированный текст. Что считать эмодзи, решает общее ядро.
+function renderMessage(message){
+  const codes = Object.keys(EMOTES).sort((a, b) => b.length - a.length);
+  const parts = codes.map(c => c.replace(/[.*+?^${}()|[\]\\]/g, m => '\\' + m));
+  parts.push(EMOJI_RE.source);
+  const isEmoji = new RegExp('^(?:' + EMOJI_RE.source + ')+' + '$', 'u');
+  try{
+    return message.split(new RegExp('(' + parts.join('|') + ')', 'gu'))
+      .map(part => {
+        if (!part) return '';
+        if (EMOTES[part]) {
+          return '<img class="emote" alt="' + esc(part) + '" title="' + esc(part) + '" src="' + EMOTES[part] + '">';
+        }
+        return isEmoji.test(part) ? '<span class="emote">' + esc(part) + '</span>' : esc(part);
+      })
+      .join('');
+  }catch(e){ return esc(message); }
+}
+
+function hasEmojiContent(message) {
+  EMOJI_RE.lastIndex = 0;
+  return EMOJI_RE.test(String(message || '')) || Object.keys(EMOTES).some(code => String(message || '').includes(code));
+}
+function addMsg(author, message, isBot) {
+  if (!SHOW_BOTS && isBot) return;
+  if (!hasEmojiContent(message)) return;
+  state.hidden = true;
+  const div = document.createElement('div');
+  div.className = 'msg widget-theme-surface';
+  div.innerHTML = `<span class="nick widget-theme-accent" style="color:${nickColor(author)}">${esc(author)}:</span>` +
+                  `<span class="text widget-theme-text">${renderMessage(message)}</span>`;
+  list.appendChild(div);
+  while (list.children.length > MAX) {
+    const first = list.firstElementChild;
+    first.classList.add('out');
+    setTimeout(() => first.remove(), 400);
+    if (list.children.length > MAX + 2) first.remove();
+  }
+}
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = API ? API.replace(/^\w+:\/\//, '').replace(/\/$/, '') : location.host;
+  const ws = new WebSocket(proto + '//' + host + '/ws?channel=' + encodeURIComponent(CHANNEL));
+  ws.onopen = () => { if (list.children.length === 1) { state.hidden = false; state.textContent = WidgetI18n.t('emoji-chat.empty'); } };
+  ws.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.type !== 'chat') return;
+      addMsg(d.author || '', d.message || '', Boolean(d.is_bot || d.is_self_bot));
+    } catch (e) {}
+  };
+  ws.onclose = () => { state.hidden = false; state.textContent = WidgetI18n.t('common.disconnected'); setTimeout(connect, 3000); };
+  ws.onerror = () => ws.close();
+}
+if (qs.get('preview') === '1') {
+  // Карточка не подключается к живому чату: показываем демо-ленту.
+  document.body.style.background = '#0f0f1a';
+  addMsg('DemoViewer', WidgetI18n.t('emoji-chat.demo_hi'), false);
+  addMsg('Chatter42', WidgetI18n.t('emoji-chat.demo_laugh'), false);
+  addMsg('NightOwl', WidgetI18n.t('emoji-chat.demo_gg'), false);
+} else {
+  Promise.all([loadEmojiCore(), loadEmotes()]).finally(connect);
+  setInterval(loadEmotes, 3600000);
+}
+</script>
+</body></html>

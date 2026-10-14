@@ -1,0 +1,88 @@
+<!-- ========== CHAT LOGGER (PLAN.md «Чат-логгер») ========== -->
+<section id="section-chatlogger" class="section">
+    <div class="section-header">
+        <h1 class="section-title">📡 <span data-i18n="nav.chatlogger">Чат-логгер</span></h1>
+        <span id="chatLogRunBadge" class="badge off" data-i18n="chatlog.stopped" aria-live="polite">⏸ логгер остановлен</span>
+        <button class="btn btn-secondary btn-sm" onclick="loadChatLoggerSection()"><span data-i18n="btn.refresh">Обновить</span></button>
+    </div>
+
+    <!-- Статус: что происходит прямо сейчас -->
+    <div class="card mb-4">
+        <div class="card-header"><span class="card-title" data-i18n="chatlog.now">🩺 Что происходит</span></div>
+        <div id="chatLogNow" class="text-sm" aria-live="polite"><div class="text-muted text-xs" data-i18n="label.loading">Загрузка...</div></div>
+        <div class="flex gap-2 mt-3">
+            <button class="btn btn-primary btn-sm" onclick="chatLoggerToggle()" id="chatLogRunBtn">▶ <span data-i18n="chatlog.start">Запустить</span></button>
+        </div>
+        <div id="chatLogNowHint" class="text-xs text-muted mt-2" aria-live="polite"></div>
+    </div>
+
+    <!-- Аккаунт -->
+    <div class="card mb-4">
+        <div class="card-header"><span class="card-title" data-i18n="chatlog.account">👤 Аккаунт логгера</span></div>
+        <p class="text-sm text-muted mb-3" data-i18n="chatlog.hint">Отдельная программа-зритель (НЕ бот): сидит в чужих чатах, пишет историю сообщений в базу. Нужна для «Собрать стиль чатера» и поиска по истории. Один аккаунт — десятки каналов; стримерам не видно. Токен нужен с правой <code>chat:read</code>.</p>
+        <div class="flex gap-2 flex-wrap items-end mb-2">
+            <div class="form-group" style="min-width:260px">
+                <label class="text-xs" data-i18n="chatlog.token" for="chatLogToken">OAuth-токен (chat:read)</label>
+                <input type="password" id="chatLogToken" class="input" style="min-width:260px" placeholder="oauth:...">
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="chatlog.nick" for="chatLogNick">Ник аккаунта (опц.)</label>
+                <input type="text" id="chatLogNick" class="input" style="max-width:180px" placeholder="viewer_bot">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="saveChatLoggerToken()" data-i18n="chatlog.save_token">🔑 Сохранить токен</button>
+        </div>
+        <div id="chatLogTokenStatus" class="text-sm text-muted" aria-live="polite"></div>
+    </div>
+
+    <!-- Каналы -->
+    <div class="card mb-4">
+        <div class="card-header"><span class="card-title" data-i18n="channels.title">📺 Каналы</span>
+            <span id="chatLogChanCounter" class="badge"></span>
+        </div>
+        <p class="text-sm text-muted mb-2" data-i18n="chatlog.channels_hint">Добавь каналы стримеров, чаты которых логировать. Логгер подключается к новому каналу сам (до 10 секунд), перезапуск не нужен. 🟢 = логгер в чате, ⚫ = ещё не подключился.</p>
+        <div class="flex gap-2 flex-wrap items-end mb-3">
+            <div class="form-group">
+                <label class="text-xs" data-i18n="chatlog.channel" for="chatLogNewChannel">Канал для слежки</label>
+                <input type="text" id="chatLogNewChannel" class="input" style="max-width:200px" placeholder="channel_name">
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="addChatLoggerChannel()" data-i18n="btn.add">+ Добавить</button>
+        </div>
+        <div id="chatLoggerChannels" class="space-y-1" aria-live="polite"></div>
+    </div>
+
+    <!-- Просмотр чата стрима (лог + Live) -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title"><span data-i18n="chatlog.live_title">💬 Чат канала</span></span>
+        </div>
+        <div class="flex gap-2 items-center mb-2">
+            <select id="chatLogViewerSelect" class="input" style="max-width:240px" onchange="clOpenLog(this.value)" data-i18n-aria-label="chatlog.live_title" aria-label="Чат канала">
+                <option value="" data-i18n="panel.select_channel">— выбери канал —</option>
+            </select>
+            <button class="btn btn-primary btn-sm hidden" id="chatLogLiveBtn" onclick="clToggleLive()">▶ <span data-i18n="chatlog.live_on">Live</span></button>
+        </div>
+        <div id="chatLogViewer" class="font-mono text-sm" style="max-height:420px;overflow-y:auto;background:var(--bg-active);border-radius:8px;padding:10px">
+            <div class="text-muted text-xs" data-i18n="chatlog.pick_channel">выбери канал выше</div>
+        </div>
+    </div>
+
+    <!-- История -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title" data-i18n="chatlog.history">🔎 История</span>
+            <button class="btn btn-secondary btn-sm" onclick="exportChatLoggerCsv()" data-i18n="chatlog.export">📥 Экспорт CSV</button>
+        </div>
+        <div class="flex gap-2 flex-wrap items-end mb-2">
+            <div class="form-group">
+                <label class="text-xs" data-i18n="placeholder.chatter_nick" for="chatLogSearchUser">Ник чатера</label>
+                <input type="text" id="chatLogSearchUser" class="input" style="max-width:180px" placeholder="nick">
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="chatlog.search_q" for="chatLogSearchQ">Текст (опц.)</label>
+                <input type="text" id="chatLogSearchQ" class="input" style="max-width:200px" placeholder="...">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="searchChatLogger()" data-i18n="btn.search">Найти</button>
+        </div>
+        <div id="chatLoggerResults" class="text-sm" aria-live="polite"><div class="text-muted text-xs" data-i18n="chatlog.empty">Истории пока нет — запусти логгер, он начнёт писать чат.</div></div>
+    </div>
+</section>

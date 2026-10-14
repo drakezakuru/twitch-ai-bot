@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+.git
+.github
+.hoplite
+.pytest_cache
+.venv
+__pycache__
+*.py[cod]
+*.db
+*.db-*
+*.log
+artifacts
+data
+logs

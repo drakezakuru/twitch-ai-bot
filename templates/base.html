@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark" data-panel-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <script id="panelThemeBoot">
+        document.documentElement.setAttribute('data-theme', 'dark');
+        try { localStorage.setItem('theme', 'dark'); } catch (_) { /* Storage may be unavailable. */ }
+    </script>
+    <title data-i18n="app.title">Панель Twitch AI Bot</title>
+    <link rel="icon" href="/static/favicon.ico" sizes="16x16">
+    <link rel="stylesheet" href="/static/app.css?v={{ asset_v | default('1.2.0') }}">
+</head>
+<body>
+    <!-- Toast notifications -->
+    <div id="toastContainer" role="status" aria-live="polite" aria-atomic="false" aria-relevant="additions text"></div>
+    <!-- Q16 F2: модалка Media Share disclosure убрана (подсказка в форме виджета) -->
+    <div id="onboardingOverlay" class="modal-backdrop hidden">
+        <div class="modal onboarding-card" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle" aria-describedby="onboardingIntro" tabindex="-1">
+            <div class="onboarding-head"><div><p class="eyebrow" data-i18n="onboarding.eyebrow">FIRST RUN</p><h3 id="onboardingTitle" data-i18n="onboarding.title">🚀 Первый запуск</h3></div><button class="btn btn-sm btn-secondary" onclick="dismissOnboarding()" aria-label="Закрыть" data-i18n-aria-label="onboarding.close">✕</button></div>
+            <p id="onboardingIntro" class="text-sm text-muted mb-3" data-i18n="onboarding.intro">Настроим AI-бота за несколько минут.</p>
+            <div id="onboardingProgress" class="onboarding-progress" aria-label="Прогресс настройки" data-i18n-aria-label="onboarding.progress"></div>
+            <div id="onboardingStep" class="onboarding-step"></div>
+            <p id="onboardingError" class="text-error text-sm hidden" role="alert" aria-live="assertive"></p>
+            <div class="modal-actions onboarding-actions">
+                <button id="onboardingBack" class="btn btn-secondary" onclick="onboardingBackStep()" data-i18n="onboarding.back">Назад</button>
+                <button id="onboardingSkip" class="btn btn-secondary" onclick="onboardingSkipStep()" data-i18n="onboarding.skip">Пропустить</button>
+                <button id="onboardingNext" class="btn btn-primary" onclick="onboardingNextStep()">Далее</button>
+            </div>
+            <div class="onboarding-legacy"><button class="btn btn-link" onclick="dismissOnboarding();showSection('bots');showAddBotModal()" data-i18n="onboarding.legacy">Открыть старую форму добавления бота</button></div>
+        </div>
+    </div>
+    <div id="observationModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('observationModal')">
+        <div class="modal observation-modal" role="dialog" aria-modal="true" aria-labelledby="observationTitle" aria-describedby="observationContent" tabindex="-1">
+            <div class="card-header"><span id="observationTitle" class="card-title" data-i18n="observation.title">👁️ Что видит бот</span><button class="btn btn-sm btn-secondary" onclick="hideModal('observationModal')" aria-label="Закрыть" data-i18n-aria-label="btn.close">✕</button></div>
+            <div id="observationContent" class="observation-content" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <!-- Viewer Dossier Modal (Мини-досье зрителя в 1 клик) -->
+    <div id="viewerDossierModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('viewerDossierModal')">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="viewerDossierTitle" style="max-width:680px; width:min(96vw, 680px); max-height:90vh; overflow-y:auto">
+            <div class="flex items-center justify-between border-b pb-2 mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">📇</span>
+                    <div>
+                        <h3 id="viewerDossierTitle" class="font-bold text-lg leading-tight m-0">Досье: <span id="dossierUsername" class="text-accent"></span></h3>
+                        <div class="text-xs text-muted flex gap-2 items-center mt-1">
+                            <span id="dossierChannelBadge" class="badge badge-sm badge-outline">#канал</span>
+                            <span id="dossierStatusBadge" class="badge badge-sm"></span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="hideModal('viewerDossierModal')" aria-label="Закрыть">✕</button>
+            </div>
+
+            <div id="dossierBody" class="space-y-4">
+                <!-- Статистика сообщений -->
+                <div class="card p-3 bg-base-200">
+                    <div class="font-semibold text-sm mb-2 flex items-center justify-between">
+                        <span>💬 Активность в чате</span>
+                        <span id="dossierMsgCount" class="badge badge-sm badge-info">0 сообщ.</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs text-muted mb-2">
+                        <div>Первое появление: <b id="dossierFirstSeen" class="text-base-content">-</b></div>
+                        <div>Последний раз: <b id="dossierLastSeen" class="text-base-content">-</b></div>
+                    </div>
+                    <div class="text-xs font-semibold text-muted mb-1">Последние сообщения:</div>
+                    <div id="dossierRecentMessages" class="space-y-1 logs-scroll text-xs" style="max-height:100px;overflow-y:auto"></div>
+                </div>
+
+                <!-- Память ботов -->
+                <div class="card p-3 bg-base-200">
+                    <div class="font-semibold text-sm mb-1 flex items-center justify-between">
+                        <span>🧠 Память ботов (User Memory)</span>
+                        <span id="dossierFactsCount" class="badge badge-sm">0 фактов</span>
+                    </div>
+                    <p class="text-xs text-muted mb-2">Что боты сохранили в долговременную память об этом зрителе.</p>
+                    <div id="dossierFactsList" class="space-y-1 text-xs logs-scroll" style="max-height:120px;overflow-y:auto"></div>
+                </div>
+
+                <!-- История модерации -->
+                <div class="card p-3 bg-base-200">
+                    <div class="font-semibold text-sm mb-1 flex items-center justify-between">
+                        <span>🛡 Журнал модерации</span>
+                        <span id="dossierModCount" class="badge badge-sm">0 записей</span>
+                    </div>
+                    <div id="dossierModList" class="space-y-1 text-xs logs-scroll" style="max-height:120px;overflow-y:auto"></div>
+                </div>
+
+                <!-- Быстрые действия модератора -->
+                <div class="card p-3 border border-warning/30 bg-warning/5">
+                    <div class="font-semibold text-sm mb-2">⚡ Быстрые действия модератора</div>
+                    <div class="flex flex-wrap gap-2 items-center mb-2">
+                        <button type="button" id="dossierProtectBtn" class="btn btn-sm btn-secondary" onclick="dossierToggleProtect()">
+                            🛡 Защитить зрителя (Whitelist)
+                        </button>
+                        <button type="button" id="dossierUnbanBtn" class="btn btn-sm btn-success" onclick="dossierUnban()">
+                            🟢 Разбанить
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <select id="dossierTimeoutDuration" class="input input-sm select-120">
+                            <option value="60">⏱ 1 мин</option>
+                            <option value="600" selected>⏱ 10 мин</option>
+                            <option value="3600">⏱ 1 час</option>
+                            <option value="86400">⏱ 24 часа</option>
+                            <option value="0">🚫 Бан навсегда</option>
+                        </select>
+                        <input type="text" id="dossierTimeoutReason" class="input input-sm flex-1" placeholder="Причина наказания..." value="Нарушение правил">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="dossierApplyPunish()">Применить</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions mt-4 flex justify-end">
+                <button type="button" class="btn btn-secondary" onclick="hideModal('viewerDossierModal')">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-logo">🤖</span>
+            <span class="sidebar-title"><strong>AI Bot</strong><small>CONTROL ROOM</small></span>
+            <button class="sidebar-collapse" onclick="toggleSidebar()" title="Свернуть" data-i18n-title="nav.collapse" aria-label="Свернуть" data-i18n-aria-label="nav.collapse" aria-controls="sidebar">‹</button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <button class="nav-btn active" data-section="dashboard" onclick="showSection('dashboard')" aria-label="Обзор" data-i18n-aria-label="nav.dashboard">
+                <span class="nav-icon">📊</span><span class="nav-label" data-i18n="nav.dashboard">Обзор</span>
+            </button>
+            <button class="nav-btn" data-section="bots" onclick="showSection('bots')" aria-label="Боты" data-i18n-aria-label="nav.bots">
+                <span class="nav-icon">🤖</span><span class="nav-label" data-i18n="nav.bots">Боты</span>
+            </button>
+            <button class="nav-btn" data-section="channels" onclick="showSection('channels')" aria-label="Каналы" data-i18n-aria-label="nav.channels">
+                <span class="nav-icon">#</span><span class="nav-label" data-i18n="nav.channels">Каналы</span>
+            </button>
+            <button class="nav-btn" data-section="director" onclick="showSection('director')" aria-label="Режиссёр" data-i18n-aria-label="nav.director">
+                <span class="nav-icon">🎬</span><span class="nav-label" data-i18n="nav.director">Режиссёр</span>
+            </button>
+            <button class="nav-btn" data-section="chat" onclick="showSection('chat')" aria-label="Чат" data-i18n-aria-label="nav.chat">
+                <span class="nav-icon">💬</span><span class="nav-label" data-i18n="nav.chat">Чат</span>
+            </button>
+            <button class="nav-btn" data-section="analytics" onclick="showSection('analytics')" aria-label="Статистика" data-i18n-aria-label="nav.analytics">
+                <span class="nav-icon">📈</span><span class="nav-label" data-i18n="nav.analytics">Статистика</span>
+            </button>
+            <button class="nav-btn" data-section="settings" onclick="showSection('settings')" aria-label="Настройки" data-i18n-aria-label="nav.settings">
+                <span class="nav-icon">⚙️</span><span class="nav-label" data-i18n="nav.settings">Настройки</span>
+            </button>
+            <button class="nav-btn" data-section="widgets" onclick="showSection('widgets')" aria-label="Виджеты" data-i18n-aria-label="nav.widgets">
+                <span class="nav-icon">📺</span><span class="nav-label" data-i18n="nav.widgets">Виджеты</span>
+            </button>
+            <button class="nav-btn" data-section="chatlogger" onclick="showSection('chatlogger')" aria-label="Чат-логгер" data-i18n-aria-label="nav.chatlogger">
+                <span class="nav-icon">📡</span><span class="nav-label" data-i18n="nav.chatlogger">Чат-логгер</span>
+            </button>
+            <button class="nav-btn" data-section="calendar" onclick="showSection('calendar')" aria-label="Календарь" data-i18n-aria-label="nav.calendar">
+                <span class="nav-icon">📅</span><span class="nav-label" data-i18n="nav.calendar">Календарь</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span class="theme-indicator" role="img" title="Тема" data-i18n-title="nav.theme" aria-label="Тема" data-i18n-aria-label="nav.theme">☾</span>
+                <span class="version-badge" id="appVersionBadge">v13</span>
+        </div>
+    </aside>
+
+    <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+    <!-- Main content -->
+    <div class="app-main">
+        <header class="app-topbar">
+            <button class="menu-burger" onclick="toggleSidebar()" title="Меню" data-i18n-title="nav.menu" aria-label="Меню" data-i18n-aria-label="nav.menu" aria-controls="sidebar">☰</button>
+            <div class="search-bar">
+                <input type="text" id="globalSearch" data-i18n-aria-label="search.placeholder" aria-label="Поиск... (Ctrl+K)" data-i18n-placeholder="search.placeholder" placeholder="Поиск... (Ctrl+K)" onkeyup="handleGlobalSearch(event)">
+            </div>
+            <div class="topbar-actions">
+                <div class="flex gap-1 items-center mr-2">
+                    <button class="lang-btn" data-lang="ru" onclick="setLang('ru')">RU</button>
+                    <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+                    <button class="lang-btn" data-lang="ua" onclick="setLang('ua')">UA</button>
+                </div>
+                <span class="uptime" id="uptimeDisplay"></span>
+            </div>
+        </header>
+
+        <main class="app-content" tabindex="-1">
+            {% include 'partials/dashboard.html' %}
+            {% include 'partials/bots.html' %}
+            {% include 'partials/channels.html' %}
+            {% include 'partials/director.html' %}
+                    {% include 'partials/chat.html' %}
+            {% include 'partials/analytics.html' %}
+            <!-- Q19: паршал brain.html убран из рендера — разделы переехали (Q09/Q17/Q18) -->
+            {% include 'partials/settings.html' %}
+            {% include 'partials/widgets.html' %}
+            {% include 'partials/chatlogger.html' %}
+            {% include 'partials/calendar.html' %}
+        </main>
+    </div>
+
+    <!-- Порядок classic scripts сохраняет общую global scope и проверяется tests/test_p5_app_split.py. -->
+    <script src="/static/app.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/02_dashboard.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/03_bots.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/04_chat_settings.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/05_bots_tabs.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/06_roles.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/07_widgets.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/08_providers_moderation.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/09_brain_p3.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/10_stream_p4_p6.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/11_brain_v16.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/12_dashboard_extras.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/13_widgets_session.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/14_brain_memory.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/15_feedback_2908.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/16_tail.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/18_dm_chat.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/19_channels_bulk.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/20_director.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/21_panel_labels.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/22_panel_accessibility.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/23_catalog_i18n.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/24_dynamic_i18n.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/25_director_storage.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/26_modsite_admin.js?v={{ asset_v | default('1.2.0') }}"></script>
+    <script src="/static/app/27_weekly_calendar.js?v={{ asset_v | default('1.2.0') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

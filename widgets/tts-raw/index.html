@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="tts-raw.title">Озвучка OBS</title>
+<style>
+:root{color-scheme:dark;--accent:__DESIGN_ACCENT__;--main-bg:__DESIGN_BG_RGBA__;
+  --status-bg:__DESIGN_STATUS_BG_RGBA__;--radius:__DESIGN_RADIUS__px;
+  --font:__DESIGN_FONT__;--size:__DESIGN_SIZE__px;--shadow:__DESIGN_SHADOW__}
+body { background: transparent; color: #fff; font-family: var(--font); margin: 0; padding: 8px; font-size: var(--size); }
+#status { position: fixed; top: 8px; left: 8px; background: var(--status-bg); padding: 6px 10px; border-radius: var(--radius); font-size: 11px; box-shadow: var(--shadow); }
+#status.ok { color: var(--accent); }
+#status.err { color: #ff5252; }
+#current { position: fixed; bottom: 8px; left: 8px; right: 8px; background: var(--main-bg); padding: 8px 12px; border-radius: var(--radius); min-height: 18px; box-shadow: var(--shadow); }
+.muted { color: #aaa; font-size: 11px; }
+</style></head><body>
+<div id="status" role="status" aria-live="polite"></div>
+<div id="current"><span class="muted" data-widget-i18n="tts-raw.idle">Ничего не озвучивается</span></div>
+<script src="/widget/_shared/tts-core.js"></script>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "tts-raw.title": "Озвучка OBS",
+    "tts-raw.initializing": "⏳ Инициализация…",
+    "tts-raw.idle": "Ничего не озвучивается",
+    "tts-raw.connected": "🎙 TTS подключён",
+    "tts-raw.reconnecting": "🔌 Переподключение…",
+    "tts-raw.anonymous": "Аноним",
+    "tts-raw.demo": "DemoViewer: пример озвучиваемого сообщения"
+  },
+  "en": {
+    "tts-raw.title": "OBS text-to-speech",
+    "tts-raw.initializing": "⏳ Initializing…",
+    "tts-raw.idle": "Nothing is being spoken",
+    "tts-raw.connected": "🎙 TTS connected",
+    "tts-raw.reconnecting": "🔌 Reconnecting…",
+    "tts-raw.anonymous": "Anonymous",
+    "tts-raw.demo": "DemoViewer: example of a spoken message"
+  },
+  "ua": {
+    "tts-raw.title": "Озвучення OBS",
+    "tts-raw.initializing": "⏳ Ініціалізація…",
+    "tts-raw.idle": "Нічого не озвучується",
+    "tts-raw.connected": "🎙 TTS підключено",
+    "tts-raw.reconnecting": "🔌 Перепідключення…",
+    "tts-raw.anonymous": "Анонім",
+    "tts-raw.demo": "DemoViewer: приклад озвучуваного повідомлення"
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+setStatus(wt('tts-raw.initializing'));
+const FILTER_CHANNEL = __CHANNEL__;
+const MIN_ROLE = __ROLE__;
+const LANG = __LANG__;
+const RATE = __RATE__;
+const VOLUME = __VOL__;
+const MAX_CHARS = __MAXCHARS__;
+const POSITION = __DESIGN_POS__;
+const SHOW_STATUS = __DESIGN_SHOW_STATUS__;
+const SCALE = __DESIGN_SCALE__;
+
+if (SCALE !== 1) document.body.style.zoom = SCALE;
+document.getElementById('status').hidden = !SHOW_STATUS;
+
+function applyPosition(el, pos) {
+    const top = pos[0] === 't';
+    const side = pos[1];
+    el.style.top = top ? '8px' : 'auto';
+    el.style.bottom = top ? 'auto' : '8px';
+    if (side === 'l') {
+        el.style.left = '8px';
+        el.style.right = pos === 'bl' ? '8px' : 'auto';
+        el.style.transform = 'none';
+    } else if (side === 'r') {
+        el.style.left = 'auto';
+        el.style.right = '8px';
+        el.style.transform = 'none';
+    } else {
+        el.style.left = '50%';
+        el.style.right = 'auto';
+        el.style.width = 'calc(100% - 16px)';
+        el.style.transform = 'translateX(-50%)';
+    }
+}
+applyPosition(document.getElementById('current'), POSITION);
+
+const ROLE_RANK = { any: 0, sub: 1, vip: 2, mod: 3, broadcaster: 4 };
+const minRank = ROLE_RANK[MIN_ROLE] ?? 0;
+
+// Wave 5: транспорт и очередь речи — общие (_shared/tts-core.js).
+// Свои здесь остаются фильтр канала/роли и чистка текста перед озвучкой.
+const ttsQueue = TtsCore.queue({ max: 20 });
+let audioOutputAllowed = true;
+TtsCore.outputAllowed('tts-raw').then(value => { audioOutputAllowed = value; });
+
+function setStatus(text, cls) {
+    const el = document.getElementById('status');
+    el.textContent = text;
+    el.className = cls || '';
+}
+
+function speak(m) {
+    if (!audioOutputAllowed) return;
+    ttsQueue.push({
+        speech: { text: m.text, lang: LANG, rate: RATE, volume: VOLUME },
+        onStart: () => {
+            document.getElementById('current').textContent = m.author + ': ' + m.text;
+        },
+    });
+}
+
+function maxRoleRank(badges) {
+    if (!Array.isArray(badges)) return 0;
+    let r = 0;
+    for (const b of badges) {
+        const rb = ROLE_RANK[b] || 0;
+        if (rb > r) r = rb;
+    }
+    return r;
+}
+
+function connect() {
+    TtsCore.connect({
+        types: ['chat'],
+        onOpen: () => setStatus(wt('tts-raw.connected'), 'ok'),
+        onClose: () => setStatus(wt('tts-raw.reconnecting'), 'err'),
+        onMessage: (d) => {
+            if (d.is_bot || d.is_self_bot) return;
+            const ch = (d.channel || '').replace(/^#/, '').toLowerCase();
+            if (FILTER_CHANNEL && ch !== FILTER_CHANNEL) return;
+            if (maxRoleRank(d.badges) < minRank) return;
+            let text = (d.message || '').slice(0, MAX_CHARS);
+            // Удаляем URL и эмодзи-токены подозрительно длинные
+            text = text.replace(/https?:\/\/\S+/g, ' ссылка ').replace(/[\u{1F300}-\u{1FAFF}]/gu, '');
+            if (!text.trim()) return;
+            speak({ author: d.author || wt('tts-raw.anonymous'), text });
+        },
+    });
+}
+if (new URLSearchParams(location.search).get('preview') === '1') {
+    // Превью не подключается к WS и не озвучивает: показывает состояние очереди.
+    document.body.style.background = '#0f0f1a';
+    setStatus(wt('tts-raw.connected'), 'ok');
+    document.getElementById('current').textContent = wt('tts-raw.demo');
+} else {
+    connect();
+}
+</script></body></html>

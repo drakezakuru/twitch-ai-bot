@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="hype-meter.title"></title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:transparent;padding:10px}
+.box{background:rgba(15,15,25,var(--widget-opacity,0.8));backdrop-filter:blur(8px);border-radius:14px;
+  padding:12px 16px;border:1px solid rgba(255,255,255,0.1);width:300px}
+.box.light{background:rgba(255,255,255,var(--widget-opacity,0.92));border-color:rgba(0,0,0,0.08)}
+.title{font-size:14px;font-weight:700;letter-spacing:2px;color:#ff8ad8;
+  text-transform:uppercase;margin-bottom:8px;display:flex;justify-content:space-between}
+.pct{color:#aaa;font-size:12px}
+.track{height:16px;border-radius:8px;background:rgba(255,255,255,0.08);overflow:hidden}
+.fill{height:100%;width:0%;border-radius:8px;transition:width 0.4s;
+  background:linear-gradient(90deg,#22d3ee,#a78bfa,#f472b6,#facc15)}
+.box.hot .fill{animation:glow 0.6s infinite alternate}
+@keyframes glow{from{box-shadow:0 0 8px rgba(250,204,21,0.5)}
+  to{box-shadow:0 0 22px rgba(250,204,21,0.95)}}
+</style></head><body>
+<div class="box widget-theme-surface" id="box">
+  <div class="title"><span class="widget-theme-accent" data-widget-i18n="hype-meter.heading"></span><span class="pct widget-theme-muted" id="pct" aria-live="polite">0%</span></div>
+  <div class="track"><div class="fill widget-theme-fill" id="fill"></div></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "hype-meter.title": "Накал чата",
+    "hype-meter.heading": "🔥 НАКАЛ ЧАТА",
+    "hype-meter.disconnected": "Нет связи"
+  },
+  "en": {
+    "hype-meter.title": "Hype meter",
+    "hype-meter.heading": "🔥 HYPE",
+    "hype-meter.disconnected": "Disconnected"
+  },
+  "ua": {
+    "hype-meter.title": "Запал чату",
+    "hype-meter.heading": "🔥 ЗАПАЛ ЧАТУ",
+    "hype-meter.disconnected": "Немає зв’язку"
+  }
+});
+WidgetI18n.apply();
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+// §9.3: Hype Meter — «накал чата» по частоте сообщений в скользящем окне.
+// Чисто клиентский: слушает /ws (type: chat), backend не нужен.
+const qs = new URLSearchParams(location.search);
+const API = qs.get('api') || '';
+const WINDOW = Math.max(5, parseInt(qs.get('window') || '30', 10)) * 1000;
+const THRESHOLD = Math.max(5, parseInt(qs.get('threshold') || '40', 10)); // msgs/window = 100%
+const box = document.getElementById('box'), fill = document.getElementById('fill'),
+      pctEl = document.getElementById('pct');
+const times = [];
+let connected = false;
+function onChat(){ times.push(Date.now()); }
+function render(){
+  const now = Date.now();
+  while (times.length && times[0] < now - WINDOW) times.shift();
+  if (!connected){
+    // Без WS счётчик всегда показал бы честный 0% — но это неотличимо
+    // от «чат молчит», поэтому состояние называем прямо.
+    fill.style.width = '0%';
+    pctEl.textContent = WidgetI18n.t('hype-meter.disconnected');
+    box.classList.remove('hot');
+    return;
+  }
+  const pct = Math.min(100, Math.round(times.length / THRESHOLD * 100));
+  fill.style.width = pct + '%';
+  pctEl.textContent = pct + '%';
+  box.classList.toggle('hot', pct >= 80);
+}
+function connect(){
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(proto + '//' + (API || _WIDGET_API_BASE || location.host) + '/ws?channel=' + encodeURIComponent(qs.get('channel') || ''));
+  ws.onopen = () => { connected = true; };
+  ws.onmessage = (ev) => {
+    try { const d = JSON.parse(ev.data); if (d.type === 'chat') onChat(); } catch(e){}
+  };
+  ws.onclose = () => { connected = false; setTimeout(connect, 3000); };
+}
+if (qs.get('preview') === '1'){
+  // Представительная шкала: активный чат без подключения к живому WS.
+  document.body.style.background = '#0f0f1a';
+  connected = true;
+  let demo = 0;
+  setInterval(() => {
+    demo = (demo + 7) % 100;
+    const pct = 45 + Math.round(Math.sin(demo / 15) * 35);
+    fill.style.width = pct + '%';
+    pctEl.textContent = pct + '%';
+    box.classList.toggle('hot', pct >= 80);
+  }, 700);
+} else {
+  connect();
+  setInterval(render, 500);
+}
+</script></body></html>

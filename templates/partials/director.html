@@ -1,0 +1,230 @@
+<!-- ========== DIRECTOR (Q40: своя страница, вкладка на каждый канал; Q21 переоткрыт владельцем 26.09) ========== -->
+<section id="section-director" class="section director-page" data-director-skin="pult" data-director-mode="ai" data-director-pane-active="control">
+    <div class="section-header director-page-header">
+        <h1 class="section-title">🎬 <span data-i18n="director.title">Режиссёр</span></h1>
+        <div class="flex gap-2 flex-wrap">
+            <button class="btn btn-secondary btn-sm" type="button" onclick="loadDirectorSection()"><span data-i18n="btn.refresh">Обновить</span></button>
+            <button class="btn btn-danger btn-sm director-estop" type="button" onclick="directorEmergencyStop()" data-i18n="director.emergency_stop">⛔ Экстренная остановка</button>
+        </div>
+    </div>
+    <p class="text-sm text-muted" data-i18n="director.hint">AI создаёт проверенные планы только для выбранных lurker-аккаунтов этого канала.</p>
+
+    <div id="directorLoadState" class="card text-muted p-4" aria-live="polite" data-i18n="label.loading">Загрузка...</div>
+    <div id="directorWorkspace" class="director-layout hidden">
+        <aside class="director-channels">
+            <div class="director-channels-title" data-i18n="nav.channels">Каналы</div>
+            <div id="directorChannelTabs" class="director-channel-tabs" role="tablist" aria-orientation="vertical" data-i18n-aria-label="nav.channels" aria-label="Каналы"></div>
+        </aside>
+        <div class="director-main">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span class="card-title">#<span id="directorChannelTitle"></span></span>
+                    <div class="flex items-center gap-2">
+                        <span id="directorLatencyBadge" class="badge hidden" title="Задержка ответа ИИ">⚡ 0.0s</span>
+                        <span id="directorSessionStatus" class="badge" aria-live="polite"></span>
+                    </div>
+                </div>
+                <div class="director-mode-row">
+                    <div class="director-mode-switch" role="radiogroup" data-i18n-aria-label="director.control_mode" aria-label="Режим управления">
+                        <button type="button" role="radio" aria-checked="true" class="director-mode-btn active" data-director-mode="ai" onclick="directorSetMode('ai')" data-i18n="director.control_ai">🤖 ИИ</button>
+                        <button type="button" role="radio" aria-checked="false" class="director-mode-btn" data-director-mode="manual" onclick="directorSetMode('manual')" data-i18n="director.control_manual">✍️ Ручной</button>
+                    </div>
+                    <span id="directorModeHint" class="text-sm text-muted" aria-live="polite"></span>
+                </div>
+                <div class="director-ai-only">
+                <div class="flex gap-2 flex-wrap items-end">
+                    <select id="directorChannelSelect" class="input hidden" aria-hidden="true" tabindex="-1" onchange="selectDirectorChannel(this.value)"></select>
+                    <div class="flex gap-2 flex-wrap">
+                        <button id="directorStartButton" class="btn btn-primary btn-sm" type="button" onclick="directorSessionAction('start')" data-i18n="director.start">▶ Запустить live</button>
+                        <button id="directorPauseButton" class="btn btn-secondary btn-sm" type="button" onclick="directorSessionAction('pause')" data-i18n="director.pause">⏸ Пауза</button>
+                        <button id="directorResumeButton" class="btn btn-primary btn-sm" type="button" onclick="directorSessionAction('resume')" data-i18n="director.resume">▶ Продолжить</button>
+                        <button id="directorDryRunButton" class="btn btn-secondary btn-sm hidden" type="button" onclick="directorEmergencyDryRun()" data-i18n="director.dry_run">🧪 Проверить восстановление</button>
+                        <button id="directorStopButton" class="btn btn-danger btn-sm" type="button" onclick="directorStopSession()" data-i18n="director.stop">■ Остановить сессию</button>
+                    </div>
+                </div>
+                <div id="directorHealth" class="flex gap-2 flex-wrap mt-3" aria-live="polite"></div>
+                <p id="directorLifecycleHint" class="text-xs text-muted mt-2" aria-live="polite"></p>
+                </div>
+            </div>
+
+            <!-- Director Quick-Actions & Stream Deck (Хоткеи и быстрые действия) -->
+            <div id="directorQuickActionsCard" class="card mb-4">
+                <div class="card-header">
+                    <span class="card-title">⚡ <span data-i18n="director.quick_actions_title">Быстрые действия и Stream Deck</span></span>
+                    <div class="flex items-center gap-2">
+                        <span id="directorGlobalPauseBadge" class="badge hidden" style="background:#dc2626; color:#fff;">🤫 Пауза: <span id="directorGlobalPauseSec">0</span>с</span>
+                    </div>
+                </div>
+                <div class="flex gap-2 flex-wrap items-center">
+                    <button id="btnQuickHype" class="btn btn-secondary btn-sm" type="button" onclick="directorQuickAction('hype_emotes')" title="Хоткей: Alt+H">
+                        🔥 <span data-i18n="director.btn_hype">Спам хайпа</span> <kbd style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-size:11px; margin-left:4px; border:1px solid rgba(255,255,255,0.15);">Alt+H</kbd>
+                    </button>
+                    <button id="btnQuickSilence" class="btn btn-secondary btn-sm" type="button" onclick="directorQuickAction('break_silence')" title="Хоткей: Alt+Q">
+                        💬 <span data-i18n="director.btn_revive">Оживить чат</span> <kbd style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-size:11px; margin-left:4px; border:1px solid rgba(255,255,255,0.15);">Alt+Q</kbd>
+                    </button>
+                    <button id="btnQuickPause" class="btn btn-secondary btn-sm" type="button" onclick="directorTogglePause()" title="Хоткей: Alt+M">
+                        🤫 <span id="directorPauseBtnText" data-i18n="director.btn_pause_2m">Тишина 2 мин</span> <kbd style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-size:11px; margin-left:4px; border:1px solid rgba(255,255,255,0.15);">Alt+M</kbd>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" type="button" onclick="directorToggleStreamDeckInfo()">
+                        🎛️ <span data-i18n="director.btn_streamdeck">Stream Deck URLs</span>
+                    </button>
+                </div>
+                <div id="directorStreamDeckInfo" class="hidden mt-3 p-3 bg-secondary rounded text-xs space-y-2">
+                    <p class="text-muted" data-i18n="director.streamdeck_hint">
+                        Вставьте эти ссылки в плагин <b>System: Open Website</b> (в фоновом режиме) или <b>HTTP Request</b> в Stream Deck:
+                    </p>
+                    <div class="space-y-1 font-mono" style="word-break: break-all;">
+                        <div><b>🔥 Хайп:</b> <code class="user-select-all">http://localhost:8000/api/director/quick-action?action=hype_emotes</code></div>
+                        <div><b>💬 Оживить:</b> <code class="user-select-all">http://localhost:8000/api/director/quick-action?action=break_silence</code></div>
+                        <div><b>🤫 Пауза 2м:</b> <code class="user-select-all">http://localhost:8000/api/director/quick-action?action=pause_2m</code></div>
+                        <div><b>▶ Возобновить:</b> <code class="user-select-all">http://localhost:8000/api/director/quick-action?action=resume</code></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="directorManualPane" class="card mb-4 director-manual-only director-composer">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="director.manual_title">✍️ Ручная отправка</span>
+                    <button id="directorManualUnfence" class="btn btn-secondary btn-sm hidden" type="button" onclick="directorManualUnfence()" data-i18n="director.manual_unfence">Снять экстренную блокировку</button>
+                </div>
+                <p id="directorManualFenced" class="text-sm director-manual-fenced hidden" role="status" data-i18n="director.manual_fenced">Экстренная остановка: ручная отправка заблокирована до явного снятия.</p>
+                <div class="form-group director-preset-block">
+                    <span class="director-manual-label" id="directorManualPresetsLabel" data-i18n="director.presets_title">Заготовки</span>
+                    <div id="directorManualPresets" class="director-preset-chips" role="list" aria-labelledby="directorManualPresetsLabel"></div>
+                    <div class="director-preset-editor">
+                        <input id="directorPresetInput" class="input" type="text" maxlength="500" data-i18n-placeholder="director.preset_add_placeholder" placeholder="Новая заготовка…" data-i18n-aria-label="director.preset_add_placeholder" aria-label="Новая заготовка…" onkeydown="directorPresetInputKey(event)">
+                        <button id="directorPresetAdd" class="btn btn-secondary btn-sm" type="button" onclick="directorPresetAdd()" data-i18n="director.preset_add">+ Добавить</button>
+                    </div>
+                    <small class="form-hint" data-i18n="director.presets_hint">Alt+1…Alt+9 подставляют заготовку в поле сообщения ниже.</small>
+                </div>
+                <div class="form-group">
+                    <label for="directorManualText" data-i18n="director.manual_text">Сообщение</label>
+                    <textarea id="directorManualText" class="input" rows="2" maxlength="500" oninput="renderDirectorManualPreview()" onkeydown="directorManualKey(event)"></textarea>
+                    <small class="form-hint" data-i18n="director.manual_text_hint">Enter — отправить, Shift+Enter — новая строка. Ссылки, !команды и @упоминания запрещены.</small>
+                </div>
+                <div class="form-group">
+                    <span class="director-manual-label" id="directorManualSendersLabel" data-i18n="director.manual_sender">Отправитель</span>
+                    <input id="directorManualSenderSearch" class="input director-sender-search" type="search" autocomplete="off" data-i18n-placeholder="director.worker_search" placeholder="Поиск по нику…" data-i18n-aria-label="director.worker_search" aria-label="Поиск по нику…" oninput="renderDirectorManualSenders()">
+                    <div id="directorManualSenders" class="director-sender-chips" role="radiogroup" aria-labelledby="directorManualSendersLabel"></div>
+                </div>
+                <div id="directorManualPreview" class="director-manual-preview" aria-live="polite"></div>
+                <div class="director-manual-actions">
+                    <span id="directorManualStatus" class="text-sm" aria-live="polite"></span>
+                    <button id="directorManualSend" class="btn btn-primary" type="button" onclick="directorManualSend()" data-i18n="director.manual_send">Отправить ⏎</button>
+                </div>
+                <div class="director-manual-label mt-3" data-i18n="director.manual_history">Последние отправки</div>
+                <div id="directorManualLog" class="director-manual-log" aria-live="polite"></div>
+            </div>
+
+            <div class="director-panes director-ai-only" role="tablist" data-i18n-aria-label="director.panes" aria-label="Разделы Режиссёра">
+                <button type="button" role="tab" class="director-pane-tab active" aria-selected="true" data-pane="control" onclick="directorShowPane('control')" data-i18n="director.pane_control">▶ Управление</button>
+                <button type="button" role="tab" class="director-pane-tab" aria-selected="false" data-pane="settings" onclick="directorShowPane('settings')" data-i18n="director.pane_settings">⚙️ Настройки ИИ</button>
+                <button type="button" role="tab" class="director-pane-tab" aria-selected="false" data-pane="training" onclick="directorShowPane('training')" data-i18n="director.pane_training">🎓 Обучение</button>
+                <button type="button" role="tab" class="director-pane-tab" aria-selected="false" data-pane="log" onclick="directorShowPane('log')" data-i18n="director.pane_log">🧾 Журнал</button>
+            </div>
+            <div class="grid-cards mb-4 director-ai-only" data-director-pane="control">
+                <div class="card">
+                    <div class="card-header"><span class="card-title" data-i18n="director.workers">👀 Workers</span></div>
+                    <p class="text-sm text-muted mb-3" data-i18n="director.workers_hint">Только явно выбранные enabled lurkers этого канала могут выполнить plan. Подключение планируется отдельно для каждого.</p>
+                    <div id="directorWorkers" class="space-y-2" aria-live="polite"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><span class="card-title" data-i18n="director.plan">📋 Текущий plan</span></div>
+                    <p class="text-sm text-muted mb-3" data-i18n="director.plan_hint">Plan использует неизменный снимок свободных online workers. Невалидные части отклоняются, valid части не пересчитываются.</p>
+                    <div id="directorPlan" class="text-sm" aria-live="polite"></div>
+                </div>
+            </div>
+
+            <div class="card mb-4 director-ai-only" data-director-pane="settings">
+                <div class="card-header"><span class="card-title" data-i18n="director.config">⚙️ Конфигурация</span></div>
+                <p class="text-sm text-muted mb-3" data-i18n="director.config_hint">Настройки доступны только в состоянии off или paused. Сохранение создаёт новую версию конфигурации.</p>
+                <fieldset id="directorConfigFields">
+                    <div class="form-group mb-3">
+                        <label for="directorAccountSelect" data-i18n="director.select_account">Аккаунт Режиссёра</label>
+                        <select id="directorAccountSelect" class="input"></select>
+                        <small class="form-hint" data-i18n="director.select_account_hint">Нужен один enabled аккаунт с ролью «Режиссёр» в этом канале; он анализирует, но никогда не пишет в чат.</small>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="directorWorkerSearch" data-i18n="director.select_workers">Выбранные workers</label>
+                        <div class="director-worker-tools">
+                            <input id="directorWorkerSearch" class="input" type="search" autocomplete="off" data-i18n-placeholder="director.worker_search" placeholder="Поиск по нику…" oninput="renderDirectorWorkerFilter()">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="directorWorkersBulk('all')" data-i18n="bots.packs.select_all">Выбрать всех</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="directorWorkersBulk('online')" data-i18n="director.workers_online">+ онлайн</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="directorWorkersBulk('none')" data-i18n="bots.packs.clear_all">Снять всех</button>
+                            <span id="directorWorkerCount" class="text-sm text-muted" aria-live="polite"></span>
+                        </div>
+                        <div id="directorWorkerChoices" class="director-worker-grid"></div>
+                        <small class="form-hint" data-i18n="director.select_workers_hint">Выберите enabled lurker-аккаунты, подключённые к этому каналу. Новые lurkers не добавляются автоматически.</small>
+                    </div>
+                    <div class="grid-cards">
+                        <div class="form-group"><label for="directorProvider" data-i18n="director.provider">AI-провайдер</label><input id="directorProvider" class="input" type="text"><small class="form-hint" data-i18n="director.provider_hint">Модель должна пройти schema и hard-safety replay перед live.</small></div>
+                        <div class="form-group"><label for="directorModel" data-i18n="director.model">Модель</label><input id="directorModel" class="input" type="text"><small class="form-hint" data-i18n="director.model_hint">Автоматического fallback на другого provider или model нет.</small></div>
+                        <div class="form-group"><label for="directorTemperature" data-i18n="panel.temperature">Temperature</label><input id="directorTemperature" class="input" type="number" min="0" max="2" step="0.1"></div>
+                        <div class="form-group"><label for="directorMaxTokens" data-i18n="panel.max_tokens">Max tokens</label><input id="directorMaxTokens" class="input" type="number" min="50" max="1000"></div>
+                        <div class="form-group"><label for="directorLanguage" data-i18n="director.language">Язык канала</label><select id="directorLanguage" class="input"><option value="auto" data-i18n="director.language_auto">Авто</option><option value="ru">RU</option><option value="en">EN</option><option value="mixed" data-i18n="director.language_mixed">Смешанный</option></select><small class="form-hint" data-i18n="director.language_hint">Auto определяет язык чата с поддержкой транслита.</small></div>
+                        <div class="form-group"><label for="directorMode" data-i18n="director.mode">Режим</label><select id="directorMode" class="input"><option value="live" data-i18n="director.mode_live">Live</option><option value="suggest" data-i18n="director.mode_suggest">Suggest</option><option value="training" data-i18n="director.mode_training">Training</option></select><small class="form-hint" data-i18n="director.mode_hint">Training и Suggest не отправляют в Twitch. Suggest сохраняет только одобренные примеры.</small></div>
+                        <div class="form-group"><label for="directorAssignmentMode" data-i18n="director.assignment">Назначение workers</label><select id="directorAssignmentMode" class="input"><option value="backend_random" data-i18n="director.assignment_random">Случайное backend-назначение</option><option value="ai_assigned" data-i18n="director.assignment_ai">AI выбирает worker</option></select><small class="form-hint" data-i18n="director.assignment_hint">Worker не может входить в две text-группы одного plan.</small></div>
+                        <div class="form-group"><label for="directorReactionMode" data-i18n="director.reaction_mode">Расчёт реакции</label><select id="directorReactionMode" class="input"><option value="absolute" data-i18n="director.reaction_absolute">Количество</option><option value="percentage" data-i18n="director.reaction_percentage">Проценты</option></select><small class="form-hint" data-i18n="director.reaction_mode_hint">Диапазоны реакции применяются к доступным workers текущего канала.</small></div>
+                        <div class="form-group"><label for="directorAnalysisInterval" data-i18n="director.analysis_interval">Интервал анализа, сек.</label><input id="directorAnalysisInterval" class="input" type="number" min="3" max="120"><small class="form-hint" data-i18n="director.analysis_interval_hint">Разрешено от 3 до 120 секунд; default 15.</small></div>
+                        <div class="form-group"><label for="directorWakeCooldown" data-i18n="director.wake_cooldown">Cooldown высокого приоритета, сек.</label><input id="directorWakeCooldown" class="input" type="number" min="3" max="30"><small class="form-hint" data-i18n="director.wake_cooldown_hint">Сигналы объединяются; разрешено от 3 до 30 секунд.</small></div>
+                        <div class="form-group"><label for="directorDelayMin" data-i18n="director.delay">Задержка отправки, сек.</label><input id="directorDelayMin" class="input" type="number" min="0" max="300"><small class="form-hint" data-i18n="director.delay_hint">Default 1–20 секунд; законный диапазон 0–300.</small></div>
+                        <div class="form-group"><label for="directorDelayMax" data-i18n="director.delay_max">Максимальная задержка, сек.</label><input id="directorDelayMax" class="input" type="number" min="0" max="300"><small class="form-hint" data-i18n="director.delay_max_hint">Не меньше начальной задержки.</small></div>
+                        <div class="form-group"><label for="directorTtl" data-i18n="director.ttl">TTL plan, сек.</label><input id="directorTtl" class="input" type="number" min="1" max="600"><small class="form-hint" data-i18n="director.ttl_hint">Default 45; TTL не меньше максимальной задержки. Непосланный хвост отменяется после TTL.</small></div>
+                        <div class="form-group"><label for="directorAiErrors" data-i18n="director.ai_errors">AI-ошибок до pause</label><input id="directorAiErrors" class="input" type="number" min="1" max="10"><small class="form-hint" data-i18n="director.ai_errors_hint">От 1 до 10; default 3 consecutive errors.</small></div>
+                        <div class="form-group"><label for="directorVisionStale" data-i18n="director.vision_stale">Vision stale, сек.</label><input id="directorVisionStale" class="input" type="number" min="1" max="300"><small class="form-hint" data-i18n="director.vision_stale_hint">Свежий Vision heartbeat обязателен для live.</small></div>
+                        <div class="form-group"><label for="directorSpeechStale" data-i18n="director.speech_stale">Speech stale, сек.</label><input id="directorSpeechStale" class="input" type="number" min="1" max="300"><small class="form-hint" data-i18n="director.speech_stale_hint">Свежий speech heartbeat обязателен для live.</small></div>
+                        <div class="form-group"><label for="directorOfflineGrace" data-i18n="director.offline_grace">Offline grace, сек.</label><input id="directorOfflineGrace" class="input" type="number" min="0" max="300"><small class="form-hint" data-i18n="director.offline_grace_hint">После Twitch offline новые plans блокируются сразу.</small></div>
+                    </div>
+                    <div class="form-group mt-3"><label data-i18n="director.reaction_ranges">Диапазоны реакций</label><small class="form-hint" data-i18n="director.reaction_ranges_hint">Границы уровней должны возрастать и не пересекаться.</small>
+                        <div class="grid-cards mt-2">
+                            <div class="form-group"><label for="directorRangeSmallMin" data-i18n="director.range_small">Small</label><div class="flex gap-2"><input id="directorRangeSmallMin" class="input" type="number" min="0" data-i18n-aria-label="panel.director.small_min" aria-label="Малая реакция: минимум"><input id="directorRangeSmallMax" class="input" type="number" min="0" data-i18n-aria-label="panel.director.small_max" aria-label="Малая реакция: максимум"></div></div>
+                            <div class="form-group"><label for="directorRangeMediumMin" data-i18n="director.range_medium">Medium</label><div class="flex gap-2"><input id="directorRangeMediumMin" class="input" type="number" min="0" data-i18n-aria-label="panel.director.medium_min" aria-label="Средняя реакция: минимум"><input id="directorRangeMediumMax" class="input" type="number" min="0" data-i18n-aria-label="panel.director.medium_max" aria-label="Средняя реакция: максимум"></div></div>
+                            <div class="form-group"><label for="directorRangeLargeMin" data-i18n="director.range_large">Large</label><div class="flex gap-2"><input id="directorRangeLargeMin" class="input" type="number" min="0" data-i18n-aria-label="panel.director.large_min" aria-label="Большая реакция: минимум"><input id="directorRangeLargeMax" class="input" type="number" min="0" data-i18n-aria-label="panel.director.large_max" aria-label="Большая реакция: максимум"></div></div>
+                        </div>
+                    </div>
+                </fieldset>
+                <div class="flex gap-2 mt-3 items-center">
+                    <button id="directorSaveButton" class="btn btn-primary" type="button" onclick="saveDirectorConfig()" data-i18n="director.save">💾 Сохранить конфигурацию</button>
+                    <span id="directorConfigStatus" class="text-sm" aria-live="polite"></span>
+                </div>
+            </div>
+
+            <div class="card mb-4 director-ai-only" data-director-pane="training">
+                <div class="card-header"><span class="card-title" data-i18n="director.prompts">Версии промпта и проверка</span><button class="btn btn-secondary btn-sm" type="button" onclick="loadDirectorReview()" data-i18n="btn.refresh">Обновить</button></div>
+                <p class="text-sm text-muted mb-3" data-i18n="director.replay_hint">Проверка вызывает сохранённые provider/model без отправки в Twitch. Перед активацией изучите ответы и подтвердите качество.</p>
+                <div class="form-group">
+                    <label for="directorPromptDraft" data-i18n="director.prompt_text">Инструкции владельца</label>
+                    <textarea id="directorPromptDraft" class="input" rows="5" oninput="directorPromptDraftChanged(this.value)"></textarea>
+                    <small class="form-hint" data-i18n="director.prompt_hint">Новая неизменяемая версия. Системные правила и правила безопасности не изменяются.</small>
+                </div>
+                <button id="directorPromptCreate" class="btn btn-primary btn-sm mt-2" type="button" onclick="directorCreatePrompt()" data-i18n="director.prompt_create">Создать версию</button>
+                <div class="flex gap-2 flex-wrap items-center mt-2">
+                    <button id="directorTrainingExport" class="btn btn-secondary btn-sm" type="button" onclick="directorExportTraining()" data-i18n="director.training_export">⬇️ Экспорт базы обучения</button>
+                    <label class="btn btn-secondary btn-sm" for="directorTrainingImport" data-i18n="director.training_import">⬆️ Импорт базы обучения</label>
+                    <input id="directorTrainingImport" type="file" accept="application/json,.json" style="display:none" onchange="directorImportTraining(this)">
+                    <label class="text-sm"><input type="checkbox" id="directorTrainingReplace"> <span data-i18n="director.training_import_replace">Заменить существующую базу канала</span></label>
+                </div>
+                <p class="text-sm text-muted mt-1" data-i18n="director.training_import_hint">Импорт переносит промпты, примеры, чанты и шаблоны из файла экспорта. Без галочки замены дубликаты пропускаются; импортированные версии промпта требуют повторной проверки перед активацией.</p>
+                <div id="directorReviewStatus" class="text-sm mt-2" aria-live="polite"></div>
+                <div id="directorPrompts" class="space-y-2 mt-3"></div>
+            </div>
+            <div class="card mb-4 director-ai-only" data-director-pane="training">
+                <div class="card-header"><span class="card-title" data-i18n="director.suggestions">Предложения для обучения</span></div>
+                <p class="text-sm text-muted mb-3" data-i18n="director.suggest_hint">Просмотрите и отредактируйте весь план. Одобрение сохраняет пример для будущих решений, но никогда не отправляет сообщения в Twitch.</p>
+                <div id="directorSuggestions" class="space-y-2"></div>
+            </div>
+            <div class="card mb-4 director-ai-only" data-director-pane="training">
+                <div class="card-header"><span class="card-title" data-i18n="director.reactions">Отправленные вживую</span></div>
+                <p class="text-sm text-muted mb-3" data-i18n="director.reaction_hint">Реакции, реально отправленные в Twitch в режиме Live. Одобрение сохраняет их как позитивный пример обучения, отклонение — как негативный. Тексты уже отправлены и не редактируются.</p>
+                <div id="directorReactions" class="space-y-2"></div>
+            </div>
+
+            <div class="card director-ai-only" data-director-pane="log">
+                <div class="card-header"><span class="card-title" data-i18n="director.audit">🧾 Audit</span><button class="btn btn-secondary btn-sm" type="button" onclick="loadDirectorAudit()" data-i18n="btn.refresh">Обновить</button></div>
+                <p class="text-sm text-muted mb-3" data-i18n="director.audit_hint">Audit показывает source health, планы и безопасные результаты; скрытые рассуждения AI не сохраняются.</p>
+                <div id="directorAudit" class="space-y-2" aria-live="polite"></div>
+            </div>
+            <div id="directorStoragePanel" class="card mt-3 director-ai-only" data-director-pane="log" aria-live="polite"></div>
+        </div>
+    </div>
+</section>

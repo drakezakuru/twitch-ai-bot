@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-widget-i18n="streamer-hud.title">🎙️ Суфлёр для стримера</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --hud-bg: rgba(15, 23, 42, var(--widget-opacity, 0.92));
+    --hud-card: rgba(30, 41, 59, 0.85);
+    --hud-border: rgba(255, 255, 255, 0.12);
+    --hud-accent: #6366f1;
+    --hud-accent-glow: rgba(99, 102, 241, 0.35);
+    --hud-text: #f8fafc;
+    --hud-muted: #94a3b8;
+    --hud-success: #10b981;
+    --hud-warning: #f59e0b;
+    --hud-danger: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 12px;
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+    color: var(--hud-text);
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  #hud {
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--hud-bg);
+    border: 1px solid var(--hud-border);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 20px var(--hud-accent-glow);
+    backdrop-filter: blur(16px);
+    transition: all 0.3s ease;
+  }
+  /* Header */
+  .hud-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--hud-border);
+    margin-bottom: 12px;
+  }
+  .hud-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hud-pulse {
+    width: 10px;
+    height: 10px;
+    background: var(--hud-success);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--hud-success);
+    animation: hud-pulse 1.8s infinite;
+  }
+  @keyframes hud-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.2); }
+  }
+  .hud-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hud-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .hud-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--hud-border);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .badge-silence.alert {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: var(--hud-danger);
+    color: #fca5a5;
+    animation: hud-flash 1s infinite alternate;
+  }
+  @keyframes hud-flash {
+    from { opacity: 0.7; }
+    to { opacity: 1; }
+  }
+  /* Sections */
+  .hud-section {
+    margin-bottom: 14px;
+  }
+  .hud-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .hud-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--hud-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hud-btn-mini {
+    font-size: 11px;
+    padding: 2px 7px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--hud-border);
+    border-radius: 5px;
+    color: var(--hud-text);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .hud-btn-mini:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  /* Question cards */
+  .hud-card {
+    background: var(--hud-card);
+    border: 1px solid var(--hud-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  .hud-card.dismissed {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  .hud-card-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .hud-author {
+    font-size: 12px;
+    font-weight: 700;
+    color: #38bdf8;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hud-time {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--hud-muted);
+  }
+  .hud-text {
+    font-size: 13.5px;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+  .hud-action-btn {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .hud-action-btn:hover {
+    background: rgba(16, 185, 129, 0.35);
+    transform: scale(1.05);
+  }
+  /* Topics */
+  .hud-topic-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .hud-topic-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #c084fc;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hud-topic-hint {
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.35;
+  }
+  /* Notes */
+  .hud-note-card {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 8px;
+    padding: 7px 10px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12.5px;
+    color: #fde68a;
+  }
+  .hud-note-del {
+    background: transparent;
+    border: none;
+    color: #fca5a5;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+  }
+  .hud-note-input-wrap {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .hud-input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--hud-border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    color: #fff;
+    outline: none;
+  }
+  .hud-input:focus {
+    border-color: var(--hud-accent);
+  }
+  .hud-btn-add {
+    background: var(--hud-accent);
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  /* Dock quick actions */
+  .hud-actions-bar {
+    display: flex;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--hud-border);
+  }
+  .hud-quick-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--hud-border);
+    border-radius: 8px;
+    padding: 7px 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--hud-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+  .hud-quick-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+  }
+  .hud-empty {
+    font-size: 12px;
+    color: var(--hud-muted);
+    font-style: italic;
+    padding: 8px 0;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div id="hud">
+  <!-- Header -->
+  <div class="hud-header">
+    <div class="hud-title-wrap">
+      <div class="hud-pulse"></div>
+      <div class="hud-title">🎙️ <span data-widget-i18n="streamer-hud.title">СУФЛЁР</span></div>
+    </div>
+    <div class="hud-badges">
+      <span id="hudSilenceBadge" class="hud-badge badge-silence" title="Время с последнего сообщения в чате">⏱️ <span id="hudSilenceVal">0с</span></span>
+      <span id="hudSpeedBadge" class="hud-badge" title="Темп чата">💬 <span id="hudSpeedVal">0 cpm</span></span>
+    </div>
+  </div>
+
+  <!-- Questions from chat -->
+  <div class="hud-section">
+    <div class="hud-section-header">
+      <div class="hud-section-title">💬 <span data-widget-i18n="streamer-hud.questions">Вопросы зрителей</span> (<span id="hudQuestionsCount">0</span>)</div>
+    </div>
+    <div id="hudQuestionsList"></div>
+  </div>
+
+  <!-- Topics / Prompts -->
+  <div class="hud-section">
+    <div class="hud-section-header">
+      <div class="hud-section-title">💡 <span data-widget-i18n="streamer-hud.topics">Темы для разговора</span></div>
+      <button class="hud-btn-mini" onclick="nextTopic()" title="Показать другие темы">🎲 <span data-widget-i18n="streamer-hud.next_topic">Ещё</span></button>
+    </div>
+    <div id="hudTopicsList"></div>
+  </div>
+
+  <!-- Notes -->
+  <div class="hud-section">
+    <div class="hud-section-header">
+      <div class="hud-section-title">📝 <span data-widget-i18n="streamer-hud.notes">Заметки на стрим</span></div>
+    </div>
+    <div id="hudNotesList"></div>
+    <div class="hud-note-input-wrap">
+      <input id="hudNoteInput" class="hud-input" type="text" placeholder="Новая заметка..." maxlength="120" onkeydown="if(event.key==='Enter')addNote()">
+      <button class="hud-btn-add" onclick="addNote()">+</button>
+    </div>
+  </div>
+
+  <!-- Quick dock controls -->
+  <div class="hud-actions-bar">
+    <button class="hud-quick-btn" onclick="hudAction('hype_emotes')" title="Залп смайликов без LLM">🔥 <span data-widget-i18n="streamer-hud.btn_hype">Хайп</span></button>
+    <button class="hud-quick-btn" onclick="hudAction('break_silence')" title="Задать вопрос через Anti-Dead-Air">💬 <span data-widget-i18n="streamer-hud.btn_revive">Оживить</span></button>
+    <button id="hudPauseBtn" class="hud-quick-btn" onclick="hudAction('pause_2m')" title="Пауза авто-ответов">🤫 <span id="hudPauseBtnText" data-widget-i18n="streamer-hud.btn_pause">Пауза 2м</span></button>
+  </div>
+</div>
+
+<script>
+const HUD_LABELS = {
+  "ru": {
+    "streamer-hud.title": "СУФЛЁР",
+    "streamer-hud.questions": "Вопросы зрителей",
+    "streamer-hud.topics": "Темы для разговора",
+    "streamer-hud.next_topic": "Ещё",
+    "streamer-hud.notes": "Заметки на стрим",
+    "streamer-hud.answered": "✓ Отвечено",
+    "streamer-hud.no_questions": "Все вопросы отвечены 👍",
+    "streamer-hud.btn_hype": "Хайп",
+    "streamer-hud.btn_revive": "Оживить",
+    "streamer-hud.btn_pause": "Пауза 2м",
+    "streamer-hud.btn_resume": "Возобновить"
+  },
+  "en": {
+    "streamer-hud.title": "STREAMER HUD",
+    "streamer-hud.questions": "Viewer Questions",
+    "streamer-hud.topics": "Talking Points",
+    "streamer-hud.next_topic": "Next",
+    "streamer-hud.notes": "Stream Notes",
+    "streamer-hud.answered": "✓ Done",
+    "streamer-hud.no_questions": "All questions answered 👍",
+    "streamer-hud.btn_hype": "Hype",
+    "streamer-hud.btn_revive": "Revive",
+    "streamer-hud.btn_pause": "Pause 2m",
+    "streamer-hud.btn_resume": "Resume"
+  },
+  "ua": {
+    "streamer-hud.title": "СУФЛЕР",
+    "streamer-hud.questions": "Запитання глядачів",
+    "streamer-hud.topics": "Теми для розмови",
+    "streamer-hud.next_topic": "Ще",
+    "streamer-hud.notes": "Нотатки на стрім",
+    "streamer-hud.answered": "✓ Відповіли",
+    "streamer-hud.no_questions": "На всі запитання відповіли 👍",
+    "streamer-hud.btn_hype": "Хайп",
+    "streamer-hud.btn_revive": "Пожвавити",
+    "streamer-hud.btn_pause": "Тиша 2хв",
+    "streamer-hud.btn_resume": "Відновити"
+  }
+};
+
+let _hudChannel = "";
+let _isPaused = false;
+
+function getQueryParam(name) {
+  const p = new URLSearchParams(window.location.search);
+  return p.get(name) || "";
+}
+
+function escapeHtml(s) {
+  if (!s) return "";
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+async function loadHudState() {
+  const preview = getQueryParam("preview") === "1";
+  const ch = getQueryParam("channel");
+  try {
+    const res = await fetch(`/api/widgets/streamer-hud/state?channel=${encodeURIComponent(ch)}&preview=${preview ? 1 : 0}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok) return;
+    _hudChannel = data.channel || "";
+    renderHud(data);
+  } catch (e) {}
+}
+
+function renderHud(data) {
+  // Silence badge
+  const sVal = document.getElementById("hudSilenceVal");
+  const sBadge = document.getElementById("hudSilenceBadge");
+  const sec = data.silence_sec || 0;
+  if (sec < 60) {
+    sVal.textContent = sec + "с";
+  } else {
+    sVal.textContent = Math.floor(sec / 60) + "м " + (sec % 60) + "с";
+  }
+  if (data.silence_alert) {
+    sBadge.classList.add("alert");
+  } else {
+    sBadge.classList.remove("alert");
+  }
+
+  // Speed badge
+  const speedVal = document.getElementById("hudSpeedVal");
+  if (speedVal) speedVal.textContent = (data.chat_speed_cpm || 0) + " cpm";
+
+  // Pause state
+  _isPaused = Boolean(data.quick_pause_active);
+  const pBtnText = document.getElementById("hudPauseBtnText");
+  const pBtn = document.getElementById("hudPauseBtn");
+  if (pBtnText) {
+    if (_isPaused && data.quick_pause_sec > 0) {
+      pBtnText.textContent = `▶ (${data.quick_pause_sec}с)`;
+      pBtn.onclick = () => hudAction('resume');
+    } else {
+      pBtnText.textContent = HUD_LABELS["ru"]["streamer-hud.btn_pause"];
+      pBtn.onclick = () => hudAction('pause_2m');
+    }
+  }
+
+  // Questions
+  const qList = document.getElementById("hudQuestionsList");
+  const qCount = document.getElementById("hudQuestionsCount");
+  const questions = data.questions || [];
+  if (qCount) qCount.textContent = questions.length;
+
+  if (!questions.length) {
+    qList.innerHTML = `<div class="hud-empty">${HUD_LABELS["ru"]["streamer-hud.no_questions"]}</div>`;
+  } else {
+    qList.innerHTML = questions.map(q => `
+      <div class="hud-card" id="card_${escapeHtml(q.id)}">
+        <div class="hud-card-main">
+          <div class="hud-author">
+            👤 ${escapeHtml(q.author)}
+            <span class="hud-time">${escapeHtml(q.time_ago)}</span>
+          </div>
+          <div class="hud-text">${escapeHtml(q.text)}</div>
+        </div>
+        <button class="hud-action-btn" onclick="dismissItem('${escapeHtml(q.id)}', 'question')" title="Отвечено">
+          ${HUD_LABELS["ru"]["streamer-hud.answered"]}
+        </button>
+      </div>
+    `).join("");
+  }
+
+  // Topics
+  const tList = document.getElementById("hudTopicsList");
+  const topics = data.topics || [];
+  if (tList) {
+    tList.innerHTML = topics.map(t => `
+      <div class="hud-topic-card" id="card_${escapeHtml(t.id)}">
+        <div class="hud-topic-title">💡 ${escapeHtml(t.title)}</div>
+        <div class="hud-topic-hint">${escapeHtml(t.hint)}</div>
+      </div>
+    `).join("");
+  }
+
+  // Notes
+  const nList = document.getElementById("hudNotesList");
+  const notes = data.notes || [];
+  if (nList) {
+    nList.innerHTML = notes.map(n => `
+      <div class="hud-note-card" id="card_${escapeHtml(n.id)}">
+        <span>📌 ${escapeHtml(n.text)}</span>
+        <button class="hud-note-del" onclick="dismissItem('${escapeHtml(n.id)}', 'note')" title="Удалить">×</button>
+      </div>
+    `).join("");
+  }
+}
+
+async function dismissItem(id, type) {
+  const el = document.getElementById(`card_${id}`);
+  if (el) el.classList.add("dismissed");
+  try {
+    await fetch("/api/widgets/streamer-hud/dismiss", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, type, channel: _hudChannel })
+    });
+    setTimeout(() => { if (el) el.remove(); }, 200);
+  } catch (e) {}
+}
+
+async function addNote() {
+  const inp = document.getElementById("hudNoteInput");
+  const text = (inp?.value || "").trim();
+  if (!text) return;
+  inp.value = "";
+  try {
+    await fetch("/api/widgets/streamer-hud/note", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, channel: _hudChannel })
+    });
+    loadHudState();
+  } catch (e) {}
+}
+
+async function nextTopic() {
+  try {
+    await fetch("/api/widgets/streamer-hud/topic/new", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel: _hudChannel })
+    });
+    loadHudState();
+  } catch (e) {}
+}
+
+async function hudAction(action) {
+  try {
+    await fetch("/api/widgets/streamer-hud/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, channel: _hudChannel })
+    });
+    loadHudState();
+  } catch (e) {}
+}
+
+// Initial load and periodic polling every 3 seconds
+loadHudState();
+setInterval(loadHudState, 3000);
+</script>
+</body>
+</html>

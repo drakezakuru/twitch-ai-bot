@@ -1,0 +1,1071 @@
+{
+  "meta": {
+    "method": "Метод PANEL_REVIEW_PLAN.md v2: для каждой карточки — где данные → там эндпоинт → там карточка; альтернатива; цена переноса S/M/L (после P5-сплитов S = карточка+эндпоинт в своём чанке/модуле, M = цепляется ядро/общее состояние, L = base.html/WS-протокол); рекомендация; баги из Ф1/Ф2. Поведение не менялось.",
+    "sources": "docs/AUDIT_PLACEMENT.md (база, 100% карточек), docs/APP_JS_MAP.md, инвентаризация шаблонов 01.09, smoke-прогон Ф2, Lighthouse Ф2",
+    "lighthouse": {
+      "performance": 68,
+      "accessibility": 100,
+      "best_practices": 96,
+      "note": "LCP 6.7s — Deck CPU/холодный старт; JS-bootup <40ms; total 942 KiB"
+    },
+    "smoke": {
+      "passed": "10/13",
+      "env": "изолированный инстанс session-ops worktree :8100, свежая база"
+    }
+  },
+  "sections": [
+    {
+      "id": "dashboard",
+      "title": "🏠 Обзор (dashboard) — 7 карточек",
+      "cards": [
+        {
+          "name": "Статы (боты/сообщения/ответы)",
+          "does_why": "сводка здоровья: боты онлайн/вкл, сообщения, % ответов; агрегат из /api/stats — глобальные данные → Обзор верен (02_dashboard.js + routes_stats_v9.py)",
+          "alternative": "частично дублирует «Боты по ролям» — разный срез (здоровье vs роли)",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "F4: «67/50/50%» из находки владельца — это динамические значения этой карточки (сообщений/ботов/ответов), зависят от базы; названия полей уточнить у владельца в чек-листе"
+        },
+        {
+          "name": "Настроение стримера",
+          "does_why": "read-only фид настроения (streamer_attitude, К3) — данные per-bot×канал, но показ это «быстрый взгляд» → Обзор (02_dashboard.js + routes_streamer_profile.py)",
+          "alternative": "в Мозг-профиль; там уже скоуп настройки — дубль не нужен",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Клипы (clip-moments)",
+          "does_why": "последние клипы по спайкам; события «что произошло» → Обзор (02_dashboard.js + routes_clip.py)",
+          "alternative": "Аналитика — там отчёты, не лента",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Живые события",
+          "does_why": "фид EventSub (подписки/рейды/фолловеры) — лента текущего эфира → Обзор (02_dashboard.js + routes_eventsub.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Последние нарушения",
+          "does_why": "мини-фид модерации; отдельного раздела «Модерация» нет (осознанно, v14 — см. Ф2-5) → Обзор (02_dashboard.js + routes_modpanel.py)",
+          "alternative": "свой раздел «Модерация» — L, не стоит при текущем объёме",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Боты по ролям",
+          "does_why": "группировка ботов по bot_role + счётчики mod-feed; связи с ролями → Обзор (02_dashboard.js + role_routes.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Всплески чата + автозапись replay",
+          "does_why": "спайк-детектор чата + настройка записи сессии; live-событие → Обзор (02_dashboard.js + replay_debug.py, хук clip-rate)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "настройка автозаписи дублируется карточкой «⏺ Автозапись» в Настройках — сверить, что пишут в одно место (замечание Ф3, не баг)"
+        }
+      ]
+    },
+    {
+      "id": "bots",
+      "title": "🤖 Боты — вкладки карточки бота (22)",
+      "note": "карточка бота = per-bot данные → вкладки верны по определению; группы showBotGroup: overview/identity/ai/flow/memory/advanced/role; загрузчики — _botTabLoaders (06_roles.js) — см. баг Ф2-1",
+      "cards": [
+        {
+          "name": "general (Общие)",
+          "does_why": "имя/канал/включённость; таблица accounts — ядро (03_bots.js + routes.py)",
+          "alternative": "—",
+          "price": "M",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "identity (Личность)",
+          "does_why": "per-bot личность/стиль; persona-данные (03_bots.js + routes_persona_presets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "persona (Пресеты характера)",
+          "does_why": "пресеты + копирка стиля (03_bots.js + routes_persona_presets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "behavior (Анализатор)",
+          "does_why": "поведение/шум/гейты анализатора (04_chat_settings.js + chat_analyzer.py/routes)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "channels (Каналы)",
+          "does_why": "per-bot каналы; таблица channels — ядро (05_bots_tabs.js + routes.py)",
+          "alternative": "—",
+          "price": "M",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "tts",
+          "does_why": "per-bot провайдер/голос/скорость (04/05 + routes_tts_config.py + tts_engine.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "здесь появится выбор voicestudio (О4, отдельная сессия)"
+        },
+        {
+          "name": "attention",
+          "does_why": "реакция на упоминания бота (10_stream_p4_p6.js + routes_attention.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "patterns (AI-паттерны)",
+          "does_why": "обучающие паттерны ответов; таблица patterns — ядро (05_bots_tabs.js + routes.py)",
+          "alternative": "—",
+          "price": "M",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "triggers",
+          "does_why": "триггеры по словам; таблица triggers — ядро (05_bots_tabs.js + routes.py)",
+          "alternative": "—",
+          "price": "M",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "events (События)",
+          "does_why": "ответы на события Twitch; event_responses — ядро (05_bots_tabs.js + routes.py)",
+          "alternative": "—",
+          "price": "M",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "filters (Фильтры)",
+          "does_why": "word_filter/стоп-слова — ядро (05_bots_tabs.js + routes.py)",
+          "alternative": "—",
+          "price": "M",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "moderation",
+          "does_why": "модераторские настройки бота + stream_tool_modes §R3 (06/08 + routes_modpanel.py + moderation.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "F6: «непонятно, подключён ли ИИ к модерации» — пояснение в Ф3-отчёте: ИИ-вердикты опциональны, гейты настроек — раздел behavior/moderation; дать подпись-пояснение в Ф4 по «да»"
+        },
+        {
+          "name": "chat-users (Зрители)",
+          "does_why": "per-bot история зрителей (04/05 + routes_user_history.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "memory (Память)",
+          "does_why": "per-bot память о зрителях (14_brain_memory.js + routes_user_memory.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "streamer (О стримере)",
+          "does_why": "per-bot скоуп знаний о стримере (К3 скоупы сохранены; 10_stream + routes_streamer_profile.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "knowledge (Знания)",
+          "does_why": "per-bot KB/lore (03/09 + brain/lore-модули)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "snippets",
+          "does_why": "быстрые фразы для Quick Send (03_bots.js + routes_snippets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "класс «таблицы нет» закрыт ddbfb8f + тест"
+        },
+        {
+          "name": "voice-clones",
+          "does_why": "клоны голоса бота (07_widgets.js + routes_voice_clone.py + voice_clone.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "files (Файлы бота)",
+          "does_why": "файлы/снippets-файлы бота (03_bots.js + routes_snippets.py/bot-files)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "logs (Логи бота)",
+          "does_why": "per-bot логи (03_bots.js + routes_bot_logs.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "role (Роль)",
+          "does_why": "bot_role + role_config (06_roles.js + role_routes.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "Ф2-1: loader роли в _botTabLoaders — проверить переключение после фикса"
+        },
+        {
+          "name": "brain-x (Мозг X)",
+          "does_why": "per-bot промпт-инспектор/превью мозга (09_brain_p3.js + brain_preview-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "Ф2-1: 'brain-x' в _botTabLoaders ссылается на loadBrainPreview из позднего чанка — вкладка может не грузиться"
+        }
+      ]
+    },
+    {
+      "id": "chat",
+      "title": "💬 Чат — 2 карточки",
+      "cards": [
+        {
+          "name": "Живой чат (+ отправка от бота, TTS-тесты, 👍/👎 оценки §9k)",
+          "does_why": "лента /ws + отправка от имени бота + фидбек качества (04/16 + routes_sse.py/ws_router) — единственное место live-чата",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🔇 Запикивание матов (фаза 3)",
+          "does_why": "настройки beep-конвейера; источник событий — живой чат → карточка здесь (04_chat_settings.js + beep_pipeline.py/beep_guard.py)",
+          "alternative": "Виджеты (алерт-оверлей) — но настройка логична рядом с чатом, алерт настраивается отдельно",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        }
+      ]
+    },
+    {
+      "id": "analytics",
+      "title": "📊 Аналитика — 8 карточек",
+      "note": "однородный раздел-отчёты; часть карточек рендерится JS (canvas)",
+      "cards": [
+        {
+          "name": "Настроение чата (sentiment)",
+          "does_why": "тренд тональности; отчёт → Аналитика (04_chat_settings.js + routes_csv_export.py/stats)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Популярные слова (trending/wordcloud)",
+          "does_why": "облако/тренды слов (04_chat_settings.js + stats-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "👍 Оценки ответов (feedback)",
+          "does_why": "агрегат 👍/👎 из живого чата (04_chat_settings.js + routes_ai_feedback.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Heatmap активности",
+          "does_why": "heatmap по часам/дням (04_chat_settings.js + routes_stats_heatmap.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "Ф2-1: loadHeatmap() падает на init (функция в 07_widgets.js) — авто-загрузкаheatmap сломана после сплита; вручную открывается"
+        },
+        {
+          "name": "Активность за 24ч (hour24)",
+          "does_why": "график сообщений за сутки (04_chat_settings.js + stats-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "Ф2-1: в той же оборванной init-цепочке — авто-обновление может не стартовать"
+        },
+        {
+          "name": "Per-bot статистика",
+          "does_why": "срез по ботам (04_chat_settings.js + stats-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "Ф2-1: см. выше (init-цепочка)"
+        },
+        {
+          "name": "Топ чаттеров",
+          "does_why": "самые активные зрители (04_chat_settings.js + stats-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "📋 Логи ботов",
+          "does_why": "агрегированные логи всех ботов (04_chat_settings.js + routes_bot_logs.py + csv)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        }
+      ]
+    },
+    {
+      "id": "brain",
+      "title": "🧠 Мозг (глобальный) — 7 карточек",
+      "note": "cross-bot мозг; per-bot — в карточке бота (§1.5 решено)",
+      "cards": [
+        {
+          "name": "👤 Профиль стримера (+ 💞 Отношение ботов)",
+          "does_why": "глобальный профиль + К3-отношение per-bot×канал (09_brain_p3.js + routes_global_profile.py/streamer_attitude.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Lore стримера",
+          "does_why": "факты-lore в промпты (09_brain_p3.js + streamer_lore.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Обучение",
+          "does_why": "самообучение на логах (14_brain_memory.js + learning.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Сводки",
+          "does_why": "ai_summary прогонов (09/14 + routes_ai_summary.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "KB импорт/экспорт",
+          "does_why": "знания in/out (09_brain_p3.js + brain-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Personality Shift",
+          "does_why": "сдвиги характера (09/14 + personality_shift.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "Факты о зрителях",
+          "does_why": "shared_user_facts cross-bot (14_brain_memory.js + shared_user_facts.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        }
+      ]
+    },
+    {
+      "id": "widgets",
+      "title": "🧩 Виджеты — 17 карточек + формы",
+      "note": "К1/К4 исполнены (дубль логов и Twitch-приложение убраны), К2 — биндинги в карточках",
+      "cards": [
+        {
+          "name": "🎛 Управление контентом",
+          "does_why": "заголовок админ-зоны контента (07_widgets.js + widgets admin-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "F4: цифры в шапке — уточнить у владельца, о каких полях речь (см. чек-лист)"
+        },
+        {
+          "name": "🎯 Цели",
+          "does_why": "goals-виджет + наполнение (07_widgets.js + widgets.py goals)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "⭐ Sub-цель",
+          "does_why": "sub_goal (07_widgets.js + widgets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🎵 Сейчас играет",
+          "does_why": "now_playing (07 + widgets.py/now_playing_sources.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "📅 Расписание",
+          "does_why": "schedule_blocks (07 + widgets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🔔 Счётчики",
+          "does_why": "counters per-key (07 + widgets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "⏳ Countdown",
+          "does_why": "обратный отсчёт (07 + widgets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "💰 Топ донатеров",
+          "does_why": "top-donator ×3 периода (07 + widgets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🎧 Заказ песен",
+          "does_why": "song-request (07 + widgets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🎙 TTS за баллы канала",
+          "does_why": "channel-points-tts: озвучка за баллы (07 + channel_points_tts.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "💬 TTS-чат (озвучки)",
+          "does_why": "tts-chat overlay + ducking (07 + tts_engine/routes_tts_duck)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "💸 Донат-интеграции",
+          "does_why": "webhook/токены донаток (07 + donation_integrations.py) — служебная форма",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "F1: служебная → 0 живых превью, строка «👀 Например» — соблюдено? проверить в чек-листе"
+        },
+        {
+          "name": "🔗 Биндинги виджетов (общий список)",
+          "does_why": "все биндинги hotkey/чат-команды (07 + widget_bindings.py)",
+          "alternative": "F3-варианты: (а) пер-виджет поповер (уже в 5 карточках по К2), (б) общая секция с фильтром, (в) приоритет команд + биндинги в расширенном",
+          "price": "S",
+          "verdict": "вердикт F3 за владельцем (а/б/в)",
+          "bugs": "F3: блок повторяется у каждой формы — громоздко; после К2 в 5 карточках свернутые формы — возможно, общий список избыточен"
+        },
+        {
+          "name": "🛡 Blur Guard",
+          "does_why": "настройки блюра + зоны (07 + blur_guard.py/blur_guard_routes.py) — OBS-оверлей /obs/blur-guard(-v2)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "F2: слайдер % — см. диагноз (зоны 100% по дизайну, реактивный блюр только при срабатывании Vision AI); F5: текст примера «Blur 15 сек · 100%» захардкожен — waBgPreviewSync не синхронизирует; dead-подписки v2 (отчёт Ф1-WS); W1/W2 у widgets-сессии"
+        },
+        {
+          "name": "🗳 Голосование / Custom Poll",
+          "does_why": "кастомное голосование на оверлее (07 + twitch_polls.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🧸 Прочие виджеты (wa2×8)",
+          "does_why": "8 форм: anime-runner, combo, latest-event, lower-third, mascot, recent-events, roulette, stream-session (07/13/16 + widgets.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "F1: у форм превью через кнопку-открытие URL (waWidgetPreview) — 0 inline; подтвердить целевое состояние в чек-листе"
+        },
+        {
+          "name": "🔧 Гайды (grid standalone)",
+          "does_why": "как менять виджеты без панели (статика) — служебная",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        }
+      ],
+      "forms": [
+        {
+          "name": "Цели (goals)",
+          "purpose": "список целей + значения",
+          "preview": "1 живое + мини — ок (F1-целевое)",
+          "bindings": "свёрнутые per-card (К2)",
+          "verdict": "ок"
+        },
+        {
+          "name": "Sub-цель",
+          "purpose": "прогресс саб-цели",
+          "preview": "1 живое + мини — ок",
+          "bindings": "свёрнутые per-card (К2)",
+          "verdict": "ок"
+        },
+        {
+          "name": "Сейчас играет",
+          "purpose": "трек/источники",
+          "preview": "1 живое + мини — ок",
+          "bindings": "свёрнутые per-card (К2)",
+          "verdict": "ок"
+        },
+        {
+          "name": "Расписание",
+          "purpose": "блоки расписания",
+          "preview": "1 живое + мини — ок",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "Счётчики",
+          "purpose": "счётчики per-key",
+          "preview": "1 живое + мини — ок",
+          "bindings": "свёрнутые per-card (К2)",
+          "verdict": "ок"
+        },
+        {
+          "name": "Countdown",
+          "purpose": "режим/длительность/заголовок",
+          "preview": "1 живое + мини — ок",
+          "bindings": "свёрнутые per-card (К2)",
+          "verdict": "ок"
+        },
+        {
+          "name": "Топ донатеров",
+          "purpose": "период alltime/month/day",
+          "preview": "1 живое + мини — ок",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "Заказ песен",
+          "purpose": "плейлист/лимиты",
+          "preview": "1 живое + мини — ок",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "TTS за баллы",
+          "purpose": "цена/лимиты/голоса",
+          "preview": "0 inline (нет визуала у фичи) — ок",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "TTS-чат",
+          "purpose": "озвучка чата/ducking",
+          "preview": "0 inline — ок (оверлей проверяется в OBS)",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "Донат-интеграции",
+          "purpose": "webhook/токены — служебная",
+          "preview": "0 inline — по F1-целевому нужен «👀 Например»",
+          "bindings": "—",
+          "verdict": "добавить строку-пример (Ф4)"
+        },
+        {
+          "name": "Биндинги (общая)",
+          "purpose": "список всех биндингов",
+          "preview": "0 — ок (служебная)",
+          "bindings": "сам список",
+          "verdict": "F3: вердикт владельца (оставить общий/убрать после К2)"
+        },
+        {
+          "name": "Blur Guard — настройки",
+          "purpose": "чувствительность/интервал/режим",
+          "preview": "mini-пример с захардкоженным текстом (F5)",
+          "bindings": "кнопки on/off/temp",
+          "verdict": "F5: синхронизировать текст с полями (Ф4)"
+        },
+        {
+          "name": "Blur Guard — зоны",
+          "purpose": "always-on зоны",
+          "preview": "0 live; зоны только через URL (W1)",
+          "bindings": "—",
+          "verdict": "W1: live-обновление по WS (widgets-сессия, после «да»)"
+        },
+        {
+          "name": "Custom Poll (голосование)",
+          "purpose": "вопрос/варианты/статус",
+          "preview": "0 inline; статус-строка",
+          "bindings": "—",
+          "verdict": "ок (подтвердить в чек-листе)"
+        },
+        {
+          "name": "wa2: Anime Runner",
+          "purpose": "персонаж/скорость/размер",
+          "preview": "0 inline, кнопка URL",
+          "bindings": "—",
+          "verdict": "ок (F1: подтвердить)"
+        },
+        {
+          "name": "wa2: Combo Counter",
+          "purpose": "слово/минимум/декей",
+          "preview": "0 inline",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "wa2: Latest Event",
+          "purpose": "фильтр/тема",
+          "preview": "0 inline",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "wa2: Lower Third",
+          "purpose": "имя/титул/соцсети",
+          "preview": "0 inline",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "wa2: Mascot",
+          "purpose": "URL/пресет/idle",
+          "preview": "0 inline",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "wa2: Recent Events",
+          "purpose": "kind/сумма/юзер",
+          "preview": "0 inline",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "wa2: Roulette",
+          "purpose": "участники/автоспин",
+          "preview": "0 inline",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "wa2: Stream Session",
+          "purpose": "статус сессии",
+          "preview": "0 inline",
+          "bindings": "—",
+          "verdict": "ок"
+        },
+        {
+          "name": "Пресеты виджетов",
+          "purpose": "быстрые пресеты (💀/⭐/⏳)",
+          "preview": "0 — ок",
+          "bindings": "создаёт биндинги",
+          "verdict": "ок"
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "title": "⚙️ Настройки — 16 карточек",
+      "cards": [
+        {
+          "name": "🧠 AI (глобально)",
+          "does_why": "дефолтный провайдер/промпты; ядро ai_service (04/08 + ai_service.py)",
+          "alternative": "—",
+          "price": "M",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🧩 Кастомные провайдеры",
+          "does_why": "openai-совместимые endpoints (08 + ai_service.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🩺 Состояние провайдеров",
+          "does_why": "health-чек провайдеров (08 + ai_service.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🛡️ Оффлайн-режим",
+          "does_why": "fallback без API (08 + ai_service.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "📋 Глобальные логи",
+          "does_why": "единственная копия после К1 (08 + лог-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "📋 Последние логи (panel tail)",
+          "does_why": "хвост panel.log (08 + лог-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🕘 Журнал действий",
+          "does_why": "action_log + revert (08 + routes.py-ядро actor)",
+          "alternative": "—",
+          "price": "M",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "⏺ Автозапись replay",
+          "does_why": "настройка автозаписи (08 + replay_debug.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "сверить с карточкой «Всплески» на Обзоре — одна настройка в двух местах (замечание Ф3)"
+        },
+        {
+          "name": "👤 О стримере (глобально)",
+          "does_why": "глобальный скоуп профиля (К3) (08 + routes_global_profile.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🔊 TTS (глобально)",
+          "does_why": "дефолтный провайдер/голос (08 + routes_tts_config.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🟣 Twitch API",
+          "does_why": "app-конфиг после К4 (08 + twitch-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🔐 Безопасность",
+          "does_why": "доступ/токены (08 + routes_security.py)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🎨 Фон темы",
+          "does_why": "bg-пресеты панели (08 + ядро)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "💾 Резервная копия",
+          "does_why": "backup/restore (08 + backup-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "🗄 База данных",
+          "does_why": "статистика/оптимизация/миграции (08 + database.py-роуты)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        },
+        {
+          "name": "❓ FAQ",
+          "does_why": "справка (статика)",
+          "alternative": "—",
+          "price": "S",
+          "verdict": "оставить",
+          "bugs": "—"
+        }
+      ]
+    }
+  ],
+  "bugs": [
+    {
+      "id": "Ф1-1",
+      "severity": "баг",
+      "what": "GET/PUT /api/stream-commands не существует в бэке (§S6 «Команды стримера», 16_tail.js); UI не подключен — фича недостижима",
+      "repro": "grep 16_tail.js; таблица маршрутов Ф1-теста",
+      "fix_plan": "вердикт владельца: (а) роут+таблица streamer_commands, (б) удалить мёртвый JS-блок",
+      "status": "✅ мёртвый JS удалён (1cfbf7f); роут — опциональная задача на будущее"
+    },
+    {
+      "id": "Ф2-1",
+      "severity": "баг (высокий)",
+      "what": "P5-сплит сломал cross-чанковый hoisting: top-level loadHeatmap() в 04-чанке (функция в 07) и _botTabLoaders в 06-чанке (loadBrainPreview в 09) — ReferenceError; init-цепочка аналитики оборвана, вкладки бота могут не грузиться",
+      "repro": "smoke: JS-ошибки при загрузке; консоль панели",
+      "fix_plan": "перенести вызовы/литерал в верный чанк (или поздний init) + автотест класса: top-level вызов чанка резолвится в этом же/раннем чанке",
+      "status": "✅ исправлено (455d140) + тест класса"
+    },
+    {
+      "id": "Ф2-2",
+      "severity": "баг",
+      "what": "500 GET /api/moderation/pending на свежей БД: no such table moderation_pending — ensure не вызван эндпоинтом",
+      "repro": "пустая база → открыть модерацию",
+      "fix_plan": "одна строка ensure в эндпоинт + тест на tmp_db (прецедент snippets/ddbfb8f)",
+      "status": "✅ исправлено (5ea7179) + fresh-db тест"
+    },
+    {
+      "id": "Ф2-3",
+      "severity": "UX",
+      "what": "горизонтальный overflow на 390px во всех секциях (фиксированные ширины полей)",
+      "repro": "smoke mobile-390; скриншоты logs/smoke-390.png",
+      "fix_plan": "max-width:100% для .input/.field-200 и flex-обёрток (по «да»)",
+      "status": "✅ 0px во всех секциях (54c3442…+корень margin-left)"
+    },
+    {
+      "id": "Ф2-4",
+      "severity": "UX",
+      "what": "диплинк #brain открывает дашборд (brain нет в whitelist hash-restore)",
+      "repro": "открыть http://…/#brain",
+      "fix_plan": "добавить 'brain' в valid-список (04_chat_settings.js:615)",
+      "status": "✅ исправлено (a1a6509) + тест"
+    },
+    {
+      "id": "Ф2-5",
+      "severity": "заметка",
+      "what": "разделов 7, не 8: отдельной «Модерации» нет (осознанно, v14)",
+      "repro": "—",
+      "fix_plan": "—",
+      "status": "принято как данность; карточки модерации учтены в Обзоре и вкладке бота"
+    },
+    {
+      "id": "F1",
+      "severity": "владелец",
+      "what": "превью непоследовательны (несколько / 0)",
+      "repro": "раздел Виджеты",
+      "fix_plan": "целевое: контентная → 1 живое, служебная → 0 + «👀 Например»; инвентаризация готова (см. формы), подтвердить в чек-листе",
+      "status": "✅ нормализовано: «👀 Например» в Донат-интеграциях (b42fb22); остальное сверить по чек-листу"
+    },
+    {
+      "id": "F2",
+      "severity": "владелец",
+      "what": "слайдер «Интенсивность блюра» не влияет",
+      "repro": "оверлей с зонами/без Vision AI",
+      "fix_plan": "диагноз готов (зоны 100% по дизайну; реактивный блюр только при Vision AI; 100% = blur(24px)); WS-хоп починен fbfa8b7; проверка 20/50/100% «Блюрить сейчас» — в чек-листе; возможен режим «полное скрытие»",
+      "status": "проверка в чек-листе → вердикт Ф4"
+    },
+    {
+      "id": "F3",
+      "severity": "владелец",
+      "what": "биндинги-блок громоздкий у каждой формы",
+      "repro": "раздел Виджеты",
+      "fix_plan": "после К2: (а) пер-виджет поповер, (б) одна секция с фильтром, (в) приоритет команд; выбор владельца",
+      "status": "варианты готовы"
+    },
+    {
+      "id": "F4",
+      "severity": "владелец",
+      "what": "цифры 67/50/50% в шапке обзора виджетов непонятны",
+      "repro": "Виджеты (или Обзор) — шапка со счётчиками",
+      "fix_plan": "предположительно динамические значения карточки «Статы» (сообщения/боты/ответы); подтвердить по чек-листу → переименовать/добавить title",
+      "status": "уточнение в чек-листе"
+    },
+    {
+      "id": "F5",
+      "severity": "владелец",
+      "what": "текст примера блюра «Blur 15 сек · 100%» захардкожен",
+      "repro": "карточка Blur Guard",
+      "fix_plan": "синхронизировать с полями формы (waBgPreviewSync)",
+      "status": "✅ исправлено (378ccb9) + тест"
+    },
+    {
+      "id": "F6",
+      "severity": "владелец",
+      "what": "непонятно, подключён ли ИИ к модерации",
+      "repro": "вкладка moderation бота",
+      "fix_plan": "пояснительная подпись в карточке (ИИ-вердикты опциональны, гейты — в behavior)",
+      "status": "✅ исправлено (b42fb22) + тест"
+    },
+    {
+      "id": "F7",
+      "severity": "UX (владелец)",
+      "what": "Панель массового выбора ботов открывается слева и не продизайнена: inline-div в потоке списка (03_bots.js:38), без позиционирования; при скролле списка уходит из виду",
+      "repro": "Раздел Боты → выбрать чекбоксами 1+ ботов",
+      "fix_plan": "Редизайн по выбору владельца: (а) плавающая капсула снизу по центру (sticky, с count-бейджем), (б) липкая шапка списка + «выбрать всех», (в) компактное меню «Действия (N)»",
+      "status": "ждёт выбора варианта владельцем"
+    },
+    {
+      "id": "F8",
+      "severity": "баг (высокий)",
+      "what": "GET /api/accounts/{id} не существует (PUT/DELETE only) → «Method Not Allowed»: «Мозг бота» бота (починено — _allBots) и вкладка «Общие» (03_bots.js:523 loadBotGeneral — поля бота не заполняются, _currentBot портится)",
+      "repro": "открыть карточку бота → Обзор/Общие",
+      "fix_plan": "P8-A1: GET-роут или бот из _allBots; Ф1-тест усилен до метод-уровня",
+      "status": "в плане P8-A1, allowlist теста"
+    },
+    {
+      "id": "F9",
+      "severity": "UX (владелец)",
+      "what": "Двойное превью почти у всех виджетов (живой iframe + mini-пример); у iframe белый фон на пустых данных",
+      "repro": "раздел Виджеты → Song Request и др.",
+      "fix_plan": "P8-B1: 1 живое превью + тёмный дефолт виджетов",
+      "status": "P8-B1, session-widgets"
+    },
+    {
+      "id": "F10",
+      "severity": "UX (владелец)",
+      "what": "Пресеты «💀 Смерти / ⭐ Саб-цель / ⏳ Countdown» висят на карточках виджетов, где им не место",
+      "repro": "скриншот владельца: Song Request",
+      "fix_plan": "P8-B2: пресеты только на 5 релевантных карточках",
+      "status": "P8-B2, session-widgets"
+    },
+    {
+      "id": "F11",
+      "severity": "UX",
+      "what": "Вечное «Загрузка...» в аналитике при пустых данных/ошибке (Оценки, Heatmap, 24ч, Топ чатеров)",
+      "repro": "Аналитика на свежей базе",
+      "fix_plan": "P8-A2: empty-state во всех хендлерах",
+      "status": "P8-A2"
+    },
+    {
+      "id": "F12",
+      "severity": "UX",
+      "what": "Стрим-инструменты видны не-модератору: пояснение + мёртвая форма",
+      "repro": "карточка не-модератора → роль",
+      "fix_plan": "P8-A3: скрывать форму целиком",
+      "status": "P8-A3"
+    },
+    {
+      "id": "F13",
+      "severity": "проверка (владелец)",
+      "what": "Twitch API «Проверить подключение» — владелец многократно сомневается в работоспособности",
+      "repro": "Настройки → Twitch API",
+      "fix_plan": "P8-A4: честный вывод ошибки по шагам + доложить владельцу",
+      "status": "P8-A4"
+    },
+    {
+      "id": "F14",
+      "severity": "Q&A (владелец)",
+      "what": "«Большинство функций либо фейк, либо не проработаны; много лишнего»: копирка, общая память, отношение к стримеру, Personality Shift, TTS-карта, replay, learning suggestions, сводки, режим внимания, провайдеры, beep-место, профиль в Настройках, Сохранить-везде",
+      "repro": "docs/PANEL_QA_QUESTIONS.md C1–C14",
+      "fix_plan": "P8 блок C: владелец отвечает по номеру+букве → фикс по одному",
+      "status": "вердикты владельца получены 02.09 — см. PANEL_POLISH_PLAN.md блок C (C1–C14 с решениями)"
+    }
+  ],
+  "transfers": [
+    {
+      "what": "К1 «Глобальные логи» дубль из Виджетов",
+      "to": "Настройки (единственная копия)",
+      "price": "S",
+      "recommendation": "исполнено 31.08 (95ff3b3)",
+      "decision": "✅ владельцем"
+    },
+    {
+      "what": "К2 Биндинги per-widget",
+      "to": "свёрнутые формы в 5 карточках",
+      "price": "S",
+      "recommendation": "исполнено 31.08 (95ff3b3)",
+      "decision": "✅ владельцем"
+    },
+    {
+      "what": "К3 «О стримере» ×3",
+      "to": "один центр в Мозге + скоупы",
+      "price": "S",
+      "recommendation": "исполнено 31.08 (95ff3b3)",
+      "decision": "✅ владельцем"
+    },
+    {
+      "what": "К4 «Twitch-приложение» из Виджетов",
+      "to": "Настройки → Twitch API",
+      "price": "S",
+      "recommendation": "исполнено 31.08 (95ff3b3)",
+      "decision": "✅ владельцем"
+    },
+    {
+      "what": "Новых кандидатов на перенос НЕ найдено",
+      "to": "—",
+      "price": "—",
+      "recommendation": "все карточки на своих местах по цепочке данные→эндпоинт→карточка; автозапись replay — сверить дубль настройки (Обзор/Настройки)",
+      "decision": "—"
+    }
+  ],
+  "appendix": [
+    "Lighthouse 01.09: Performance 68 (LCP 6.7s — Deck CPU/холодный старт, mainthread 1.6s, total 942 KiB), Accessibility 100, Best Practices 96 (консольные ошибки = Ф2-1).",
+    "Smoke 01.09 (изолированный инстанс, свежая база): 10/13; SKIP вкладки бота (нет ботов) — прогнать на живой панели; артефакты logs/smoke_report.json, logs/smoke-*.png.",
+    "Покрытие Ф3: dashboard 7, bots 22, chat 2, analytics 8, brain 7, widgets 17 + 24 формы, settings 16 = 79 карточек + 24 формы.",
+    "Чек-лист владельца: docs/PANEL_REVIEW_CHECKLIST_OWNER.md."
+  ]
+}

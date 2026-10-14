@@ -1,0 +1,13 @@
+# Optional local transcription, diarization, and speaker verification.
+# Core panel, bot, widget, Piper, and Web Speech paths do not require this stack.
+-r requirements.lock
+
+openai-whisper>=20231117
+speechbrain>=1.1.0,<2.0
+numpy>=1.24
+scipy>=1.10
+
+# OmniVoice (optional local TTS/voice clone, Apache-2.0 code; weights license
+# confirmed by the owner 10.09.2026 — see omnivoice/LICENSE_REVIEW.md).
+# Heavy PyTorch/Transformers runtime: install PyTorch first per omnivoice/README.
+omnivoice>=0.1.0

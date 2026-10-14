@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "ports": {"preview": 8000, "additional": {}},
+  "scripts": {
+    "setup": {
+      "enabled": true,
+      "command": "unset PYTHONPATH; python3 -m venv .venv 2>/dev/null || true; .venv/bin/python -m pip install -q --upgrade pip; .venv/bin/python -m pip install -q -r requirements-qa.txt; npm install --prefix /tmp --no-save --no-audit --no-fund jsdom >/dev/null; .venv/bin/python scripts/qa_profile.py --profile local reset >/dev/null; .venv/bin/python scripts/qa_profile.py --profile local seed >/dev/null"
+    },
+    "run": {"enabled": true, "command": "HOPLITE_PREVIEW_PROFILE=full-qa QA_PROFILE_NAME=local bash .hoplite/run.sh"},
+    "archive": {"enabled": true, "command": null},
+    "check": {"enabled": true, "command": ".venv/bin/python -m pytest tests/test_plan_file_zones.py -q"}
+  },
+  "mcpServers": []
+}

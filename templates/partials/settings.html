@@ -1,0 +1,471 @@
+<!-- ========== SETTINGS ========== -->
+<section id="section-settings" class="section">
+    <div class="section-header">
+        <h1 class="section-title">⚙️ <span data-i18n="title.settings">Настройки</span></h1>
+    </div>
+
+    <h2 class="settings-group-title" data-i18n="settings.group_ai">AI и провайдеры</h2>
+
+    <!-- AI Global -->
+    <div class="card mb-4" id="settingsCard-ai_global">
+        <div class="card-header"><span class="card-title" data-i18n="settings.ai_global">🧠 AI (глобально)</span></div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-sm text-muted mb-2 block" data-i18n="label.provider" for="globalAIProvider">AI Провайдер</label>
+                <select id="globalAIProvider" class="input" onchange="renderAIProviderFields()">
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="ollama">Ollama</option>
+                    <option value="gemini">Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                </select>
+            </div>
+            <div id="aiProviderFields"><!-- Filled by JS based on provider --></div>
+        </div>
+        <div class="mt-4"><label class="text-sm text-muted mb-2 block" data-i18n="label.global_vision" for="globalVisionModel">Общая Vision-модель</label><input id="globalVisionModel" class="input" data-i18n-placeholder="placeholder.global_vision" placeholder="Пусто = модель провайдера"></div>
+        <p class="text-xs text-muted mt-1" data-i18n="settings.vision_hint">Vision — модель, которая смотрит картинки стрима. Подсказки: OpenRouter → google/gemini-2.0-flash:free · Ollama (локально, бесплатно) → llava или minicpm-v (установить: ollama pull llava) · именованный провайдер (🧩) → его модель с поддержкой картинок.</p>
+        <div class="flex gap-2 mt-4 items-center flex-wrap">
+            <button class="btn btn-primary" onclick="saveGlobalAI()" data-i18n="btn.save">💾 Сохранить</button>
+            <button class="btn btn-secondary" onclick="testGlobalAI()" data-i18n="btn.test">🔌 Проверить соединение</button>
+            <button class="btn btn-secondary" onclick="testVision()" data-i18n="btn.test_vision">👁 Проверить vision</button>
+            <span id="globalAiTestStatus" class="text-sm font-mono ml-2" aria-live="polite"></span>
+        </div>
+    </div>
+
+    <!-- §25.4: кастомные провайдеры -->
+    <div class="card mb-4" id="customProvidersCard">
+        <div class="card-header"><span class="card-title" data-i18n="settings.custom_providers">🧩 Кастомные провайдеры</span></div>
+        <p class="text-sm text-muted mb-3" data-i18n="settings.custom_providers_hint">Свои API-провайдеры (OpenAI-совместимые): дайте имя, укажите Base URL и ключ, добавьте модели кнопкой «＋ Модель». Потом выберите их в «AI Провайдер» выше и в настройках каждого бота.</p>
+        <div id="customProvidersList" class="space-y-2 mb-3"></div>
+        <div class="flex gap-2 flex-wrap mb-2">
+            <input type="text" id="cpName" class="input" style="max-width:180px" data-i18n-placeholder="cp.name_ph" placeholder="Имя (myproxy)" data-i18n-aria-label="panel.provider_name" aria-label="Имя провайдера">
+            <input type="text" id="cpBaseUrl" class="input flex-1" style="min-width:220px" data-i18n-placeholder="cp.url_ph" placeholder="https://api.example.com/v1" data-i18n-aria-label="panel.provider_url" aria-label="Базовый URL API провайдера">
+            <input type="password" id="cpApiKey" class="input" style="max-width:220px" data-i18n-placeholder="cp.key_ph" placeholder="API-ключ (пусто = не менять)" data-i18n-aria-label="panel.provider_key" aria-label="API-ключ провайдера">
+        </div>
+        <!-- Q15b (E2): один список моделей с пометкой типа (чат/vision/оба); хранение
+             models+vision_models сохраняется, UI собирает оба списка из одной таблицы -->
+        <div id="cpModelsEditor" class="mb-2"></div>
+        <button type="button" class="btn btn-secondary btn-sm mb-3" onclick="cpAddModelRow()" data-i18n="cp.add_model">＋ Модель</button>
+        <p class="text-xs text-muted mb-3" data-i18n="cp.models_types_hint">Один список моделей: пометьте каждую как чат, vision или обе. Модель не добавляется дважды — не нужно вписывать её отдельно для vision.</p>
+        <div class="flex gap-2">
+            <button class="btn btn-primary btn-sm" onclick="saveCustomProvider()" id="cpSaveBtn" data-i18n="cp.add">+ Добавить провайдера</button>
+            <button class="btn btn-secondary btn-sm hidden" onclick="resetCustomProviderForm()" id="cpCancelBtn" data-i18n="btn.cancel">Отмена</button>
+        </div>
+    </div>
+    <div class="card mb-4 provider-status-card" id="settingsCard-provider_status">
+        <div class="card-header">
+            <span class="card-title" data-i18n="settings.provider_status">🩺 Состояние провайдеров</span>
+            <div class="flex gap-2"><button class="btn btn-secondary btn-sm" onclick="loadProviderStatus()" data-i18n="btn.refresh">🔄 Обновить</button><button class="btn btn-primary btn-sm" onclick="testAllProviders()" data-i18n="btn.test_all">🔌 Проверить все</button></div>
+        </div>
+        <div id="providerStatusSummary" class="text-sm text-muted mb-3" data-i18n="label.runtime_check" aria-live="polite">Проверка состояния...</div>
+        <div id="providerStatusGrid" class="provider-status-grid" aria-live="polite"></div>
+    </div>
+    <div class="card mb-4 offline-card" id="settingsCard-offline_mode">
+        <div class="card-header"><span class="card-title" data-i18n="settings.offline_mode">🛡️ Оффлайн-режим</span><span id="offlineModeStatus" class="badge off" data-i18n="status.offline_disabled" aria-live="polite">Выключен</span></div>
+        <p class="text-sm text-muted mb-3" data-i18n="settings.offline_mode_desc">Принудительно использовать Ollama для AI/Vision и Piper/Web Speech для озвучки. Ключи облачных сервисов не требуются.</p>
+        <div class="flex gap-2 items-center"><div id="offlineModeToggle" class="toggle" onclick="toggleOfflineMode()" data-i18n-aria-label="settings.offline_mode_toggle" aria-label="Работать без облачных API"></div><span data-i18n="settings.offline_mode_toggle">Работать без облачных API</span><button class="btn btn-secondary btn-sm" onclick="testOfflineMode()" data-i18n="btn.test_local_services">Проверить локальные сервисы</button></div>
+    </div>
+
+    <h2 class="settings-group-title" data-i18n="settings.group_diagnostics">Журналы и диагностика</h2>
+
+    <div class="card mb-4" id="settingsCard-diagnostics">
+        <div class="card-header"><span class="card-title" data-i18n="settings.diagnostics">🛠 Журналы и диагностика</span></div>
+        <p class="text-sm text-muted mb-3" data-i18n="settings.bot_logs_hint">Логи ботов находятся в «Статистике»: фильтруйте по боту, уровню и периоду, затем выгружайте CSV.</p>
+        <button class="btn btn-secondary btn-sm" onclick="openBotLogs()" data-i18n="btn.open_bot_logs">Открыть логи ботов</button>
+    </div>
+
+    <!-- §I: Последние логи (panel.log tail) -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="settings.panel_log_tail">📋 Последние логи</span>
+            <div class="flex gap-2">
+                <select id="panelLogTailLines" class="input" style="width:90px" onchange="loadPanelLogTail()" data-i18n-aria-label="panel.log_lines" aria-label="Количество строк логов">
+                    <option value="50">50</option>
+                    <option value="100" selected>100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="loadPanelLogTail()" data-i18n="btn.refresh">🔄 Обновить</button>
+                <button class="btn btn-secondary btn-sm" onclick="downloadPanelLog()" data-i18n="btn.download">📥 Скачать</button>
+            </div>
+        </div>
+        <p class="text-sm text-muted mb-2" data-i18n="settings.panel_log_tail_hint">Хвост panel.log — ошибки, запуск, события панели.</p>
+        <div id="panelLogTailContent" class="font-mono logs-scroll" style="max-height:400px;overflow:auto;background:rgba(0,0,0,0.15);border-radius:8px;padding:10px;font-size:12px;white-space:pre-wrap"><div class="text-muted text-sm" data-i18n="label.loading">Загрузка...</div></div>
+    </div>
+
+    <!-- §9j: Журнал действий с отменой -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="actionlog.title">🕘 Журнал действий</span>
+            <div class="flex gap-2">
+                <button class="btn btn-secondary btn-sm" onclick="loadActionLog()" data-i18n="btn.refresh">🔄 Обновить</button>
+                <button class="btn btn-secondary btn-sm" onclick="exportActionLogCSV()" data-i18n="btn.export_csv">📥 CSV</button>
+            </div>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="actionlog.description">Что происходило в панели. Для большинства действий доступна отмена — кнопка «Отменить».</p>
+        <div class="flex gap-2 mb-3 flex-wrap">
+            <select id="actionLogAction" class="input compact-select" onchange="loadActionLog()" data-i18n-aria-label="panel.action_type" aria-label="Тип действия"><option value="" data-i18n="actionlog.all_actions">Все типы</option></select>
+            <select id="actionLogActor" class="input compact-select" onchange="loadActionLog()" data-i18n-aria-label="panel.action_actor" aria-label="Кто выполнил действие"><option value="" data-i18n="actionlog.all_actors">Все акторы</option></select>
+            <input id="actionLogQuery" type="text" class="input field-200" data-i18n-placeholder="actionlog.search" placeholder="Поиск..." onkeydown="if(event.key==='Enter')loadActionLog()" data-i18n-aria-label="actionlog.search" aria-label="Поиск по журналу действий">
+            <button class="btn btn-secondary btn-sm" onclick="loadActionLog()" data-i18n="btn.search">Найти</button>
+        </div>
+        <div id="actionLogList" class="space-y-1" aria-live="polite"><div class="text-muted text-sm" data-i18n="label.loading">Загрузка...</div></div>
+        <div class="flex gap-2 mt-3 justify-center">
+            <button class="btn btn-secondary btn-sm" onclick="actionLogPage(-1)" data-i18n="actionlog.prev">← Раньше</button>
+            <button class="btn btn-secondary btn-sm" onclick="actionLogPage(1)" data-i18n="actionlog.next">Позже →</button>
+        </div>
+    </div>
+
+    <!-- Q16 F5 (DEC-OWNER-016): автозапись replay-сессий — настройка бота
+         (тумблер в карточке «Запись сессий»); глобальная карточка убрана -->
+
+    <!-- Q16 F1 (DEC-OWNER-016): глобальный мастер-рубильник провокаций убран —
+         вкл/выкл только у бота во вкладке «Характер» (conflictEnabled). -->
+
+    <!-- Q16 F2: карточка/модалка Media Share disclosure убрана — подсказка в форме медиа-шары -->
+
+    <!-- P8-C12: карточка «О стримере (глобально)» убрана по вердикту владельца —
+         профиль стримера живёт только в «Мозге бота» → «Профиль стримера» -->
+
+    <!-- Q16 F3 (DEC-OWNER-016): глобальный раздел TTS убран — провайдер/голос/события
+         полностью per-бот (вкладка «TTS» карточки бота). Карта «кто что озвучивает»
+         переехала туда же; tts_settings и ai_*-ключи остаются legacy-fallback рантайма. -->
+
+    <!-- Q16 F4 (DEC-OWNER-016): «Модератор TTS консоль» переехала в карточку
+         бота-модератора (botTab-moderation) -->
+
+    <h2 class="settings-group-title" data-i18n="settings.group_tts">🔊 Общий TTS и авто-приглушение (Ducking)</h2>
+
+    <!-- TTS Ducking Settings -->
+    <div class="card mb-4" id="settingsCard-tts_ducking">
+        <div class="card-header">
+            <span class="card-title">🎚 Авто-приглушение TTS (Ducking & Речь стримера)</span>
+        </div>
+        <p class="text-sm text-muted mb-3">
+            Автоматически снижает громкость или ставит на паузу озвучку ботов (TTS), когда на стриме звучит донат/алерт или когда в микрофон говорит стример.
+        </p>
+
+        <!-- Блок речи стримера -->
+        <div class="p-3 bg-base-200 rounded mb-3">
+            <b class="text-sm block mb-2">🎙 Приглушение при речи стримера (VAD / Микрофон)</b>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" id="ttsDuckStreamerEnabled" class="checkbox">
+                    <span>Включить приглушение при речи</span>
+                </label>
+                <div>
+                    <label class="text-xs text-muted block mb-1">Громкость TTS во время речи</label>
+                    <select id="ttsDuckVolumePercent" class="input input-sm w-full">
+                        <option value="0">0% (полная пауза)</option>
+                        <option value="15" selected>15% (едва слышно)</option>
+                        <option value="25">25% (тихий фон)</option>
+                        <option value="50">50% (вполовину)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-muted block mb-1">Задержка восстановления</label>
+                    <select id="ttsDuckRecoveryMs" class="input input-sm w-full">
+                        <option value="500">500 мс (быстро)</option>
+                        <option value="1200" selected>1200 мс (естественно)</option>
+                        <option value="2500">2500 мс (плавно)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Блок событий и алертов -->
+        <div class="p-3 bg-base-200 rounded mb-3">
+            <b class="text-sm block mb-2">⚡ Алерты и события Twitch (Event Ducking)</b>
+            <p class="text-xs text-muted mb-2">При срабатывании события виджет TTS временно замолкает, чтобы не перебивать звук алерта.</p>
+            <div id="ttsDuckEventsList" class="space-y-2">
+                <!-- Заполняется динамически loadTtsDuckingSettings -->
+            </div>
+        </div>
+
+        <div class="flex gap-2 items-center flex-wrap mt-3">
+            <button type="button" class="btn btn-primary btn-sm" id="ttsDuckSaveBtn" onclick="saveTtsDuckingSettings()">
+                💾 Сохранить настройки Ducking
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="testTtsDucking()">
+                🔌 Проверить Ducking (3 сек)
+            </button>
+            <span id="ttsDuckStatus" class="text-xs text-muted"></span>
+        </div>
+    </div>
+
+    <h2 class="settings-group-title" data-i18n="settings.group_twitch">Подключение Twitch</h2>
+
+    <!-- Twitch API (§25.3: понятное объяснение, зачем он нужен) -->
+    <div class="card mb-4" id="settingsCard-twitch_api">
+        <div class="card-header"><span class="card-title" data-i18n="settings.twitch_api">🟣 Twitch API</span></div>
+        <p class="text-sm text-muted mb-2" data-i18n="settings.twitch_api_what">Что это даёт панели:</p>
+        <ul class="text-sm text-muted mb-3" style="padding-left:18px">
+            <li data-i18n="settings.twitch_api_use1">Вход ботов через Twitch (кнопка «Войти через Twitch» без ручного токена)</li>
+            <li data-i18n="settings.twitch_api_use2">Информация о каналах: игра, название стрима, зрители</li>
+            <li data-i18n="settings.twitch_api_use3">Автообновление профиля стримера (вкладка «О стримере»)</li>
+            <li data-i18n="settings.twitch_api_use4">События Twitch (follow/sub/raid/cheer) через EventSub</li>
+        </ul>
+        <p class="text-sm text-muted mb-3" data-i18n="settings.twitch_api_how">Без этих ключей панель работает, но перечисленные функции недоступны. Создайте приложение на dev.twitch.tv/console → Apps → New Application и вставьте Client ID и Client Secret сюда.</p>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-sm text-muted mb-2 block" data-i18n="label.client_id" for="twitchClientID">Client ID</label>
+                <input type="text" id="twitchClientID" class="input" data-i18n-placeholder="placeholder.client_id" placeholder="ваш client_id">
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-2 block" data-i18n="label.client_secret" for="twitchClientSecret">Client Secret</label>
+                <input type="password" id="twitchClientSecret" class="input" data-i18n-placeholder="placeholder.client_secret" placeholder="ваш client_secret">
+            </div>
+        </div>
+        <button class="btn btn-primary mt-4" onclick="saveTwitchApp()" data-i18n="btn.save">💾 Сохранить</button>
+        <span class="text-xs text-muted mx-2" data-i18n="settings.twitch_check_hint">Проверка выполняется от первого включённого бота (нужен его OAuth-токен).</span>
+        <button class="btn btn-secondary mt-4" onclick="checkTwitchConnection()" data-i18n="settings.twitch_check">🔌 Проверить подключение</button>
+        <div id="twitchCheckResult" class="text-sm mt-2"></div>
+        <div class="mt-4">
+            <label class="flex items-center gap-2 text-sm">
+                <input id="autoRefreshTokens" type="checkbox" checked>
+                <span data-i18n="token.auto_refresh">Автоматически продлевать токены</span>
+            </label>
+            <p class="text-xs text-muted mt-1" data-i18n="token.auto_refresh_hint">Работает для ботов, вошедших через Twitch, когда Client ID и Client Secret настроены.</p>
+            <label class="text-sm text-muted mt-3 mb-1 block" data-i18n="token.warning_days" for="tokenExpiryWarningDays">Показывать «истекает» заранее, дней</label>
+            <input id="tokenExpiryWarningDays" class="input field-100" type="number" min="1" max="90" value="7">
+            <p class="text-xs text-muted mt-1" data-i18n="token.warning_days_hint">Меняет только момент появления жёлтого статуса на карточке бота.</p>
+            <button class="btn btn-primary btn-sm mt-3" onclick="saveTokenRefreshSettings()" data-i18n="token.save_settings">Сохранить продление токенов</button>
+        </div>
+    </div>
+
+    <h2 class="settings-group-title" data-i18n="settings.group_security">Безопасность и интерфейс</h2>
+
+    <!-- Security -->
+    <div class="card mb-4" id="settingsCard-security">
+        <div class="card-header"><span class="card-title" data-i18n="settings.security">🔐 Безопасность</span></div>
+        <div class="flex gap-2 inline-wrap">
+            <span class="badge" id="secAuth" data-i18n="security.local_no_password">Локальный доступ без пароля</span>
+            <span class="badge" id="secEnc" data-i18n="security.token_encryption">Шифрование токенов</span>
+            <span class="badge" id="secHelix" data-i18n="security.helix_api">Twitch Helix API</span>
+            <span class="badge" id="secOAuth" data-i18n="security.device_oauth">Device OAuth</span>
+        </div>
+        <div id="plaintextSecurityWarning" class="security-warning mt-3 hidden" role="alert"
+             data-i18n="security.plaintext_warning">
+            ⚠️ Внимание: токены и API-ключи хранятся в БД без шифрования. Панель доступна только с этого компьютера. Настройте TOKEN_ENCRYPTION_KEY.
+        </div>
+        <p class="text-xs text-muted mt-3" data-i18n="settings.security_desc">
+            На localhost панель работает без пароля. Для доступа из сети нужны PANEL_AUTH_USER,
+            PANEL_AUTH_PASS и TOKEN_ENCRYPTION_KEY.
+        </p>
+    </div>
+
+    <!-- v12: Фон темы -->
+    <div class="card mb-4" id="settingsCard-theme_background">
+        <div class="card-header"><span class="card-title" data-i18n="settings.theme_background">🎨 Фон темы</span></div>
+        <p class="text-xs text-muted mb-3" data-i18n="settings.theme_hint">Выберите фоновый градиент для панели</p>
+        <div class="flex flex-wrap gap-2" id="bgPresets">
+            {% for preset in [('default', 'theme.default', 'Серый'), ('midnight', 'theme.midnight', '🌙 Полночь'), ('ocean', 'theme.ocean', '🌊 Океан'), ('forest', 'theme.forest', '🌲 Лес'), ('sunset', 'theme.sunset', '🌅 Закат'), ('neon', 'theme.neon', '⚡ Неон'), ('purple', 'theme.purple', '💜 Фиолет'), ('minimal', 'theme.minimal', '◼ Минимал')] %}
+            <button class="btn btn-sm btn-secondary bg-preset-btn" data-bg="{{ preset[0] }}" data-i18n="{{ preset[1] }}" onclick="applyBgPreset('{{ preset[0] }}')">{{ preset[2] }}</button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card mb-4" id="directorSkinCard">
+        <div class="card-header"><span class="card-title" data-i18n="settings.panel_layout">🖥️ Дизайн панели</span></div>
+        <p class="text-xs text-muted mb-3" data-i18n="settings.panel_layout_hint">Меняет раскладку всей панели. Фон выбирается отдельно выше; выбор хранится в этом браузере.</p>
+        <div class="director-skin-options" role="group" data-i18n-aria-label="settings.panel_layout" aria-label="Дизайн панели">
+            <button type="button" class="director-skin-option active" data-director-skin-option="pult" aria-pressed="true" onclick="applyPanelLayout('pult')">
+                <span class="director-skin-swatch pult" aria-hidden="true"><i></i><i></i><i></i></span>
+                <b data-i18n="settings.director_skin_pult">Пульт</b>
+                <small data-i18n="settings.panel_layout_pult_hint">Плотная раскладка, компактные карточки и прямые линии</small>
+            </button>
+            <button type="button" class="director-skin-option" data-director-skin-option="cockpit" aria-pressed="false" onclick="applyPanelLayout('cockpit')">
+                <span class="director-skin-swatch cockpit" aria-hidden="true"><i></i><i></i><i></i></span>
+                <b data-i18n="settings.director_skin_cockpit">Кокпит</b>
+                <small data-i18n="settings.panel_layout_cockpit_hint">Крупные карточки, скругления и акцентные градиенты</small>
+            </button>
+        </div>
+    </div>
+
+    <h2 class="settings-group-title">🌐 Прокси и сеть</h2>
+
+    <!-- Proxy Pool -->
+    <div class="card mb-4" id="settingsCard-proxy_pool">
+        <div class="card-header flex items-center justify-between flex-wrap gap-2">
+            <span class="card-title">🌐 Общий пул прокси</span>
+            <div class="flex gap-2 flex-wrap items-center">
+                <button class="btn btn-secondary btn-sm" onclick="loadProxyPool()" title="Обновить список прокси">🔄 Обновить</button>
+                <button class="btn btn-secondary btn-sm" onclick="checkAllProxyPool()" title="Проверить все прокси на доступ к Twitch">⚡ Проверить все</button>
+                <button class="btn btn-secondary btn-sm text-danger" onclick="cleanDeadProxyPool()" title="Удалить нерабочие прокси из пула">🧹 Очистить мёртвые</button>
+                <button class="btn btn-secondary btn-sm" style="color:var(--color-warning,#f59e0b)" onclick="cleanSlowProxyPool(2000)" title="Удалить прокси с пингом 2000мс+ и ошибки">⚡ Удалить >2к пинг</button>
+                <button class="btn btn-secondary btn-sm" onclick="cleanDuplicateProxyPool()" title="Удалить повторяющиеся прокси (одинаковый host:port)">🗑 Удалить повторки</button>
+                <button class="btn btn-secondary btn-sm" onclick="claimProxiesForActiveBots()" title="Раздать свободные прокси из пула только включенным активным ботам">🟢 Раздать активным</button>
+                <button class="btn btn-primary btn-sm" onclick="toggleProxyAddForm()">＋ Добавить прокси</button>
+            </div>
+        </div>
+
+        <p class="text-xs text-muted mb-3">
+            Централизованный пул прокси: боты могут автоматически занимать свободные прокси («столбить» 1 бот = 1 прокси) и автоматически переключаться на живой прокси при сбое старого.
+        </p>
+
+        <!-- Статистика пула -->
+        <div class="flex gap-3 flex-wrap items-center mb-3 text-xs" id="proxyPoolStats">
+            <span class="badge">Всего: <b id="ppStatTotal">0</b></span>
+            <span class="badge" style="color:var(--color-success,#22c55e)">🟢 Свободно: <b id="ppStatAvail">0</b></span>
+            <span class="badge" style="color:var(--color-primary,#6366f1)">📌 Занято ботами: <b id="ppStatAssigned">0</b></span>
+            <span class="badge" style="color:var(--color-error,#ef4444)">🔴 Ошибки: <b id="ppStatDead">0</b></span>
+        </div>
+
+        <!-- Настройки авто-замены и уведомлений -->
+        <div class="card p-3 mb-3" style="background:var(--bg-secondary,rgba(0,0,0,0.15)); border:1px solid var(--border);">
+            <div class="text-xs font-semibold mb-2">⚙️ Автоматизация пула прокси</div>
+            <div class="flex gap-4 flex-wrap">
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" id="ppAutoFailover" onchange="saveProxyPoolSettingsUi()">
+                    <span>🔄 Авто-замена: брать новый живой прокси из пула, если текущий перестал работать</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" id="ppNotifyOwner" onchange="saveProxyPoolSettingsUi()">
+                    <span>🔔 Уведомлять владельца при замене или если свободных прокси не осталось</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" id="ppAutoClean" onchange="saveProxyPoolSettingsUi()">
+                    <span>🧹 Фоновая авто-чистка: раз в 15 минут проверять пул и тихо удалять >2000мс и ошибки</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Форма быстрого добавления (скрыта по умолчанию) -->
+        <div id="proxyAddForm" class="card p-3 mb-3 hidden" style="background:var(--bg-secondary,rgba(0,0,0,0.15)); border:1px solid var(--border);">
+            <div class="text-xs font-semibold mb-2">📥 Массовое добавление прокси</div>
+            <p class="text-xs text-muted mb-2">Вставьте список прокси (по одному на строку). Поддерживаются любые форматы: <code>host:port:user:pass</code>, <code>http://user:pass@host:port</code>, <code>socks5://...</code> или <code>host:port</code>.</p>
+            <textarea id="ppInputText" class="input font-mono w-full mb-2" rows="4" placeholder="185.190.140.10:8000:login:password&#10;socks5://user:pass@194.87.100.5:1080&#10;45.154.20.1:8080"></textarea>
+            <div class="flex gap-3 flex-wrap items-center">
+                <div>
+                    <span class="text-xs text-muted">Протокол по умолчанию:</span>
+                    <select id="ppDefaultProto" class="input compact-select">
+                        <option value="http">HTTP / HTTPS</option>
+                        <option value="socks5">SOCKS5</option>
+                    </select>
+                </div>
+                <input type="text" id="ppLabel" class="input field-200" placeholder="Метка/страна (опционально)">
+                <button class="btn btn-primary btn-sm" onclick="submitAddProxies()">💾 Сохранить в пул</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleProxyAddForm(false)">Отмена</button>
+            </div>
+        </div>
+
+        <!-- Список прокси -->
+        <div id="proxyPoolList" class="space-y-2 logs-scroll" style="max-height:360px;overflow-y:auto" aria-live="polite">
+            <div class="text-xs text-muted p-2">Загрузка пула прокси...</div>
+        </div>
+    </div>
+
+    <h2 class="settings-group-title" data-i18n="settings.group_maintenance">Данные и обслуживание</h2>
+
+    <!-- Backup -->
+    <div class="card mb-4" id="settingsCard-backup">
+        <div class="card-header"><span class="card-title" data-i18n="settings.backup">💾 Резервная копия</span></div>
+        <p class="text-xs text-muted mb-3">Сохраните полную резервную копию конфигурации и базы данных или скачайте актуальный файл базы SQLite напрямую в 1 клик.</p>
+        <div class="flex gap-2 flex-wrap">
+            <button class="btn btn-primary" onclick="downloadBackup()" data-i18n="btn.download_backup">📥 Скачать бэкап (.zip)</button>
+            <button class="btn btn-secondary" onclick="downloadDatabase()" title="Скачать актуальный файл bot.db прямо в браузер">💾 Скачать bot.db</button>
+            <label class="btn btn-secondary">
+                <span data-i18n="btn.restore">📤 Восстановить</span>
+                <input type="file" accept=".zip" class="visually-hidden-input" onchange="uploadBackup(event)">
+            </label>
+        </div>
+    </div>
+
+    <!-- OPS_PLAN §4: БД — статистика + оптимизация -->
+    <div class="card mb-4" id="dbMaintenanceCard">
+        <div class="card-header"><span class="card-title" data-i18n="settings.database">🗄 База данных</span></div>
+        <div class="text-sm text-muted" id="dbStatsInfo" style="white-space:pre-line;">…</div>
+        <div class="flex gap-2 mt-2 items-center flex-wrap">
+            <button class="btn btn-secondary btn-sm" onclick="refreshDbStats()" data-i18n="btn.refresh">🔄 Обновить</button>
+            <button class="btn btn-primary btn-sm" onclick="optimizeDatabase()" data-i18n="btn.db_optimize">🧹 Оптимизировать</button>
+            <button class="btn btn-danger btn-sm" onclick="cleanupDatabaseLogs()" data-i18n="btn.db_cleanup">🗑 Очистить старые логи</button>
+        </div>
+    </div>
+
+    <!-- P8: чат-логгер переехал в отдельную вкладку сайдбара «📡 Чат-логгер» -->
+
+    <!-- FAQ -->
+    <div class="card">
+        <div class="card-header"><span class="card-title" data-i18n="settings.faq">❓ FAQ</span></div>
+        <div class="space-y-3 text-sm">
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q1">Как добавить бота?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a1">Раздел «Боты» → «+ Добавить бота» → введите ник и OAuth-токен (twitchtokengenerator.com)</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q2">Как настроить разное поведение в разных каналах?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a2">Боты → Настроить → Каналы → Per-channel overrides. Выберите канал и задайте юмор/сарказм отдельно для него.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q3">Как настроить TTS?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a3">Раздел «Настройки» → «🔊 TTS» → выберите провайдер. Для OBS: скопируйте URL виджета и добавьте как Browser Source.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q4">Как работает фильтр внимания?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a4">Боты → Настроить → Внимание. Бот собирает сообщения в батч в течение N секунд, фильтрует шум (+1, KEKW) и генерирует один ответ.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q5">Как добавить бота без ручного токена?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a5">В форме добавления бота нажмите «🟣 Войти через Twitch»: откройте twitch.tv/activate, введите код — бот добавится сам. Нужен Twitch API (Client ID/Secret) в настройках; без них — ручной токен с twitchtokengenerator.com.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q6">Как бот узнаёт стримера?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a6">Боты → Настроить → «👤 О стримере»: заполните профиль (био, стиль, интересы) и загрузите фото для распознавания в кадре. Включите автообновление — AI сам дополнит профиль из чата.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q7">Что бот видит и слышит со стрима?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a7">Stream Vision: бот периодически смотрит кадры стрима и слушает аудио (Whisper-транскрипция). Vision-модель задаётся в AI-настройках. Локально и бесплатно — Ollama: установите модель llava или minicpm-v и выберите её как Vision-модель.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q8">Как запускать ботов на разных API/моделях?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a8">Боты → Настроить → Обзор → AI Override: выберите свой провайдер, модель для текста и vision, свой API-ключ. Без override бот использует глобальные настройки.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q9">Бот включён, но не подключён — что делать?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a9">Карточка бота показывает health-индикатор: жёлтый «Подключается», красный «Ошибка» с причиной и временем. При ошибке нажмите «↻ Переподключить». Частые причины: неверный OAuth-токен, истёкший токен, недоступен Twitch (проверьте прокси).</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q10">Как откатить действие в панели?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a10">Настройки → «🕘 Журнал действий». У записей с кнопкой «↩ Отменить» действие можно откатить (например, удаление созданного бота). Если кнопки нет — откат недоступен, запись только для информации.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q11">Где смотреть логи бота?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a11">Боты → Настроить → Дополнительно → Логи: фильтры по уровню/категории, экспорт CSV. Общий поток — Настройки → «📋 Глобальные логи». Логи появляются, когда боты читают чат и отвечают.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q12">Как сделать резервную копию?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a12">Настройки → «💾 Резервная копия»: скачайте архив (включая .env) и при необходимости восстановите кнопкой «Восстановить». Текущие данные будут перезаписаны.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q13">Как защитить панель паролем?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a13">На localhost пароль не нужен. Для явного доступа из LAN/сети задайте PANEL_AUTH_USER, PANEL_AUTH_PASS и TOKEN_ENCRYPTION_KEY; без полного набора панель остаётся на 127.0.0.1.</p>
+            </details>
+            <details>
+                <summary class="font-semibold cursor-pointer text-accent" data-i18n="faq.q14">Как подключить виджеты в OBS?</summary>
+                <p class="mt-2 text-muted" data-i18n="faq.a14">Вкладка «Виджеты» → заполните контент в формах → скопируйте URL виджета → в OBS добавьте Browser Source с этим URL. Фон прозрачный. Все файлы виджетов лежат в папке widgets/ — их можно править без панели (см. widgets/README.md).</p>
+            </details>
+        </div>
+    </div>
+
+    <h2 class="settings-group-title" data-i18n="settings.group_modsite">Moderator-site: администрирование</h2>
+
+    <div class="card mb-4" id="modsiteAdminBlock">
+        <div class="card-header"><span class="card-title" data-i18n="modsite.title">Moderator-site: kill switch и доступы</span>
+            <button class="btn btn-secondary btn-sm" type="button" onclick="modsiteAdminRefresh()" data-i18n="btn.refresh">Обновить</button></div>
+        <div class="card-body">
+            <div class="flex gap-2 items-center mt-2">
+                <span data-i18n="modsite.kill">Kill switch</span>
+                <span id="modsiteKillStatus" class="text-sm" data-active="0">OFF</span>
+                <input id="modsiteKillReason" class="input" style="max-width:16rem" placeholder="reason" aria-label="Kill switch reason">
+                <button class="btn btn-danger btn-sm" type="button" onclick="modsiteKillSet(true)" data-i18n="modsite.kill_on">Включить</button>
+                <button class="btn btn-secondary btn-sm" type="button" onclick="modsiteKillSet(false)" data-i18n="modsite.kill_off">Выключить</button>
+            </div>
+            <div class="flex gap-2 items-center mt-3">
+                <input id="modsiteAccountId" class="input" style="max-width:8rem" type="number" value="1" aria-label="account id">
+                <input id="modsiteChannel" class="input" style="max-width:12rem" value="chan" aria-label="channel">
+            </div>
+            <ul id="modsiteGrants" class="mt-2"></ul>
+            <p class="text-sm text-muted" data-i18n="modsite.hint">Отзыв доступа действует сразу и переживает перезагрузку страницы; kill switch блокирует новые команды moderator-site.</p>
+        </div>
+    </div>
+</section>

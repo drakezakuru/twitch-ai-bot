@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<title>Mascot</title>
+<style>
+:root{color-scheme:dark}
+html,body{margin:0;padding:0;background:transparent;overflow:hidden;font-family:Arial,sans-serif}
+.stage{position:fixed;right:30px;bottom:30px;width:180px;height:180px;display:flex;align-items:flex-end;justify-content:center}
+.mascot{width:160px;height:160px;display:block;animation:bob 3.2s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.mascot.jump{animation:jump .55s ease-out 1}
+@keyframes jump{0%{transform:translateY(0) scale(1)}25%{transform:translateY(-40px) scale(1.05,.95)}55%{transform:translateY(0) scale(.92,1.08)}100%{transform:translateY(0) scale(1)}}
+.mascot.sleep .pupil{display:none}
+.mascot.sleep .lid{display:block}
+.mascot.sleep{animation:bob 6s ease-in-out infinite}
+.lid{display:none}
+.heart{position:absolute;font-size:30px;animation:heartFly 1.8s ease-out forwards;pointer-events:none}
+@keyframes heartFly{0%{opacity:1;transform:translateY(0) scale(.6)}100%{opacity:0;transform:translateY(-110px) scale(1.4)}}
+.zZz{position:absolute;font-size:22px;color:#aaccff;animation:zFly 2.4s ease-out infinite;pointer-events:none;font-weight:900;text-shadow:0 0 4px rgba(0,0,40,.5)}
+@keyframes zFly{0%{opacity:0;transform:translate(0,0) scale(.4)}30%{opacity:1}100%{opacity:0;transform:translate(28px,-60px) scale(1.4)}}
+.svg-blob,.svg-owl,.svg-cat,.svg-bot,.svg-ghost{display:none}
+.preset-blob .svg-blob,.preset-owl .svg-owl,.preset-cat .svg-cat,.preset-bot .svg-bot,.preset-ghost .svg-ghost{display:block}
+.preset-custom .stage img{display:block;width:160px;height:160px;object-fit:contain}
+.blink .pupil{animation:blink 4s infinite}
+@keyframes blink{0%,90%,100%{transform:scaleY(1)}93%,97%{transform:scaleY(.05)}}
+</style></head>
+<body class="preset-blob">
+<div class=stage id=stage>
+  <!-- BLOB -->
+  <svg class="mascot svg-blob" viewBox="0 0 100 110" id=mascot>
+    <defs><radialGradient id=blobBody cx=50% cy=40%><stop offset=0% stop-color=#c89aff /><stop offset=100% stop-color=#7a4ad9 /></radialGradient></defs>
+    <ellipse cx=50 cy=68 rx=42 ry=36 fill=url(#blobBody) />
+    <ellipse cx=37 cy=58 rx=8 ry=10 fill=#fff />
+    <ellipse cx=63 cy=58 rx=8 ry=10 fill=#fff />
+    <ellipse cx=37 cy=61 rx=4 ry=5 fill=#000 class=pupil />
+    <ellipse cx=63 cy=61 rx=4 ry=5 fill=#000 class=pupil />
+    <line x1=30 y1=58 x2=44 y2=58 stroke=#000 stroke-width=2 class=lid />
+    <line x1=56 y1=58 x2=70 y2=58 stroke=#000 stroke-width=2 class=lid />
+    <path d="M40 80 Q50 88 60 80" stroke=#222 stroke-width=2.5 fill=none stroke-linecap=round />
+    <ellipse cx=30 cy=72 rx=4 ry=2 fill=#ff7eb9 opacity=.6 />
+    <ellipse cx=70 cy=72 rx=4 ry=2 fill=#ff7eb9 opacity=.6 />
+  </svg>
+  <!-- OWL -->
+  <svg class="mascot svg-owl" viewBox="0 0 100 110">
+    <ellipse cx=50 cy=68 rx=38 ry=40 fill=#8b5e3c />
+    <ellipse cx=50 cy=50 rx=30 ry=25 fill=#c9966d />
+    <circle cx=37 cy=50 r=12 fill=#fff /><circle cx=63 cy=50 r=12 fill=#fff />
+    <circle cx=37 cy=52 r=6 fill=#000 class=pupil /><circle cx=63 cy=52 r=6 fill=#000 class=pupil />
+    <line x1=27 y1=50 x2=47 y2=50 stroke=#000 stroke-width=3 class=lid />
+    <line x1=53 y1=50 x2=73 y2=50 stroke=#000 stroke-width=3 class=lid />
+    <polygon points="50,60 45,68 55,68" fill=#ffaa44 />
+    <path d="M22 40 L30 30 L38 40 Z" fill=#8b5e3c /><path d="M62 40 L70 30 L78 40 Z" fill=#8b5e3c />
+  </svg>
+  <!-- CAT -->
+  <svg class="mascot svg-cat" viewBox="0 0 100 110">
+    <polygon points="22,42 30,18 42,40" fill=#ff8c42 /><polygon points="58,40 70,18 78,42" fill=#ff8c42 />
+    <polygon points="26,38 30,24 36,38" fill=#ffccaa /><polygon points="64,38 70,24 74,38" fill=#ffccaa />
+    <ellipse cx=50 cy=64 rx=38 ry=34 fill=#ff8c42 />
+    <ellipse cx=50 cy=70 rx=24 ry=18 fill=#ffd9b8 />
+    <ellipse cx=37 cy=58 rx=6 ry=8 fill=#fff />
+    <ellipse cx=63 cy=58 rx=6 ry=8 fill=#fff />
+    <ellipse cx=37 cy=60 rx=3 ry=5 fill=#000 class=pupil />
+    <ellipse cx=63 cy=60 rx=3 ry=5 fill=#000 class=pupil />
+    <line x1=31 y1=58 x2=43 y2=58 stroke=#000 stroke-width=2 class=lid />
+    <line x1=57 y1=58 x2=69 y2=58 stroke=#000 stroke-width=2 class=lid />
+    <polygon points="50,68 47,72 53,72" fill=#ff5577 />
+    <path d="M50 73 L50 78 M50 78 Q43 78 40 75 M50 78 Q57 78 60 75" stroke=#222 stroke-width=1.5 fill=none stroke-linecap=round />
+    <line x1=18 y1=68 x2=32 y2=66 stroke=#222 stroke-width=1 /><line x1=18 y1=72 x2=32 y2=70 stroke=#222 stroke-width=1 />
+    <line x1=68 y1=66 x2=82 y2=68 stroke=#222 stroke-width=1 /><line x1=68 y1=70 x2=82 y2=72 stroke=#222 stroke-width=1 />
+  </svg>
+  <!-- BOT -->
+  <svg class="mascot svg-bot" viewBox="0 0 100 110">
+    <line x1=50 y1=10 x2=50 y2=22 stroke=#888 stroke-width=2 /><circle cx=50 cy=8 r=4 fill=#ff5577 />
+    <rect x=18 y=22 width=64 height=58 rx=8 fill=#cfd6dd stroke=#777 stroke-width=2 />
+    <rect x=26 y=32 width=20 height=20 rx=4 fill=#0e1a2b />
+    <rect x=54 y=32 width=20 height=20 rx=4 fill=#0e1a2b />
+    <circle cx=36 cy=42 r=5 fill=#3df0ff class=pupil />
+    <circle cx=64 cy=42 r=5 fill=#3df0ff class=pupil />
+    <line x1=28 y1=42 x2=44 y2=42 stroke=#3df0ff stroke-width=3 class=lid />
+    <line x1=56 y1=42 x2=72 y2=42 stroke=#3df0ff stroke-width=3 class=lid />
+    <rect x=34 y=64 width=32 height=8 rx=2 fill=#222 />
+    <rect x=38 y=66 width=4 height=4 fill=#3df0ff /><rect x=46 y=66 width=4 height=4 fill=#3df0ff />
+    <rect x=54 y=66 width=4 height=4 fill=#3df0ff /><rect x=58 y=80 width=4 height=14 fill=#888 /><rect x=38 y=80 width=4 height=14 fill=#888 />
+  </svg>
+  <!-- GHOST -->
+  <svg class="mascot svg-ghost" viewBox="0 0 100 110">
+    <path d="M20 50 Q20 18 50 18 Q80 18 80 50 L80 92 Q72 100 64 92 Q56 100 48 92 Q40 100 32 92 Q24 100 20 92 Z" fill=#fff opacity=.92 />
+    <ellipse cx=37 cy=52 rx=6 ry=8 fill=#000 class=pupil />
+    <ellipse cx=63 cy=52 rx=6 ry=8 fill=#000 class=pupil />
+    <line x1=31 y1=52 x2=43 y2=52 stroke=#222 stroke-width=3 class=lid />
+    <line x1=57 y1=52 x2=69 y2=52 stroke=#222 stroke-width=3 class=lid />
+    <ellipse cx=50 cy=68 rx=5 ry=4 fill=#222 />
+    <ellipse cx=30 cy=66 rx=4 ry=2 fill=#ff7eb9 opacity=.7 />
+    <ellipse cx=70 cy=66 rx=4 ry=2 fill=#ff7eb9 opacity=.7 />
+  </svg>
+</div>
+<script src="/widget/_shared/character-core.js"></script>
+<script>
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+// Wave 6: цикл конфига/событий, sleep-по-idle и частицы — общие
+// (_shared/character-core.js). Свой здесь остаётся SVG-рендер и реакции.
+const PRESET_OV="__PRESET_OVERRIDE__";
+const CUSTOM_URL_OV="__CUSTOM_URL_OVERRIDE__";
+const query=new URLSearchParams(location.search);
+const scope=new URLSearchParams();
+if(query.get('account_id'))scope.set('account_id',query.get('account_id'));
+if(query.get('channel'))scope.set('channel',query.get('channel'));
+const scopeSuffix=scope.toString()?'?'+scope.toString():'';
+const stage=document.getElementById('stage');
+let cfg={preset:'blob',custom_url:'',idle_timeout_sec:300};
+function applyPreset(){
+  const p=PRESET_OV||cfg.preset||'blob';
+  const cu=CUSTOM_URL_OV||cfg.custom_url||'';
+  document.body.className='preset-'+p+' blink';
+  if(p==='custom' && cu){
+    // Удалить svg, добавить img.
+    if(!stage.querySelector('img.custom')){
+      const img=document.createElement('img');img.className='mascot custom';
+      img.src=cu;
+      stage.appendChild(img);
+    }else{
+      const img=stage.querySelector('img.custom');if(img.src!==cu)img.src=cu;
+    }
+  }
+}
+function jump(){
+  const m=stage.querySelector('.mascot');
+  if(!m) return;
+  m.classList.remove('jump');void m.offsetWidth;m.classList.add('jump');
+  // hearts
+  for(let i=0;i<3;i++){
+    setTimeout(()=>{
+      CharacterCore.spawn(stage,'heart',
+        ['❤️','💜','💛','💖','✨'][Math.floor(Math.random()*5)],
+        {left:(40+Math.random()*80)+'px',bottom:'80px'},1800);
+    },i*120);
+  }
+}
+function setSleep(s){
+  const m=stage.querySelector('.mascot');if(!m) return;
+  if(s){m.classList.add('sleep');zTimer.start()}
+  else{m.classList.remove('sleep');zTimer.stop()}
+}
+const zTimer=CharacterCore.repeater(()=>{
+  CharacterCore.spawn(stage,'zZz widget-theme-accent',['z','Z','zZz'][Math.floor(Math.random()*3)],
+    {left:(110+Math.random()*30)+'px',bottom:'130px'},2400);
+},900);
+
+applyPreset();
+CharacterCore.start({
+  configUrl:'/api/widgets/public/mascot'+scopeSuffix,
+  onConfig:(c)=>{cfg=c;applyPreset()},
+  onEvent:()=>{setSleep(false);jump()},
+  onSleep:()=>setSleep(true),
+  onWake:()=>setSleep(false),
+  eventsMs:3000,
+});
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

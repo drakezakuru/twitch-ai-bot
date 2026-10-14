@@ -1,0 +1,67 @@
+# === Секреты и личные данные (НИКОГДА не коммитить) ===
+.env
+.env.*
+!.env.example
+config.json
+config.toml
+!config.example.json
+!config.example.toml
+*.session
+*.session-journal
+accounts/
+cookies/
+*.jsonl
+keys.txt
+*.key
+secrets*
+credentials*
+
+# === Данные рантайма ===
+frames/
+audio_chunks/
+data/
+logs/
+debug/
+*.log
+*.pid
+seen.json
+usage.jsonl
+keys_state.json
+
+# === Python ===
+__pycache__/
+*.pyc
+*.py[cod]
+venv/
+.venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# === Сборка / Node (moderator-site) ===
+dist/
+build/
+node_modules/
+.pnpm-store/
+
+# === ОС / редакторы ===
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# === Прочее ===
+*.wav
+*.mp4
+*.ts
+!moderator-site/src/**/*.ts
+!moderator-site/vite.config.ts
+!moderator-site/scripts/**/*.mjs
+*.db
+.hoplite/archive/
+
+# Кадры QA-прогона (scripts/qa_shoot.py) — артефакты проверки, не исходники.
+qa/

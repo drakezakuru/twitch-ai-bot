@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="emoji-leaderboard.title"></title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:transparent;padding:10px}
+.box{background:rgba(15,15,25,var(--widget-opacity,0.85));backdrop-filter:blur(8px);border-radius:14px;
+  padding:12px 16px;border:1px solid rgba(255,255,255,0.1);width:280px}
+.title{font-size:14px;font-weight:700;letter-spacing:2px;color:#fbbf24;margin-bottom:8px}
+.row{display:flex;align-items:center;gap:8px;font-size:15px;color:#eee;
+  padding:3px 0;font-variant-numeric:tabular-nums}
+.rank{width:26px;color:#fbbf24;font-weight:700}
+.name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cnt{color:#aaa;font-size:13px}
+.empty{font-size:13px;color:#888}
+</style></head><body>
+<div class="box widget-theme-surface">
+  <div class="title widget-theme-accent" data-widget-i18n="emoji-leaderboard.heading"></div>
+  <div id="list" aria-live="polite"></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "emoji-leaderboard.title": "Рейтинг эмодзи",
+    "emoji-leaderboard.heading": "🏆 РЕЙТИНГ ЭМОДЗИ",
+    "emoji-leaderboard.empty": "Пока никто не отправил эмодзи"
+  },
+  "en": {
+    "emoji-leaderboard.title": "Emoji leaderboard",
+    "emoji-leaderboard.heading": "🏆 EMOJI LEADERBOARD",
+    "emoji-leaderboard.empty": "No one has sent emoji yet"
+  },
+  "ua": {
+    "emoji-leaderboard.title": "Рейтинг емодзі",
+    "emoji-leaderboard.heading": "🏆 РЕЙТИНГ ЕМОДЗІ",
+    "emoji-leaderboard.empty": "Поки ніхто не надіслав емодзі"
+  }
+});
+WidgetI18n.apply();
+document.getElementById('list').textContent=WidgetI18n.t('common.loading');
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const qs = new URLSearchParams(location.search);
+const API = qs.get('api') || '';
+const list = document.getElementById('list');
+const LIMIT = Math.max(3, parseInt(qs.get('limit') || '10', 10) || 10);
+function render(items){
+  list.innerHTML = items.length
+    ? items.map((it, i) =>
+        `<div class="row widget-theme-text"><span class="rank widget-theme-accent">${['🥇','🥈','🥉'][i] || (i+1)}</span>` +
+        `<span class="name">${esc(it.username)}</span><span class="cnt widget-theme-muted">${esc(it.count)} 😎</span></div>`).join('')
+    : '<div class="empty widget-theme-muted">'+esc(WidgetI18n.t('emoji-leaderboard.empty'))+'</div>';
+}
+async function load(){
+  try{
+    const r = await fetch((API || '') + '/api/widgets/public/emoji-leaderboard?limit=' + LIMIT);
+    if(!r.ok){ list.innerHTML = '<div class="empty widget-theme-muted">' + esc(WidgetI18n.t('common.unavailable_http',{status:r.status})) + '</div>'; return; }
+    const d = await r.json();
+    render(d.items || []);
+  }catch(e){ list.innerHTML = '<div class="empty widget-theme-muted">'+esc(WidgetI18n.t('common.disconnected'))+'</div>'; }
+}
+if (qs.get('preview') === '1'){
+  document.body.style.background = '#0f0f1a';
+  render([{username:'DemoViewer',count:42},{username:'Chatter42',count:31},{username:'NightOwl',count:17}]);
+} else {
+  load(); setInterval(load, 5000);
+}
+</script></body></html>

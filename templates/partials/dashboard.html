@@ -1,0 +1,99 @@
+<!-- ========== DASHBOARD ========== -->
+<section id="section-dashboard" class="section active">
+    <div class="section-header">
+        <h1 class="section-title">📊 <span data-i18n="title.dashboard">Обзор</span></h1>
+        <div class="flex items-center gap-2 flex-wrap">
+            <label class="flex items-center gap-1 text-sm text-muted cursor-pointer" data-i18n-title="panel.popups.hide_hint" title="Скрывает плавающие карточки решений и тосты live-событий; списки в Обзоре и в карточке канала остаются.">
+                <input type="checkbox" id="panelPopupsToggle" onchange="setPopupsHidden(this.checked)" data-i18n-aria-label="panel.popups.hide" aria-label="Не показывать всплывашки">
+                <span data-i18n="panel.popups.hide">Не показывать всплывашки</span>
+            </label>
+            <button class="btn btn-secondary btn-sm" data-i18n="btn.refresh" onclick="loadDashboard()">🔄 Обновить</button>
+        </div>
+    </div>
+    <div id="runtimeStatus" class="runtime-status card mb-4 text-sm text-muted" data-i18n="label.runtime_check" aria-live="polite">Проверка состояния...</div>
+
+    <!-- Q23: сводка расклада — боты, роли, каналы, живые подключения -->
+    <div class="card mb-4" id="dashboardOverviewSummary" aria-live="polite"></div>
+
+    <!-- KPI cards -->
+    <div class="grid-cards mb-4" id="dashboardKPI">
+        <div class="card kpi-card kpi-online">
+            <div class="text-muted text-sm mb-2" id="kpiBotsOnlineLabel" data-i18n="label.bots_online">Подключено ботов</div>
+            <div class="text-2xl font-bold text-success" id="kpiBotsOnline">0</div>
+        </div>
+        <div class="card kpi-card kpi-enabled">
+            <div class="text-muted text-sm mb-2" id="kpiBotsEnabledLabel" data-i18n="label.bots_enabled">Включено</div>
+            <div class="text-2xl font-bold text-accent" id="kpiBotsEnabled">0</div>
+        </div>
+        <div class="card kpi-card kpi-messages">
+            <div class="text-muted text-sm mb-2" id="kpiMessagesLabel" data-i18n="label.messages_read">Прочитано сообщений</div>
+            <div class="text-2xl font-bold" id="kpiMessages">0</div>
+        </div>
+        <div class="card kpi-card kpi-replies">
+            <div class="text-muted text-sm mb-2" id="kpiBotRepliesLabel" data-i18n="label.bot_replies">Написано ботами</div>
+            <div class="text-2xl font-bold text-warning" id="kpiBotReplies">0</div>
+        </div>
+    </div>
+
+    <!-- Владелец 27.09 (вечер): дашборд «здоровье эфира» — кто подключён/отвечает/молчит и почему -->
+    <h2 class="text-lg font-semibold mt-4 mb-3" data-i18n="health.title">🩺 Здоровье эфира</h2>
+    <div class="card mb-4">
+        <div id="streamHealthTable" class="space-y-3" aria-live="polite">
+            <div class="text-muted text-sm" data-i18n="label.loading">Загрузка...</div>
+        </div>
+    </div>
+
+    <!-- Bot status cards -->
+    <h2 class="text-lg font-semibold mb-3" data-i18n="nav.bots">Боты</h2>
+    <div class="grid-cards mb-4" id="dashboardBots" aria-live="polite">
+        <div class="card text-muted text-sm p-4" data-i18n="label.loading">Загрузка...</div>
+    </div>
+
+    <!-- §9g: всплески чата (клип-моменты, read-only) -->
+    <h2 class="text-lg font-semibold mt-4 mb-3" data-i18n="clips.dash_title">🔥 Всплески чата (клип-моменты)</h2>
+    <div class="card mb-4">
+        <div id="clipSpikesFeed" class="space-y-1">
+            <div class="empty-state"><div class="empty-icon">🎬</div><span data-i18n="clips.dash_empty">Всплесков за последние 24 часа не было</span></div>
+        </div>
+    </div>
+
+    <!-- Живой мини-чат стрима -->
+    <div class="flex items-center justify-between mt-4 mb-3">
+        <h2 class="text-lg font-semibold flex items-center gap-2">
+            <span>💬 <span data-i18n="panel.dashboard.mini_chat">Живой мини-чат стрима</span></span>
+            <span id="dashboardChatCount" class="badge">0</span>
+        </h2>
+        <div class="flex items-center gap-2">
+            <button class="btn btn-secondary btn-sm" onclick="clearDashboardMiniChat()" data-i18n="btn.clear" title="Очистить чат">🧹 Очистить</button>
+        </div>
+    </div>
+    <div class="card mb-4">
+        <div id="dashboardMiniChat" class="dashboard-chat-scroll space-y-1" style="max-height: 280px; overflow-y: auto; padding: 4px;" aria-live="polite">
+            <div class="empty-state text-muted text-sm"><div class="empty-icon">💬</div><span data-i18n="panel.dashboard.mini_chat_waiting">Ожидание сообщений из чата...</span></div>
+        </div>
+    </div>
+
+    <!-- Live events -->
+    <h2 class="text-lg font-semibold mt-4 mb-3" data-i18n="label.live_events">Live-события</h2>
+    <div class="card">
+        <div id="dashboardEvents" class="dashboard-events-scroll">
+            <div class="empty-state"><div class="empty-icon">📡</div><span data-i18n="label.waiting_events">Ожидание событий...</span></div>
+        </div>
+    </div>
+
+    <!-- v14 MODERATION_PLAN §3: мини-виджет «Последние нарушения» (read-only, топ-5 за час) -->
+    <h2 class="text-lg font-semibold mt-4 mb-3">🛡 <span data-i18n="panel.dashboard.violations">Последние нарушения</span> <span id="moderationWidgetTotal" class="badge">0</span></h2>
+    <div class="card">
+        <div id="moderationWidgetList" class="space-y-2" aria-live="polite">
+            <div class="empty-state"><div class="empty-icon">🛡</div><span data-i18n="panel.dashboard.no_violations">Нарушений за час не было</span></div>
+        </div>
+    </div>
+
+    <!-- §R5 PLAN_SESSION_ROLES: боты по ролям (цвета + счётчики событий mod-feed) -->
+    <h2 class="text-lg font-semibold mt-4 mb-3" data-i18n="panel.dashboard.roles">🧩 Боты по ролям</h2>
+    <div class="card">
+        <div id="rolesSummary" class="space-y-2" aria-live="polite">
+            <div class="empty-state"><div class="empty-icon">🧩</div><span data-i18n="label.waiting_events">Ожидание событий...</span></div>
+        </div>
+    </div>
+</section>

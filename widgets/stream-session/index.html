@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<title data-widget-i18n="stream-session.title"></title>
+<style>
+:root{color-scheme:dark}
+html,body{margin:0;padding:0;background:transparent;color:#fff;font-family:'Inter','Segoe UI',Arial,sans-serif;overflow:hidden}
+.box{display:none;align-items:center;gap:10px;padding:10px 18px;background:rgba(0,0,0,var(--widget-opacity,.7));border-radius:10px;font-weight:700;font-size:24px;letter-spacing:1px;backdrop-filter:blur(6px)}
+/* В OBS плашка видна только в live: оверлей не должен рисовать «OFFLINE» поверх сцены.
+   Остальные состояния показываются в панели (?preview=1). */
+.box.live,.box.state{display:inline-flex}
+.dot{width:14px;height:14px;border-radius:50%;background:#f33;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.box.state .dot{animation:none;background:#64748b}
+.box.state .label{color:#94a3b8}
+.box.state.error .dot{background:#f59e0b}
+.box.state.error .label{color:#fbbf24}
+.label{color:#f33;font-weight:900}
+.time{font-variant-numeric:tabular-nums;color:#fff}
+.title{font-size:13px;color:#aaa;font-weight:400;letter-spacing:.5px;text-transform:uppercase;margin-left:4px}
+body.theme-retro .box{background:rgba(0,0,0,var(--widget-opacity,1));border:2px solid #f33;border-radius:0;font-family:'Courier New',monospace}
+body.theme-minimal .box{background:rgba(255,255,255,var(--widget-opacity,.08));font-size:18px;padding:6px 12px}
+body.theme-minimal .dot{width:10px;height:10px}
+</style></head>
+<body class="theme-__THEME__">
+<div class="box widget-theme-surface" id=box>
+  <span class="dot widget-theme-fill"></span>
+  <span class="label widget-theme-accent" aria-live="polite"></span>
+  <span class="time widget-theme-text" id=time>0:00:00</span>
+  <span class="title widget-theme-muted" id=title>__TITLE__</span>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "stream-session.title": "Сессия стрима",
+    "stream-session.live": "В ЭФИРЕ",
+    "stream-session.offline": "НЕ В ЭФИРЕ",
+    "stream-session.demo": "Демо-стрим"
+  },
+  "en": {
+    "stream-session.title": "Stream session",
+    "stream-session.live": "LIVE",
+    "stream-session.offline": "OFFLINE",
+    "stream-session.demo": "Demo stream"
+  },
+  "ua": {
+    "stream-session.title": "Сесія стриму",
+    "stream-session.live": "НАЖИВО",
+    "stream-session.offline": "НЕ В ЕФІРІ",
+    "stream-session.demo": "Демо-стрим"
+  }
+});
+WidgetI18n.apply();
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const TITLE_OV="__TITLE__";
+const titleEl=document.getElementById('title');
+if(!TITLE_OV) titleEl.style.display='none';
+const PREVIEW=new URLSearchParams(location.search).get('preview')==='1';
+let startMs=0,isLive=false,state='loading';
+const box=document.getElementById('box'),timeEl=document.getElementById('time'),
+      labelEl=box.querySelector('.label');
+const STATE_LABELS={loading:WidgetI18n.t('common.loading'),offline:WidgetI18n.t('stream-session.offline'),error:WidgetI18n.t('common.unavailable')};
+function fmt(ms){
+  if(ms<0)ms=0;
+  const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
+  return `${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+function tick(){
+  box.classList.toggle('live',isLive&&!!startMs);
+  // Не-live состояния видны только в панельном превью: в сцене OBS оверлей молчит.
+  box.classList.toggle('state',PREVIEW&&!(isLive&&startMs));
+  box.classList.toggle('error',state==='error');
+  if(isLive&&startMs){labelEl.textContent=WidgetI18n.t('stream-session.live');timeEl.textContent=fmt(Date.now()-startMs);return}
+  // Без живой сессии таймер не «тикает» — иначе оверлей врёт про длительность стрима.
+  labelEl.textContent=STATE_LABELS[state]||STATE_LABELS.offline;
+  timeEl.textContent='—:—:—';
+}
+async function poll(){
+  try{
+    const r=await fetch(_WIDGET_API_BASE + '/api/widgets/public/stream-session?t='+Date.now());
+    if(!r.ok){state='error';isLive=false;startMs=0;return;}
+    const d=await r.json();
+    isLive=!!d.is_live;
+    state=isLive?'live':'offline';
+    if(d.start_time){
+      const t=d.start_time.replace(' ','T')+(d.start_time.endsWith('Z')?'':'Z');
+      startMs=Date.parse(t);
+    }else{startMs=0}
+  }catch(e){state='error';isLive=false;startMs=0}
+}
+if(PREVIEW){
+  // Панельное превью показывает представительную живую сессию, а не пустой прямоугольник.
+  document.body.style.background='#0f0f1a';
+  isLive=true;state='live';startMs=Date.now()-3725000;
+  titleEl.style.display='';titleEl.textContent=TITLE_OV||WidgetI18n.t('stream-session.demo');
+  tick();setInterval(tick,500);
+}else{
+  poll();setInterval(poll,15000);setInterval(tick,500);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

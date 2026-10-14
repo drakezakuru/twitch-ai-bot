@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title data-widget-i18n="mod-feed.title">Лента модерации</title>
+<style>
+:root{color-scheme:dark}
+    :root { --mf-accent: #e74c3c; --mf-bg: rgba(20, 20, 25, var(--widget-opacity, .92)); }
+    body { margin: 0; background: transparent; font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
+    #feed { position: fixed; inset: 0; pointer-events: none; }
+    /* Позиция по умолчанию; общий runtime поддерживает ?pos=tl|tc|tr|bl|bc|br. */
+    #feed.pos-br { justify-content: flex-end; align-items: flex-end; flex-direction: column; }
+    #feed.pos-bl { justify-content: flex-start; align-items: flex-end; flex-direction: column; }
+    #feed.pos-tr { justify-content: flex-end; align-items: flex-start; flex-direction: column-reverse; }
+    #feed.pos-tl { justify-content: flex-start; align-items: flex-start; flex-direction: column-reverse; }
+    #feed { display: flex; gap: 10px; padding: 14px; }
+    .plate {
+        display: flex; align-items: center; gap: 10px;
+        background: var(--mf-bg); color: #fff;
+        border-left: 4px solid var(--mf-accent);
+        border-radius: 10px; padding: 10px 16px;
+        font-size: 16px; max-width: 520px;
+        box-shadow: 0 6px 24px rgba(0,0,0,.45);
+        animation: mf-in .25s ease-out;
+    }
+    .plate .icon { font-size: 20px; }
+    .plate .txt b { color: var(--mf-accent); }
+    .plate .sub { opacity: .7; font-size: 12px; margin-top: 2px; }
+    .plate.k-violation { --mf-accent: #e74c3c; }
+    .plate.k-intent    { --mf-accent: #f39c12; }
+    .plate.k-action    { --mf-accent: #22c55e; }
+    .plate.k-lurker    { --mf-accent: #38bdf8; }
+    .plate.k-beep      { --mf-accent: #f39c12; }
+    .plate.hide { animation: mf-out .3s ease-in forwards; }
+    /* Пустой/ошибочный фид: видны только в панельном превью (?preview=1),
+       в OBS-сцене оверлей остаётся прозрачным. */
+    .note { background: var(--mf-bg); color: #9ca3af; border-radius: 10px;
+            padding: 10px 16px; font-size: 14px; max-width: 520px; }
+    .note.err { color: #fbbf24; }
+    @keyframes mf-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes mf-out { to { transform: translateY(12px); opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="feed" class="pos-br"></div>
+<script>
+const MOD_FEED_LABELS = {
+  "ru": {
+    "mod-feed.title": "Лента модерации",
+    "mod-feed.empty": "Решений модерации пока не было",
+    "mod-feed.violation": "Нарушение",
+    "mod-feed.intent": "Предложение",
+    "mod-feed.action": "Действие",
+    "mod-feed.lurker": "Наблюдение",
+    "mod-feed.beep": "Заглушено",
+    "mod-feed.event": "Событие",
+    "mod-feed.demo_text": "Таймаут 10 мин",
+    "mod-feed.demo_action": "Правило: спам"
+  },
+  "en": {
+    "mod-feed.title": "Moderation feed",
+    "mod-feed.empty": "No moderation decisions yet",
+    "mod-feed.violation": "Violation",
+    "mod-feed.intent": "Proposal",
+    "mod-feed.action": "Action",
+    "mod-feed.lurker": "Observation",
+    "mod-feed.beep": "Muted",
+    "mod-feed.event": "Event",
+    "mod-feed.demo_text": "Timeout for 10 minutes",
+    "mod-feed.demo_action": "Rule: spam"
+  },
+  "ua": {
+    "mod-feed.title": "Стрічка модерації",
+    "mod-feed.empty": "Рішень модерації ще не було",
+    "mod-feed.violation": "Порушення",
+    "mod-feed.intent": "Пропозиція",
+    "mod-feed.action": "Дія",
+    "mod-feed.lurker": "Спостереження",
+    "mod-feed.beep": "Заглушено",
+    "mod-feed.event": "Подія",
+    "mod-feed.demo_text": "Таймаут 10 хв",
+    "mod-feed.demo_action": "Правило: спам"
+  }
+};
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+// Service captions are selected only by explicit producer metadata, never by user text.
+const MOD_FEED_CAPTIONS = {
+    'mod-feed.caption.rule': ['Сработал словарь/правило', 'Dictionary/rule matched', 'Спрацював словник/правило'],
+    'mod-feed.caption.applied': ['Таймаут/блок применён', 'Timeout/block applied', 'Таймаут/блок застосовано'],
+    'mod-feed.caption.decision_required': ['Требует решения', 'Decision required', 'Потребує рішення'],
+    'mod-feed.caption.moderation': ['Модерация: {category}', 'Moderation: {category}', 'Модерація: {category}'],
+    'mod-feed.caption.category_severity': ['Категория: {category} · строгость {severity}', 'Category: {category} · severity {severity}', 'Категорія: {category} · суворість {severity}'],
+    'mod-feed.caption.timeout_proposal': ['Предлагаю таймаут {minutes} мин ({category})', 'Proposed timeout: {minutes} min ({category})', 'Пропоную таймаут {minutes} хв ({category})'],
+    'mod-feed.caption.hotkey_timeout': ['Таймаут по хоткею', 'Hotkey timeout applied', 'Таймаут за гарячою клавішею'],
+    'mod-feed.caption.failed': ['Не удалось выполнить действие', 'Action failed', 'Не вдалося виконати дію'],
+    'mod-feed.caption.hotkey_warn': ['Предупреждение по хоткею', 'Hotkey warning', 'Попередження за гарячою клавішею'],
+    'mod-feed.caption.hotkey_clear': ['Чат очищен по хоткею', 'Chat cleared by hotkey', 'Чат очищено за гарячою клавішею'],
+    'mod-feed.caption.hotkey_applied': ['{tool}: применено', '{tool}: applied', '{tool}: застосовано'],
+    'mod-feed.caption.timeout': ['Таймаут {minutes} мин', 'Timeout: {minutes} min', 'Таймаут {minutes} хв'],
+    'mod-feed.caption.stream_category': ['Сменить категорию на «{value}» · {result}', 'Change category to “{value}” · {result}', 'Змінити категорію на «{value}» · {result}'],
+    'mod-feed.caption.stream_title': ['Сменить название на «{value}» · {result}', 'Change title to “{value}” · {result}', 'Змінити назву на «{value}» · {result}'],
+    'mod-feed.caption.stream_enable': ['Включить: {tool} · {result}', 'Enable: {tool} · {result}', 'Увімкнути: {tool} · {result}'],
+    'mod-feed.caption.stream_disable': ['Выключить: {tool} · {result}', 'Disable: {tool} · {result}', 'Вимкнути: {tool} · {result}'],
+    'mod-feed.caption.result.pending': ['Предложение', 'Proposal', 'Пропозиція'],
+    'mod-feed.caption.result.done': ['Выполнено', 'Completed', 'Виконано'],
+    'mod-feed.caption.result.failed': ['Ошибка выполнения', 'Execution failed', 'Помилка виконання'],
+    'mod-feed.caption.result.scope_failed': ['Недостаточно прав Twitch: проверьте OAuth scopes бота', 'Missing Twitch permissions: check the bot’s OAuth scopes', 'Бракує прав Twitch: перевірте OAuth scopes бота'],
+    'mod-feed.caption.tool.timeout': ['Таймаут', 'Timeout', 'Таймаут'],
+    'mod-feed.caption.tool.warn': ['Предупреждение', 'Warning', 'Попередження'],
+    'mod-feed.caption.tool.clear': ['Очистка чата', 'Clear chat', 'Очищення чату'],
+    'mod-feed.caption.tool.slow_on': ['Медленный чат включён', 'Slow mode enabled', 'Повільний чат увімкнено'],
+    'mod-feed.caption.tool.slow_off': ['Медленный чат выключен', 'Slow mode disabled', 'Повільний чат вимкнено'],
+    'mod-feed.caption.tool.emote_on': ['Только эмодзи включено', 'Emote-only mode enabled', 'Лише емодзі увімкнено'],
+    'mod-feed.caption.tool.emote_off': ['Только эмодзи выключено', 'Emote-only mode disabled', 'Лише емодзі вимкнено'],
+    'mod-feed.caption.tool.unique_on': ['Уникальный чат включён', 'Unique chat enabled', 'Унікальний чат увімкнено'],
+    'mod-feed.caption.tool.unique_off': ['Уникальный чат выключен', 'Unique chat disabled', 'Унікальний чат вимкнено'],
+    'mod-feed.caption.tool.category': ['Категория', 'Category', 'Категорія'],
+    'mod-feed.caption.tool.ai_category': ['Категория по AI', 'AI category', 'Категорія за AI'],
+    'mod-feed.caption.tool.title': ['Название стрима', 'Stream title', 'Назва стріму'],
+    'mod-feed.caption.tool.slow': ['Медленный чат', 'Slow mode', 'Повільний чат'],
+    'mod-feed.caption.tool.follower': ['Чат для фолловеров', 'Follower-only mode', 'Чат для фоловерів'],
+    'mod-feed.caption.tool.emote_only': ['Только эмодзи', 'Emote-only mode', 'Лише емодзі'],
+    'mod-feed.caption.tool.unique': ['Уникальный чат', 'Unique chat', 'Унікальний чат'],
+    'mod-feed.caption.voice.countdown.start': ['Таймер: старт', 'Timer: start', 'Таймер: старт'],
+    'mod-feed.caption.voice.countdown.pause': ['Таймер: пауза', 'Timer: pause', 'Таймер: пауза'],
+    'mod-feed.caption.voice.countdown.reset': ['Таймер: сброс', 'Timer: reset', 'Таймер: скидання'],
+    'mod-feed.caption.voice.countdown.add_time': ['Таймер: добавить время', 'Timer: add time', 'Таймер: додати час'],
+    'mod-feed.caption.voice.sub_goal.reset': ['Цель подписок: сброс', 'Sub goal: reset', 'Ціль підписок: скидання'],
+    'mod-feed.caption.voice.sub_goal.increment': ['Цель подписок: добавить', 'Sub goal: add', 'Ціль підписок: додати'],
+    'mod-feed.caption.voice.sub_goal.set': ['Цель подписок: задать значение', 'Sub goal: set value', 'Ціль підписок: задати значення'],
+    'mod-feed.caption.voice.now_playing.clear': ['Сейчас играет: очистить', 'Now playing: clear', 'Зараз грає: очистити'],
+    'mod-feed.caption.voice.now_playing.set': ['Сейчас играет: задать текст', 'Now playing: set text', 'Зараз грає: задати текст'],
+    'mod-feed.caption.voice.lower_third.show': ['Плашка: показать', 'Lower third: show', 'Плашка: показати'],
+    'mod-feed.caption.voice.lower_third.hide': ['Плашка: скрыть', 'Lower third: hide', 'Плашка: сховати'],
+    'mod-feed.caption.voice.goals.add_percent': ['Цель: добавить проценты', 'Goal: add percent', 'Ціль: додати відсотки'],
+    'mod-feed.caption.voice.goals.reset': ['Цель: сброс', 'Goal: reset', 'Ціль: скидання'],
+};
+for (const [key, values] of Object.entries(MOD_FEED_CAPTIONS)) {
+    ['ru', 'en', 'ua'].forEach((lang, i) => { MOD_FEED_LABELS[lang][key] = values[i]; });
+}
+WidgetI18n.add(MOD_FEED_LABELS);
+
+function modFeedField(event, field, translate = wt) {
+    const legacy = typeof event?.[field] === 'string' ? event[field] : '';
+    const descriptor = event?.localization?.[field];
+    if (!descriptor || typeof descriptor.key !== 'string' ||
+        !Object.hasOwn(MOD_FEED_CAPTIONS, descriptor.key) || descriptor.key.startsWith('mod-feed.caption.result.')) return legacy;
+    const params = descriptor.params ?? {};
+    if (!params || typeof params !== 'object' || Array.isArray(params)) return legacy;
+    const vars = {};
+    for (const [, name] of MOD_FEED_CAPTIONS[descriptor.key][0].matchAll(/\{(\w+)\}/g)) {
+        if (!Object.hasOwn(params, name)) return legacy;
+        const value = params[name];
+        if (['minutes', 'severity'].includes(name)) {
+            if (!Number.isSafeInteger(value) || Math.abs(value) > 1000000000) return legacy;
+        } else if (typeof value !== 'string' || value.length > 200) return legacy;
+        if (name === 'tool' || name === 'result') {
+            const key = `mod-feed.caption.${name}.${value}`;
+            if (!Object.hasOwn(MOD_FEED_CAPTIONS, key)) return legacy;
+            vars[name] = translate(key) || MOD_FEED_CAPTIONS[key][0];
+        } else vars[name] = value;
+    }
+    const template = translate(descriptor.key) || MOD_FEED_CAPTIONS[descriptor.key][0];
+    // One pass: user parameters containing {other_param} are literal content.
+    return template.replace(/\{(\w+)\}/g, (match, name) => Object.hasOwn(vars, name) ? String(vars[name]) : match);
+}
+
+    // Настройки через URL: ?pos=br&dur=8&kinds=violation,action,intent&accent=%239146ff
+    // §11.0 WIDGETS_PLAN: адрес панели (?api=http://panel:8000) — стандартный пролог виджетов
+    const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+    const q = new URLSearchParams(location.search);
+    const PREVIEW = q.get('preview') === '1';
+    const DUR = Math.max(2, parseInt(q.get('dur') || '8', 10));
+    const KINDS = (q.get('kinds') || 'violation,action,intent,beep').split(',').map(s => s.trim()).filter(Boolean);
+    const feed = document.getElementById('feed');
+    if (q.get('accent')) document.documentElement.style.setProperty('--mf-accent', q.get('accent'));
+
+    const ICONS = { violation: '⚠', intent: '🤔', action: '🛡', lurker: '👀', beep: '🔇' };
+    let cursor = 0;
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+    function note(text, isError) {
+        if (!PREVIEW) return;
+        let el = document.getElementById('mfNote');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'mfNote';
+            feed.appendChild(el);
+        }
+        el.className = 'note widget-theme-surface' + (isError ? ' err' : ' widget-theme-muted');
+        el.textContent = text;
+    }
+
+    function clearNote() {
+        const el = document.getElementById('mfNote');
+        if (el) el.remove();
+    }
+
+    function show(ev) {
+        if (!KINDS.includes(ev.kind)) return;
+        clearNote();
+        const el = document.createElement('div');
+        el.className = 'plate widget-theme-surface k-' + ev.kind;
+        const actionCaption = modFeedField(ev, 'action');
+        const sub = actionCaption ? `<div class="sub widget-theme-muted">${esc(actionCaption)}</div>` : '';
+        el.innerHTML = `<span class="icon">${Object.hasOwn(ICONS,ev.kind) ? ICONS[ev.kind] : '•'}</span>
+            <div class="txt"><b>${esc(ev.user || wt('mod-feed.'+(['violation','intent','action','lurker','beep'].includes(ev.kind)?ev.kind:'event')))}</b> ${esc(modFeedField(ev, 'text'))}${sub}</div>`;
+        feed.appendChild(el);
+        while (feed.children.length > 5) feed.firstChild.remove();
+        setTimeout(() => { el.classList.add('hide'); setTimeout(() => el.remove(), 350); }, DUR * 1000);
+    }
+
+    async function poll() {
+        try {
+            const r = await fetch(`${_WIDGET_API_BASE}/api/mod-feed/public/poll?since=${cursor}&kinds=${encodeURIComponent(KINDS.join(','))}`);
+            const data = await r.json();
+            if (data.ok) {
+                (data.events || []).forEach(show);
+                cursor = data.cursor ?? cursor;
+                if (!feed.children.length) note(wt('mod-feed.empty'));
+            } else {
+                note(wt('common.unavailable'), true);
+            }
+        } catch (e) { note(wt('common.disconnected'), true); }
+    }
+
+    if (PREVIEW) {
+        document.body.style.background = '#0f0f1a';
+        // Превью зациклено: плашка живёт DUR секунд, иначе карточка в панели опустеет.
+        const demo = () => show({ kind: 'action', user: 'DemoViewer', text: wt('mod-feed.demo_text'), action: wt('mod-feed.demo_action') });
+        demo();
+        setInterval(demo, DUR * 1000);
+    } else {
+        setInterval(poll, 2000);
+        poll();
+    }
+</script>
+</body>
+</html>

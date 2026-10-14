@@ -1,0 +1,91 @@
+<!-- ========== ANALYTICS ========== -->
+<section id="section-analytics" class="section">
+    <div class="section-header">
+        <h1 class="section-title">📈 <span data-i18n="title.analytics">Статистика</span></h1>
+        <button class="btn btn-secondary btn-sm" data-i18n="btn.refresh" onclick="loadAnalytics()">🔄 Обновить</button>
+    </div>
+
+    <!-- Stats cards -->
+    <div class="grid-cards mb-4">
+        <div class="card">
+            <div class="text-muted text-sm mb-2" data-i18n="label.messages_read">Прочитано сообщений</div>
+            <div class="text-2xl font-bold" id="statsTotalMessages">0</div>
+        </div>
+        <div class="card">
+            <div class="text-muted text-sm mb-2" data-i18n="label.bot_replies">Ответов ботов</div>
+            <div class="text-2xl font-bold text-accent" id="statsAIReplies">0</div>
+        </div>
+    </div>
+
+    <!-- Activity per bot -->
+    <div class="card mb-4">
+        <div class="card-title mb-3" data-i18n="label.activity">Активность по ботам (написано сообщений)</div>
+        <div id="chartActivity" aria-live="polite">
+            <div class="text-muted text-sm" data-i18n="label.loading">Загрузка...</div>
+        </div>
+    </div>
+    <div class="grid-cards mb-4">
+        <div class="card"><div class="card-title" data-i18n="analytics.sentiment_title">Настроение чата</div><div id="sentimentSummary" class="text-sm text-muted" data-i18n="label.loading" aria-live="polite">Загрузка...</div></div>
+        <div class="card"><div class="card-title" data-i18n="analytics.wordcloud_title">Популярные слова</div><div id="wordCloudSummary" class="word-cloud" aria-live="polite"></div></div>
+        <div class="card">
+            <div class="card-title" data-i18n="analytics.feedback_title">👍 Оценки ответов</div>
+            <div class="flex gap-2 items-center mb-2">
+                <select id="feedbackBotFilter" class="input field-180 text-sm" onchange="loadFeedbackSummary()" data-i18n-aria-label="panel.feedback_bot" aria-label="Бот для оценок ответов"></select>
+            </div>
+            <div id="feedbackSummaryBox" class="text-sm text-muted" data-i18n="label.loading" aria-live="polite">Загрузка...</div>
+        </div>
+    </div>
+
+    <!-- §17: stats-виджеты — heatmap, 24h, per-bot (trending удалён, P8-C14) -->
+    <div class="card mb-4">
+        <div class="card-title mb-1" data-i18n="analytics.heatmap_title">🔥 Активность чата (день × час)</div>
+        <div id="heatmapGrid" class="heatmap-grid mt-3" aria-live="polite"><div class="text-muted text-sm" data-i18n="label.loading">Загрузка...</div></div>
+        <div class="flex items-center gap-2 mt-2 text-xs text-muted">
+            <span data-i18n="analytics.heatmap_legend">Меньше</span>
+            <span class="heatmap-cell" style="background:color-mix(in srgb, var(--accent) 15%, transparent)"></span>
+            <span class="heatmap-cell" style="background:color-mix(in srgb, var(--accent) 40%, transparent)"></span>
+            <span class="heatmap-cell" style="background:color-mix(in srgb, var(--accent) 70%, transparent)"></span>
+            <span class="heatmap-cell" style="background:var(--accent)"></span>
+            <span data-i18n="analytics.heatmap_legend_more">Больше</span>
+        </div>
+    </div>
+
+    <!-- P8-C14: карточка «Растущие и угасающие темы» удалена по вердикту владельца -->
+    <div class="grid-cards mb-4">
+        <div class="card">
+            <div class="card-title mb-3" data-i18n="analytics.hour24_title">💬 Сообщения за 24 часа</div>
+            <div id="chartHour24" class="bar-chart-mini"></div>
+            <div class="card-title mt-4 mb-2" data-i18n="analytics.top_chatters">👑 Топ чатеров</div>
+            <div id="topChattersList" class="text-sm"></div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-title mb-3" data-i18n="analytics.perbot_title">🤖 Статистика бота</div>
+        <select id="perBotStatsSelect" class="input field-220 mb-3" onchange="loadPerBotStats()" data-i18n-aria-label="panel.statistics_bot" aria-label="Бот для статистики"></select>
+        <div id="perBotStatsBox" class="text-sm" aria-live="polite"><span class="text-muted" data-i18n="label.no_data">Данных нет</span></div>
+    </div>
+
+    <!-- Bot logs -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title" data-i18n="label.bot_logs">📋 Логи ботов</span>
+            <div class="flex gap-2 flex-wrap">
+                <select id="analyticsBotFilter" class="input field-150" onchange="loadAnalyticsLogs()" data-i18n-aria-label="panel.logs_bot" aria-label="Бот для просмотра логов"></select>
+                <select id="analyticsLevelFilter" class="input field-130" onchange="loadAnalyticsLogs()" data-i18n-aria-label="panel.log_level" aria-label="Уровень логов">
+                    <option value="" data-i18n="label.all_levels">Все уровни</option>
+                    <option value="info">Info</option>
+                    <option value="warning">Warning</option>
+                    <option value="error">Error</option>
+                </select>
+                <input id="analyticsLogsFrom" type="datetime-local" class="input field-200" onchange="loadAnalyticsLogs()" data-i18n-aria-label="panel.period_start" aria-label="Начало периода">
+                <input id="analyticsLogsTo" type="datetime-local" class="input field-200" onchange="loadAnalyticsLogs()" data-i18n-aria-label="panel.period_end" aria-label="Конец периода">
+                <button class="btn btn-secondary btn-sm" onclick="loadAnalyticsLogs()" data-i18n-aria-label="btn.refresh" aria-label="Обновить">🔄</button>
+                <button class="btn btn-secondary btn-sm" onclick="exportAnalyticsLogs()" data-i18n="btn.export_csv">📥 CSV</button>
+            </div>
+        </div>
+        <div id="analyticsLogsContent" class="analytics-logs-scroll" aria-live="polite">
+            <div class="text-muted text-sm p-3" data-i18n="label.loading">Загрузка...</div>
+        </div>
+    </div>
+</section>

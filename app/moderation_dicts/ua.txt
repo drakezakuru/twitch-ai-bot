@@ -1,0 +1,65 @@
+# Вбудований словник модерації: українська (MODERATION_PLAN §1).
+# Формат рядка: category|severity|pattern — слово/стем або regex "re:..."
+# Зіставлення за початком слова: стем "йобан" ловить "йобаний/йобана".
+# Категорії: insult / hate / threat / sexual / spam. Severity 1-5:
+#   1-2 → replace (маскування), 3 → block, 4-5 → block (+ timeout при увімкненому §3.4).
+# Рядки з # — коментарі.
+
+# --- Образи (insult) ---
+insult|2|дурень
+insult|2|байдужий
+insult|2|лузер
+insult|2|нездара
+insult|2|тупиц
+insult|2|ідіот
+insult|2|дебіл
+insult|3|виродок
+insult|3|покидьок
+insult|3|мерзот
+insult|3|твар
+insult|3|скотин
+insult|3|гнид
+insult|3|паскуд
+insult|3|недоумок
+insult|2|заткнись
+insult|2|відчепись
+insult|2|йди геть
+
+# --- Ненависть (hate) ---
+hate|4|ниггер
+hate|4|москал
+hate|4|кацап
+hate|4|хач
+hate|4|чурк
+hate|3|нацист
+hate|3|фашист
+hate|4|re:\bжид\b
+hate|4|жидівк
+hate|3|ретард
+
+# --- Погрози (threat) — завжди в журнал навіть при block ---
+threat|5|уб'ю
+threat|5|убью
+threat|5|заріжу
+threat|5|повішу
+threat|5|спалю
+threat|5|отруї
+threat|5|згвалтую
+threat|5|знаю де ти живеш
+threat|5|прийду до тебе
+threat|5|закопаю
+threat|5|докс
+threat|4|зламаю ноги
+threat|4|зламаю руки
+
+# --- Сексуальне (sexual) ---
+sexual|4|йоб
+sexual|4|їб
+sexual|4|хуй
+sexual|3|курва
+sexual|3|сучк
+sexual|3|бля
+sexual|3|пізд
+sexual|4|підор
+sexual|4|пидор
+sexual|4|сперм

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="clip-moments.title"></title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;color:#fff;background:transparent;padding:10px}
+.box{background:rgba(20,20,30,var(--widget-opacity,0.85));backdrop-filter:blur(8px);border-radius:12px;
+  padding:12px 16px;box-shadow:0 4px 24px rgba(0,0,0,0.5);
+  border:1px solid rgba(255,255,255,0.08);max-width:420px}
+h2{font-size:17px;margin-bottom:8px;color:#a78bfa;letter-spacing:.5px}
+.evt{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px;
+  border-bottom:1px solid rgba(255,255,255,0.06);animation:slide .35s ease}
+.evt:last-child{border-bottom:none}
+.time{color:#aaa;font-size:12px;min-width:56px}
+.rate{color:#22c55e;font-size:12px;margin-left:auto}
+@keyframes slide{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.empty{font-size:13px;color:#888;padding:6px 0}
+.error{font-size:13px;color:#fbbf24;padding:6px 0}
+a{color:#a78bfa;text-decoration:none}
+</style></head><body>
+<div class="box widget-theme-surface">
+  <h2 class="widget-theme-accent" data-widget-i18n="clip-moments.heading"></h2>
+  <div id="list" aria-live="polite"></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "clip-moments.title": "Клипы",
+    "clip-moments.heading": "🎬 Клипы",
+    "clip-moments.clip": "клип",
+    "clip-moments.rate": "{rate}/сек",
+    "clip-moments.unavailable_http": "Клипы недоступны (HTTP {status}). Проверьте права Twitch в панели.",
+    "clip-moments.empty": "Моментов пока нет: детектор автоматически ловит пики активности чата."
+  },
+  "en": {
+    "clip-moments.title": "Clip moments",
+    "clip-moments.heading": "🎬 Clips",
+    "clip-moments.clip": "clip",
+    "clip-moments.rate": "{rate}/sec",
+    "clip-moments.unavailable_http": "Clips unavailable (HTTP {status}). Check Twitch permissions in the panel.",
+    "clip-moments.empty": "No moments yet: the detector automatically catches peaks in chat activity."
+  },
+  "ua": {
+    "clip-moments.title": "Кліпи",
+    "clip-moments.heading": "🎬 Кліпи",
+    "clip-moments.clip": "кліп",
+    "clip-moments.rate": "{rate}/с",
+    "clip-moments.unavailable_http": "Кліпи недоступні (HTTP {status}). Перевірте дозволи Twitch у панелі.",
+    "clip-moments.empty": "Моментів поки немає: детектор автоматично виявляє піки активності чату."
+  }
+});
+WidgetI18n.apply();
+document.getElementById('list').textContent=WidgetI18n.t('common.loading');
+
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+const qs = new URLSearchParams(location.search);
+const PREVIEW = qs.get('preview') === '1';
+const scopedAccount = parseInt(qs.get('account_id') || '0', 10) || 0;
+const scopedChannel = String(qs.get('channel') || '').trim().toLowerCase().replace(/^#+/, '');
+const legacyAccount = parseInt(qs.get('account') || '0', 10) || 0;
+const list = document.getElementById('list');
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function renderItems(items){
+  list.innerHTML = items.map(m => {
+    const ts = String(m.timestamp || '').substring(11, 19);
+    const url = m.clip_url ? `<a href="https://clips.twitch.tv/${esc(m.clip_url)}" target="_blank" rel="noopener">${esc(WidgetI18n.t('clip-moments.clip'))}</a>` : '';
+    return `<div class="evt widget-theme-text"><span class="time widget-theme-muted">${esc(ts)}</span><span>#${esc(m.channel)}</span>${url}<span class="rate widget-theme-accent">${esc(WidgetI18n.t('clip-moments.rate',{rate:m.rate}))}</span></div>`;
+  }).join('');
+}
+async function load(){
+  try{
+    const q = new URLSearchParams({limit:'5'});
+    if(scopedChannel){
+      q.set('channel', scopedChannel);
+      if(scopedAccount)q.set('account_id', String(scopedAccount));
+    }else if(legacyAccount){ q.set('account_id', String(legacyAccount)); }
+    const res = await fetch(_WIDGET_API_BASE + '/api/widgets/public/clip-moments?' + q);
+    if(!res.ok){
+      // Права Twitch на клипы могли не выдаться — честная ошибка, а не пустой список.
+      list.innerHTML = '<div class="error widget-theme-muted">' + esc(WidgetI18n.t('clip-moments.unavailable_http',{status:res.status})) + '</div>';
+      return;
+    }
+    const items = await res.json();
+    if(!items.length){ list.innerHTML = '<div class="empty widget-theme-muted">' + esc(WidgetI18n.t('clip-moments.empty')) + '</div>'; return; }
+    renderItems(items);
+  }catch(e){ list.innerHTML = '<div class="error widget-theme-muted">' + esc(WidgetI18n.t('common.disconnected')) + '</div>'; }
+}
+if(PREVIEW){
+  document.body.style.background = '#0f0f1a';
+  renderItems([{timestamp:'2026-09-03 21:14:05', channel:'demochannel', clip_url:'', rate:12}]);
+}else{
+  load(); setInterval(load, 5000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

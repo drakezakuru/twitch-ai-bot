@@ -1,0 +1,1023 @@
+<section id="section-widgets" class="section">
+    <div class="section-header">
+        <h1 class="section-title" data-i18n="nav.widgets">📺 Виджеты</h1>
+        <!-- Q10a: channel-first — один селектор канала, всё ниже показывает его данные -->
+        <div class="flex gap-2 items-center flex-wrap">
+            <label class="text-sm text-muted" for="waChannelScope" data-i18n="widgets.channel_scope">Канал виджетов</label>
+            <select id="waChannelScope" class="input" style="max-width:220px" onchange="waChannelScopeChanged()" data-i18n-aria-label="widgets.channel_scope" aria-label="Канал виджетов"></select>
+            <span id="waChannelScopeBadge" class="badge" aria-live="polite"></span>
+        </div>
+        <!-- Q28 (DEC-OWNER-017): брендовая палитра канала — цвета полосок в карточках -->
+        <details class="wa-brand-palette" id="waBrandPaletteBox">
+            <summary>🎨 <span data-i18n="widgets.brand_palette">Брендовая палитра канала</span></summary>
+            <div class="flex gap-2 items-center flex-wrap mt-2" id="waBrandPaletteEditor"></div>
+            <p class="text-xs text-muted mt-1" data-i18n="widgets.brand_palette_hint">Свои цвета канала: они показываются в карточках виджетов одним кликом. Без своей палитры — стартовый набор.</p>
+        </details>
+    </div>
+
+    <!-- §24: управление контентом виджетов (не только URL для копирования) -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widgets.admin_title">🎛 Управление контентом</span>
+            <button class="btn btn-secondary btn-sm" data-i18n="btn.refresh" onclick="loadWidgetsAdmin()">🔄 Обновить</button>
+        </div>
+        <p class="text-sm text-muted" data-i18n="widgets.admin_hint">Заполните виджеты контентом прямо здесь — изменения сразу видны в OBS. Рядом с каждой формой — живое превью.</p>
+        <div id="widgetsAdminHint" class="text-error text-sm mt-2 hidden" aria-live="polite"></div>
+    </div>
+
+    <details class="widget-group" data-widget-group="basics">
+        <summary class="widget-group-head"><span class="widget-group-title" data-i18n="widgets.group.basics">🎯 Базовые виджеты</span><span class="badge widget-group-count">0</span></summary>
+
+    <!-- Goals -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widget.goals.title">🎯 Цели</span>
+            <code>/widget/goals</code>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            <div style="flex:1 1 340px">
+                <div id="waGoalsList" class="space-y-1 mb-3"></div>
+                <div class="flex gap-2 flex-wrap">
+                    <input type="text" id="waGoalText" class="input" data-i18n-placeholder="widgets.goal_placeholder" placeholder="Новая цель...">
+                    <button class="btn btn-primary btn-sm" onclick="waGoalAdd()" data-i18n="btn.add">+ Добавить</button>
+                    <button class="btn btn-secondary btn-sm" onclick="waGoalsClearDone()" data-i18n="widgets.clear_done">Убрать выполненные</button>
+                </div>
+                <p class="text-xs text-muted mt-1" data-i18n="widgets.goals_percent_hint">Каждая цель — процент 0–100. Галочка появляется автоматически при 100%. В OBS-превью можно открыть виджет с ?admin=1 и кликать +/− прямо на стриме.</p>
+            </div>
+            <iframe class="widget-preview" style="background:#0f0f1a" src="/widget/goals" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+            <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/goals','widget.goals.title',500,500)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/goals'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+        </div>
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+            
+            <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.goals">Цель: 5000₽ из 10000₽ — прогресс-бар наполовину заполнен.</span></p>
+        </div>
+
+    <div class="wa-card-palette" data-palette-card="goals" data-palette-route="/widget/goals"></div>
+    <button class="btn btn-secondary btn-sm mt-3" onclick="waWidgetBindingAdd('goals')" data-i18n="bindings.open_builder">🔗 Настроить правило</button>
+    <details class="wa-widget-rules" data-rules-slug="goals"><summary>⚡ <span data-i18n="bindings.rules_section">Правила</span></summary><div class="wa-widget-rules-body"></div></details>
+    </div>
+
+    <!-- Sub-goal -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widget.sub_goal.title">⭐ Sub-цель</span>
+            <code>/widget/sub-goal</code>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            <div style="flex:1 1 340px">
+                <div class="flex gap-2 mb-2">
+                    <div class="form-group flex-1">
+                        <label data-i18n="widgets.target" for="waSubTarget">Цель</label>
+                        <input type="number" id="waSubTarget" class="input" min="0">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label data-i18n="widgets.current" for="waSubCurrent">Сейчас</label>
+                        <input type="number" id="waSubCurrent" class="input" min="0">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label data-i18n="widgets.title_label" for="waSubTitle">Заголовок</label>
+                        <input type="text" id="waSubTitle" class="input">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn btn-primary btn-sm" onclick="waSubSave()" data-i18n="btn.save">💾 Сохранить</button>
+                </div>
+            </div>
+            <iframe class="widget-preview" style="background:#0f0f1a" src="/widget/sub-goal" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+            <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/sub-goal','widget.sub_goal.title',520,420)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/sub-goal'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+        </div>
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+            
+            <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.subgoal">Прогресс к цели подписок: 45 из 100 — дерево подрастает с каждым сабом.</span></p>
+        </div>
+
+    <div class="wa-card-palette" data-palette-card="sub_goal" data-palette-route="/widget/sub-goal"></div>
+    <button class="btn btn-secondary btn-sm mt-3" onclick="waWidgetBindingAdd('sub_goal')" data-i18n="bindings.open_builder">🔗 Настроить правило</button>
+    <details class="wa-widget-rules" data-rules-slug="sub_goal"><summary>⚡ <span data-i18n="bindings.rules_section">Правила</span></summary><div class="wa-widget-rules-body"></div></details>
+    </div>
+
+    <!-- Now Playing -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widget.now_playing.title">🎵 Сейчас играет</span>
+            <code>/widget/now-playing</code>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            <div style="flex:1 1 340px">
+                <div class="flex gap-2 mb-2">
+                    <div class="form-group">
+                        <label data-i18n="widgets.kind" for="waNpKind">Тип</label>
+                        <select id="waNpKind" class="input">
+                            <option value="music" data-i18n="widgets.kind_music">Музыка</option>
+                            <option value="video" data-i18n="widgets.kind_video">Видео</option>
+                            <option value="game" data-i18n="widgets.kind_game">Игра</option>
+                            <option value="movie" data-i18n="widgets.kind_movie">Фильм</option>
+                            <option value="podcast" data-i18n="panel.np.podcast">Подкаст</option>
+                            <option value="custom" data-i18n="widgets.kind_custom">Другое</option>
+                        </select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label data-i18n="widgets.np_title" for="waNpText">Название</label>
+                        <input type="text" id="waNpText" class="input">
+                    </div>
+                </div>
+                <div class="flex gap-2 mb-2">
+                    <div class="form-group flex-1">
+                        <label data-i18n="widgets.np_sub" for="waNpSubtext">Автор / деталь</label>
+                        <input type="text" id="waNpSubtext" class="input">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="waNpIcon" data-i18n="panel.np.icon_label">URL трека или картинки</label>
+                        <input type="text" id="waNpIcon" class="input" placeholder="YouTube / image URL" data-i18n-placeholder="panel.np.icon_ph">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn btn-primary btn-sm" onclick="waNpSave()" data-i18n="btn.save">💾 Сохранить</button>
+                    <button class="btn btn-secondary btn-sm" onclick="waNpClear()" data-i18n="btn.clear">Очистить</button>
+                </div>
+                <div class="mt-3 pt-2" style="border-top:1px solid rgba(128,128,128,0.2)">
+                    <label class="text-sm"><strong data-i18n="widgets.np_source">Автозаполнение</strong></label>
+                    <div class="flex gap-2 mt-1 flex-wrap">
+                        <select id="waNpSource" class="input" style="max-width:180px" onchange="waNpSourceSave()" data-i18n-aria-label="panel.np.source" aria-label="Источник автозаполнения">
+                            <option value="manual" data-i18n="panel.np.manual">Вручную (резервный вариант)</option>
+                            <option value="lastfm">Last.fm</option>
+                            <option value="mpris">MPRIS / playerctl</option>
+                        </select>
+                        <input type="text" id="waNpLastfmUser" class="input" style="max-width:150px" placeholder="Last.fm юзер" data-i18n-aria-label="panel.np.user" aria-label="Пользователь Last.fm" data-i18n-placeholder="panel.np.user">
+                        <input type="password" id="waNpLastfmKey" class="input" style="max-width:150px" placeholder="Last.fm API key" data-i18n-aria-label="panel.np.key" aria-label="API-ключ Last.fm" data-i18n-placeholder="panel.np.key">
+                        <input type="text" id="waNpMprisPlayer" class="input" style="max-width:150px" placeholder="плеер (опц.)" data-i18n-aria-label="panel.np.player" aria-label="Плеер (необязательно)" data-i18n-placeholder="panel.np.player">
+                    </div>
+                    <p class="text-xs text-muted mt-1"><span data-i18n="panel.np.help">Ручное поле выше — резервный вариант. Автозаполнение: Last.fm (пользователь + API-ключ), MPRIS (Linux/Steam Deck, playerctl) или чат-команда</span> <code data-i18n="panel.np.command">!np &lt;название&gt;</code> / <code>!np clear</code> <span data-i18n="panel.np.permissions">(стример/модератор).</span></p>
+                </div>
+            </div>
+            <iframe class="widget-preview" style="background:#0f0f1a" src="/widget/now-playing" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+            <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/now-playing','widget.now_playing.title',560,120)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/now-playing'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+        </div>
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+            
+            <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.nowplaying">Плашка с названием трека и обложкой — зрители видят, что сейчас звучит.</span></p>
+        </div>
+
+    <div class="wa-card-palette" data-palette-card="now_playing" data-palette-route="/widget/now-playing"></div>
+    <button class="btn btn-secondary btn-sm mt-3" onclick="waWidgetBindingAdd('now_playing')" data-i18n="bindings.open_builder">🔗 Настроить правило</button>
+    <details class="wa-widget-rules" data-rules-slug="now_playing"><summary>⚡ <span data-i18n="bindings.rules_section">Правила</span></summary><div class="wa-widget-rules-body"></div></details>
+    </div>
+
+    <!-- Schedule -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widget.schedule.title">📅 Расписание</span>
+            <code>/widget/schedule</code>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            <div style="flex:1 1 340px">
+                <div id="waScheduleList" class="space-y-1 mb-3"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="waSchTime" class="input" style="max-width:130px" placeholder="Пт 20:00">
+                    <input type="text" id="waSchTitle" class="input" data-i18n-placeholder="widgets.sch_title" placeholder="Тема эфира">
+                    <input type="text" id="waSchEmoji" class="input" style="max-width:70px" placeholder="🎮">
+                    <button class="btn btn-primary btn-sm" onclick="waScheduleAdd()" data-i18n="btn.add">+ Добавить</button>
+                </div>
+            </div>
+            <iframe class="widget-preview" style="background:#0f0f1a" src="/widget/schedule" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+            <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/schedule','widget.schedule.title',560,500)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/schedule'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+        </div>
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+            
+            <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.schedule">Баннер «что идёт сейчас / что дальше по расписанию».</span></p>
+        </div>
+    </div>
+
+    <!-- Countdown -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">⏳ Countdown</span>
+            <code>/widget/countdown</code>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            <div style="flex:1 1 340px">
+                <div class="flex gap-2 mb-2">
+                    <div class="form-group">
+                        <label data-i18n="widgets.mode" for="waCdMode">Режим</label>
+                        <select id="waCdMode" class="input">
+                            <option value="countdown" data-i18n="widgets.mode_countdown">Обратный отсчёт</option>
+                            <option value="stopwatch" data-i18n="widgets.mode_stopwatch">Секундомер</option>
+                        </select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label data-i18n="widgets.cd_minutes" for="waCdDuration">Минут</label>
+                        <input type="number" id="waCdDuration" class="input" min="1" max="1440" value="10">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label data-i18n="widgets.title_label" for="waCdTitle">Заголовок</label>
+                        <input type="text" id="waCdTitle" class="input">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn btn-primary btn-sm" onclick="waCdSave()" data-i18n="btn.save">💾 Сохранить</button>
+                </div>
+            </div>
+            <iframe class="widget-preview" style="background:#0f0f1a" src="/widget/countdown" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+            <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/countdown','Countdown',700,300)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/countdown'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+        </div>
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+            
+            <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.countdown">Таймер обратного отсчёта — до конца стрима, розыгрыша или челленджа.</span></p>
+        </div>
+
+    <div class="wa-card-palette" data-palette-card="countdown" data-palette-route="/widget/countdown"></div>
+    <button class="btn btn-secondary btn-sm mt-3" onclick="waWidgetBindingAdd('countdown')" data-i18n="bindings.open_builder">🔗 Настроить правило</button>
+    <details class="wa-widget-rules" data-rules-slug="countdown"><summary>⚡ <span data-i18n="bindings.rules_section">Правила</span></summary><div class="wa-widget-rules-body"></div></details>
+    </div>
+    </details>
+
+    <details class="widget-group" data-widget-group="donations">
+        <summary class="widget-group-head"><span class="widget-group-title" data-i18n="widgets.group.donations">💝 Донаты</span><span class="badge widget-group-count">0</span></summary>
+
+    <!-- Donation Challenge -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="donation_challenge.title">💝 Донат-челлендж</span>
+            <button class="btn btn-secondary btn-sm" onclick="waCopyWidgetUrl('/widget/donation-challenge')" data-i18n="widgets.copy_url">📋 Копировать URL</button>
+        </div>
+        <p class="text-sm text-muted" data-i18n="donation_challenge.scope_hint">Сбор работает только для выбранных выше аккаунта и канала.</p>
+        <div id="waDonationChallengesList" class="space-y-1 my-3"></div>
+        <div class="flex gap-2 flex-wrap">
+            <input id="waDcTitle" class="input" data-i18n-placeholder="donation_challenge.name" placeholder="Название сбора">
+            <input id="waDcTarget" class="input" type="number" min="0.01" step="0.01" style="max-width:130px" data-i18n-placeholder="donation_challenge.target" placeholder="Цель">
+            <input id="waDcCurrency" class="input" style="max-width:90px" value="RUB" aria-label="Currency">
+            <button class="btn btn-primary btn-sm" onclick="waDonationChallengeCreate()" data-i18n="donation_challenge.create">+ Создать</button>
+        </div>
+        <iframe class="widget-preview mt-3" style="background:#0f0f1a" src="/widget/donation-challenge" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+        <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/donation-challenge','donation_challenge.title',560,220)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/donation-challenge'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+    </div>
+
+    <!-- Top Donators -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widgets.donators">💰 Топ донатеров</span>
+            <code id="waTdUrl">/widget/top-donator?period=alltime</code>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            <div style="flex:1 1 340px">
+                <div class="flex gap-2 items-center mb-3">
+                    <label class="text-sm" for="waTdPeriod" data-i18n="widgets.td_period">Период</label>
+                    <select id="waTdPeriod" class="input" style="max-width:170px" onchange="waTopDonatorPeriod(this.value)">
+                        <option value="alltime" data-i18n="widgets.td_alltime">Всё время</option>
+                        <option value="month" data-i18n="widgets.td_month">Месяц</option>
+                        <option value="day" data-i18n="widgets.td_day">День</option>
+                    </select>
+                </div>
+                <div id="waDonationsList" class="space-y-1 mb-3"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="waDonNick" class="input" style="max-width:160px" data-i18n-placeholder="placeholder.chatter_nick" placeholder="Ник чатера">
+                    <input type="number" id="waDonAmount" class="input" style="max-width:110px" min="0" step="0.01" placeholder="10.00">
+                    <input type="text" id="waDonMsg" class="input" data-i18n-placeholder="widgets.don_message" placeholder="Сообщение (необязательно)">
+                    <button class="btn btn-primary btn-sm" onclick="waDonationAdd()" data-i18n="btn.add">+ Добавить</button>
+                </div>
+            </div>
+            <iframe id="waTdPreview" class="widget-preview" style="background:#0f0f1a" src="/widget/top-donator?period=alltime" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+            <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom(document.getElementById('waTdPreview').src,'widgets.donators',420,240)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/top-donator'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+        </div>
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+            
+            <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.topdonator">Топ донатеров за всё время / месяц / день — обновляется из донат-интеграций.</span></p>
+        </div>
+    </div>
+
+    <!-- Решение владельца 31.08: карточка субатона (таймер + тарифы) -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">🦾 Субатон (таймер)</span>
+            <button class="btn btn-secondary btn-sm" onclick="waCopyWidgetUrl('/widget/subathon-timer')" data-i18n="widgets.copy_url">📋 Копировать URL</button>
+        </div>
+        <p class="text-sm text-muted" data-i18n="bindings.scope_hint">Только у выбранного бота и в выбранном канале.</p>
+        <p class="text-sm text-muted mb-3" data-i18n="subathon.hint">Таймер, который продлевается за подписки и донаты (DonatePay, DonateX, DonationAlerts, webhook). Добавь URL в OBS. Тарифы: за каждый саб и за донат — плоско секунд ИЛИ по сумме доната.</p>
+        <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.subathon">Старт 01:00:00 · саб +60 сек · донат 100₽ +30 сек — таймер тикает вверх в OBS.</span></p>
+        <div class="flex gap-3 flex-wrap items-end mb-3">
+            <div class="form-group">
+                <label class="text-xs" data-i18n="subathon.per_sub" for="subathonPerSub">Секунд за 1 саб</label>
+                <input type="number" id="subathonPerSub" class="input select-120" min="1" max="3600" value="60">
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="subathon.per_donation" for="subathonPerDonation">Секунд за 1 донат (плоско)</label>
+                <input type="number" id="subathonPerDonation" class="input select-120" min="1" max="3600" value="30">
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="subathon.per_currency" for="subathonPerCurrency">Секунд за 1 единицу валюты (0 = плоско)</label>
+                <input type="number" id="subathonPerCurrency" class="input select-120" min="0" max="3600" step="0.5" value="0">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="saveSubathonRates()" data-i18n="btn.save">💾 Сохранить</button>
+        </div>
+        <div class="flex gap-2 items-center flex-wrap">
+            <button class="btn btn-primary btn-sm" onclick="subathonStart()">▶ Старт</button>
+            <button class="btn btn-danger btn-sm" onclick="subathonStop()">⏹ Стоп</button>
+            <span class="text-xs text-muted" id="subathonStatus">—</span>
+        </div>
+        <p class="text-xs text-muted mt-2" data-i18n="widgets.wa2.example.session">👀 Например: нажмите ▶ при начале эфира — uptime пойдёт в OBS</p>
+        <iframe class="widget-preview mt-3" style="background:#0f0f1a" src="/widget/subathon-timer?preview=1" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+        <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/subathon-timer?preview=1','subathon-timer',360,150)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/subathon-timer?preview=1'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+    </div>
+    </details>
+
+    <details class="widget-group" data-widget-group="tts_sound">
+        <summary class="widget-group-head"><span class="widget-group-title" data-i18n="widgets.group.tts_sound">🎙 TTS и звук</span><span class="badge widget-group-count">0</span></summary>
+
+    <!-- P4 PLAN.md: TTS за баллы канала -->
+    <div class="card mb-4" id="cpTtsCard">
+        <div class="card-header">
+            <span class="card-title" data-i18n="cp_tts.title">🎙 TTS за баллы канала</span>
+            <div class="toggle" id="cpTtsEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)"></div>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="cp_tts.hint">Зритель тратит баллы канала на награду-активацию (например «Озвучить сообщение») — его текст озвучивается в OBS через TTS-движок бота. Создай награду в Twitch → Creator Dashboard → Rewards. Названия через запятую; пусто = озвучивать ЛЮБУЮ награду с текстом. Требуется включённый TTS-движок.</p>
+        <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.cp_tts">Зритель покупает награду «Озвучить сообщение» за 100 баллов и пишет текст — в OBS его текст произносится голосом бота.</span></p>
+        <div class="flex gap-2 items-end mb-3 flex-wrap">
+            <div class="form-group" style="min-width:220px">
+                <label class="text-xs" data-i18n="cp_tts.channel" for="cpTtsChannel">Канал Twitch</label>
+                <input id="cpTtsChannel" class="input" placeholder="channel_name">
+            </div>
+            <div class="form-group" style="min-width:220px">
+                <label class="text-xs" data-i18n="cp_tts.voice" for="cpTtsVoiceSearch">Голос награды</label>
+                <input id="cpTtsVoiceSearch" class="input mb-1" data-i18n-placeholder="cp_tts.voice_search" placeholder="Поиск голоса" oninput="cpTtsFilterVoiceCatalog()">
+                <select id="cpTtsVoice" class="input" onchange="cpTtsVoiceSelected()"></select>
+                <p class="text-xs text-muted mt-1" id="cpTtsVoiceMeta" data-i18n="cp_tts.voice_fallback">Пустой выбор использует голос TTS бота.</p>
+                <details class="mt-1">
+                    <summary class="text-xs text-muted" data-i18n="cp_tts.voice_advanced">Дополнительно: legacy ID голоса</summary>
+                    <input id="cpTtsVoiceAdvanced" class="input mt-1" data-i18n-placeholder="cp_tts.voice_advanced_ph" placeholder="ru-RU / ID голоса" oninput="cpTtsVoiceAdvancedChanged()">
+                </details>
+            </div>
+            <div class="form-group" style="flex:1 1 260px">
+                <label class="text-xs" data-i18n="cp_tts.reward_names" for="cpTtsRewards">Названия наград (через запятую, пусто = все)</label>
+                <input type="text" id="cpTtsRewards" class="input" placeholder="Озвучить сообщение, TTS-заказ">
+            </div>
+        </div>
+        <div class="flex gap-3 flex-wrap mb-3">
+            <div class="form-group">
+                <label class="text-xs" data-i18n="cp_tts.max_len" for="cpTtsMaxLen">Макс. длина (симв.)</label>
+                <input type="number" id="cpTtsMaxLen" class="input select-80" min="10" max="500" value="120">
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="cp_tts.cooldown" for="cpTtsCooldown">Cooldown юзера (сек)</label>
+                <input type="number" id="cpTtsCooldown" class="input select-80" min="0" max="600" value="5">
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="cp_tts.max_hour" for="cpTtsMaxHour">Макс./час юзеру</label>
+                <input type="number" id="cpTtsMaxHour" class="input select-80" min="1" max="200" value="10">
+            </div>
+            <div class="form-group" style="flex:1 1 220px">
+                <label class="text-xs" data-i18n="cp_tts.blacklist" for="cpTtsBlacklist">Чёрный список слов (через запятую)</label>
+                <input type="text" id="cpTtsBlacklist" class="input" placeholder="спам, реклама">
+            </div>
+            <label class="flex items-center gap-2 text-sm">
+                <div class="toggle" id="cpTtsAnnounce" role="switch" aria-checked="true" tabindex="0" onclick="uiToggle(this)"></div>
+                <span data-i18n="cp_tts.announce">Говорить «Говорит Nick:»</span>
+            </label>
+        </div>
+        <div class="flex gap-2 items-end flex-wrap">
+            <div class="form-group" style="flex:1 1 260px">
+                <label class="text-xs" data-i18n="cp_tts.test_label" for="cpTtsTestText">Тест (озвучить прямо сейчас)</label>
+                <input type="text" id="cpTtsTestText" class="input" placeholder="привет из OBS!" onkeypress="if(event.key==='Enter')testChannelPointsTts()">
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="testChannelPointsTts()" data-i18n="cp_tts.test">🔊 Тест</button>
+            <button class="btn btn-primary btn-sm" onclick="saveChannelPointsTts()" data-i18n="btn.save">💾 Сохранить</button>
+        </div>
+    </div>
+
+    <!-- P6 PLAN.md: TTS-чат (озвучки) — отдельный чат-оверлей для OBS -->
+    <div class="card mb-4" id="ttsChatCard">
+        <div class="card-header">
+            <span class="card-title" data-i18n="tts_chat.title">💬 TTS-чат (озвучки)</span>
+            <code>/widget/tts-chat-overlay</code>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="tts_chat.hint">Отдельный чат для озвучек: показывает строку «как в обычном чате» — кто говорит (бот или зритель, озвучивший сообщение за баллы) и что говорит. Каждое сообщение скрывается через выбранное время. Выведи URL в OBS как Browser Source.</p>
+        <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.tts_chat">@nick (за 100 баллов): привет стример! — строка висит 30 сек и исчезает.</span></p>
+        <div class="flex gap-3 flex-wrap items-end mb-3">
+            <div class="form-group" style="min-width:220px">
+                <label class="text-xs" data-i18n="tts_chat.filter" for="ttsChatFilter">Какие озвучки показывать</label>
+                <select id="ttsChatFilter" class="input" style="max-width:220px" onchange="buildTtsChatUrl()">
+                    <option value="all">Все</option><option value="rewards">Награды</option><option value="bot">Бот</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="tts_chat.hide" for="ttsChatHide">Скрывать сообщение через</label>
+                <select id="ttsChatHide" class="input select-80" onchange="buildTtsChatUrl()">
+                    <option value="10000">10 с</option>
+                    <option value="15000">15 с</option>
+                    <option value="20000">20 с</option>
+                    <option value="30000" selected>30 с</option>
+                    <option value="45000">45 с</option>
+                    <option value="60000">60 с</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="tts_chat.max" for="ttsChatMax">Макс. сообщений</label>
+                <select id="ttsChatMax" class="input select-80" onchange="buildTtsChatUrl()">
+                    <option value="3">3</option>
+                    <option value="5" selected>5</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="tts_chat.color" for="ttsChatColor">Цвет акцента</label>
+                <input type="text" id="ttsChatColor" class="input select-120" placeholder="#FFD700" onchange="buildTtsChatUrl()">
+            </div>
+        </div>
+        <div class="flex gap-2 items-end flex-wrap">
+            <div class="form-group" style="flex:1 1 320px">
+                <label class="text-xs" data-i18n="tts_chat.url">URL для OBS</label>
+                <div id="ttsChatUrl" class="font-mono text-xs" style="word-break:break-all"></div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="copyTtsChatUrl()" data-i18n="brainx.copy">📋 Копировать</button>
+            <button class="btn btn-secondary btn-sm" onclick="window.open(buildTtsChatUrl(), '_blank')" data-i18n="blur_zones.open">Открыть превью</button>
+        </div>
+        <iframe class="widget-preview mt-3" style="background:#0f0f1a" src="/widget/tts-chat-overlay?preview=1" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+        <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/tts-chat-overlay?preview=1','tts_chat.title',800,240)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/tts-chat-overlay?preview=1'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+    </div>
+
+    <!-- §11.5: Song Request — понятный UX -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widgets.songs">🎧 Заказ песен (Song Request)</span>
+            <code>/widget/song-request</code>
+        </div>
+        <p class="text-sm text-muted" data-i18n="song_request.description">Зрители командой !sr &lt;ссылка или название&gt; добавляют трек в логическую очередь.</p>
+        <p class="text-xs text-muted mt-1" data-i18n="song_request.playback_hint">Song Request сам не запускает YouTube или Spotify. Отдельный Media Share Browser Source автоматически воспроизводит только поддерживаемые YouTube-ссылки; статус playing без него означает лишь текущую позицию очереди.</p>
+        <div class="flex gap-3 flex-wrap">
+            <div style="flex:1 1 340px">
+                <div class="flex gap-2 items-center mb-2 flex-wrap">
+                    <label class="flex items-center gap-2 text-sm">
+                        <div class="toggle" id="waSrEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, v => waSrToggle('enabled', v))"></div>
+                        <span data-i18n="widgets.enabled">Включён</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-sm">
+                        <div class="toggle" id="waSrVisible" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, v => waSrToggle('visible', v))"></div>
+                        <span data-i18n="widgets.visible">Виден в OBS</span>
+                    </label>
+                    <div class="form-group">
+                        <label class="text-xs" data-i18n="song_request.cooldown" for="waSrCooldown">Cooldown !sr, сек.</label>
+                        <input type="number" id="waSrCooldown" class="input" style="width:90px" min="0" max="600" onchange="waSrToggle('cooldown_sec', parseInt(this.value,10)||0)">
+                    </div>
+                    <div class="form-group">
+                        <label class="text-xs" data-i18n="song_request.max_per_user" for="waSrPerUser">Макс. треков на пользователя</label>
+                        <input type="number" id="waSrPerUser" class="input" style="width:90px" min="0" max="10" onchange="waSrToggle('max_per_user', parseInt(this.value,10)||0)">
+                    </div>
+                    <div class="form-group">
+                        <label class="text-xs" data-i18n="song_request.max_queue" for="waSrMaxQueue">Макс. треков в очереди</label>
+                        <input type="number" id="waSrMaxQueue" class="input" style="width:90px" min="1" max="500" onchange="waSrToggle('max_queue', Math.max(1, parseInt(this.value,10)||1))">
+                    </div>
+                    <span id="waSrStatus" class="text-xs text-muted"></span>
+                </div>
+                <div id="waSrQueue" class="space-y-1 mb-3"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="waSrTitle" class="input" data-i18n-placeholder="widgets.song_title" placeholder="Название трека / YouTube">
+                    <input type="text" id="waSrBy" class="input" style="max-width:150px" data-i18n-placeholder="placeholder.chatter_nick" placeholder="Ник чатера">
+                    <button class="btn btn-primary btn-sm" onclick="waSrAdd()" data-i18n="btn.add">+ Добавить</button>
+                    <button class="btn btn-secondary btn-sm" onclick="waSrSkip()" data-i18n="widgets.sr_skip">⏭ Скип</button>
+                    <button class="btn btn-secondary btn-sm" onclick="waSrClear()" data-i18n="widgets.sr_clear">Очистить очередь</button>
+                </div>
+                <details class="mt-3">
+                    <summary class="text-sm" data-i18n="song_request.entitlements_title">Channel Points и донаты</summary>
+                    <p class="text-xs text-muted mt-2" data-i18n="song_request.entitlements_hint">Укажите стабильные reward ID. Название используется только как fallback, когда ID не задан. Платные события без уникального event ID отклоняются, автоматический refund недоступен.</p>
+                    <div class="grid grid-2 gap-2 mt-2">
+                        <div class="form-group"><label data-i18n="song_request.points_create_id" for="waSrPointsCreateId">Reward ID: добавить</label><input id="waSrPointsCreateId" class="input" type="text"><span class="text-xs text-muted" data-i18n="song_request.points_create_id_hint">Создаёт новый запрос из пользовательского ввода reward.</span></div>
+                        <div class="form-group"><label data-i18n="song_request.points_priority_id" for="waSrPointsPriorityId">Reward ID: приоритет</label><input id="waSrPointsPriorityId" class="input" type="text"><span class="text-xs text-muted" data-i18n="song_request.points_priority_id_hint">Создаёт приоритетный запрос или повышает совпавший активный.</span></div>
+                        <div class="form-group"><label data-i18n="song_request.points_create_title" for="waSrPointsCreateTitle">Fallback-название: добавить</label><input id="waSrPointsCreateTitle" class="input" type="text"><span class="text-xs text-muted" data-i18n="song_request.points_title_hint">Используется только если соответствующий reward ID пуст.</span></div>
+                        <div class="form-group"><label data-i18n="song_request.points_priority_title" for="waSrPointsPriorityTitle">Fallback-название: приоритет</label><input id="waSrPointsPriorityTitle" class="input" type="text"><span class="text-xs text-muted" data-i18n="song_request.points_title_hint">Используется только если соответствующий reward ID пуст.</span></div>
+                        <label class="flex items-center gap-2 text-sm"><input id="waSrDonationEnabled" type="checkbox"><span data-i18n="song_request.donation_enabled">Заказы за донаты</span></label>
+                        <div class="form-group"><label data-i18n="song_request.donation_threshold" for="waSrDonationThreshold">Минимальная сумма</label><input id="waSrDonationThreshold" class="input" type="number" min="0.01" step="0.01"><span class="text-xs text-muted" data-i18n="song_request.donation_threshold_hint">Событие принимается только от этой суммы включительно.</span></div>
+                        <div class="form-group"><label data-i18n="song_request.donation_currency" for="waSrDonationCurrency">Валюта</label><input id="waSrDonationCurrency" class="input" type="text" maxlength="10" placeholder="USD"><span class="text-xs text-muted" data-i18n="song_request.donation_currency_hint">Точное совпадение кода валюты, без конвертации.</span></div>
+                        <div class="form-group"><label data-i18n="song_request.donation_action" for="waSrDonationAction">Действие доната</label><select id="waSrDonationAction" class="input"><option value="create" data-i18n="song_request.action_create">Добавить запрос</option><option value="priority" data-i18n="song_request.action_priority">Добавить / повысить приоритет</option></select><span class="text-xs text-muted" data-i18n="song_request.donation_action_hint">Название трека берётся из сообщения доната.</span></div>
+                    </div>
+                    <button class="btn btn-primary btn-sm mt-2" onclick="waSrEntitlementsSave()" data-i18n="btn.save">Сохранить</button>
+                </details>
+                <details class="mt-3" ontoggle="if(this.open) waSrAuditLoad()">
+                    <summary class="text-sm" data-i18n="song_request.audit_title">Журнал запросов</summary>
+                    <p class="text-xs text-muted mt-2" data-i18n="song_request.audit_hint">Accepted означает добавление или повышение приоритета, а не подтверждённое воспроизведение.</p>
+                    <div id="waSrAudit" class="space-y-1 mt-2"></div>
+                </details>
+            </div>
+            <iframe class="widget-preview" style="background:#0f0f1a" src="/widget/song-request" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+            <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/song-request','widgets.songs',440,320)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/song-request'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+        </div>
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+            
+            <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.songrequest">Очередь заказов через !sr: трек + кто заказал.</span></p>
+        </div>
+    </div>
+
+    <div class="card mb-4" id="soundboardCard">
+        <div class="card-header"><span class="card-title" data-i18n="soundboard.title">🎵 Soundboard</span><code>/widget/soundboard</code></div>
+        <p class="text-sm text-muted" data-i18n="soundboard.hint">Загрузите аудио, затем нажмите Play или создайте хоткей-биндинг. Звук играет только в OBS Browser Source.</p>
+        <div class="flex gap-2 items-end flex-wrap mt-3"><div class="form-group flex-1"><label data-i18n="soundboard.upload_label" for="soundboardFile">Аудиофайлы MP3/WAV/OGG/WebM, до 10 МБ каждый</label><input id="soundboardFile" class="input" type="file" multiple accept="audio/mpeg,audio/wav,audio/ogg,audio/webm"></div><button class="btn btn-primary btn-sm" onclick="waSoundboardUpload()" data-i18n="soundboard.upload">⬆ Загрузить</button><button class="btn btn-secondary btn-sm" onclick="waSoundboardStop()" data-i18n="soundboard.stop">■ Stop</button><button class="btn btn-secondary btn-sm" onclick="waSoundboardLoad()" data-i18n="btn.refresh">🔄 Обновить</button></div>
+        <div id="soundboardInventory" class="space-y-1 mt-3"></div>
+        <iframe class="widget-preview" style="background:#0f0f1a" src="/widget/soundboard" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+        <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/soundboard','soundboard.title',360,60)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/soundboard'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+        <div class="wa-card-palette" data-palette-card="soundboard" data-palette-route="/widget/soundboard"></div>
+        <details class="wa-widget-rules" data-rules-slug="soundboard"><summary>⚡ <span data-i18n="bindings.rules_section">Правила</span></summary><div class="wa-widget-rules-body"></div></details>
+    </div>
+    </details>
+
+    <details class="widget-group" data-widget-group="automation">
+        <summary class="widget-group-head"><span class="widget-group-title" data-i18n="widgets.group.automation">🔗 Интеграции и автоматизация</span><span class="badge widget-group-count">0</span></summary>
+
+    <datalist id="waBindEventOptions"></datalist>
+
+    <!-- §11.4: Донат-интеграции -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="donation.title">💳 Донат-интеграции</span>
+            <button class="btn btn-secondary btn-sm" onclick="waDonationIntLoad()" data-i18n-aria-label="donation.refresh" aria-label="Обновить статусы">🔄</button>
+        </div>
+        <p class="text-sm text-muted" data-i18n="bindings.scope_hint">Только у выбранного бота и в выбранном канале.</p>
+        <p class="text-sm text-muted" data-i18n="donation.description">Реальные донаты выбранного канала попадают только в его топ, события, челленджи и subathon.</p>
+        <p class="text-sm text-muted" data-i18n="widgets.goalsync_note">Источник прогресса сбора — goal-API DonateX (единственная платформа с goal-API). Челлендж при этом двигают донаты со всех подключённых платформ и webhook.</p>
+        <p class="text-sm text-muted" data-i18n="donation.multiple">DonatePay, DonateX и DonationAlerts можно включать одновременно.</p>
+        <p class="text-xs text-muted mt-1" data-i18n="donation.example">👀 Например: донат «Nick · 100 · го рекорд» обновит виджеты только выбранного канала.</p>
+        <p id="waDonStorageWarning" class="text-sm text-warning hidden" data-i18n="donation.plaintext_warning">⚠️ Access tokens хранятся локально без шифрования. Настройте TOKEN_ENCRYPTION_KEY.</p>
+        <div id="waDonRows" class="space-y-2"></div>
+        <div class="mt-3" style="border-top:1px solid rgba(128,128,128,0.2);padding-top:10px">
+            <div class="flex gap-2 items-center flex-wrap">
+                <strong class="text-sm" data-i18n="donation.bridge.title">Локальный bridge</strong>
+                <div class="toggle" id="waDonBridgeEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, waDonationBridgeToggle)"></div>
+                <span id="waDonBridgeMask" class="text-xs text-muted"></span>
+                <button class="btn btn-secondary btn-sm" onclick="waDonationBridgeReveal()" data-i18n="donation.bridge.reveal">Показать</button>
+                <button class="btn btn-secondary btn-sm" onclick="waDonationBridgeRotate()" data-i18n="donation.bridge.rotate">Создать / сменить токен</button>
+            </div>
+            <p class="text-xs text-muted" data-i18n="donation.bridge.hint">Для Streamer.bot и тестовых событий: localhost POST с exact account_id, channel, event_id и этим токеном.</p>
+            <div id="waDonBridgeSecret" class="flex gap-2 items-center hidden">
+                <input id="waDonBridgeValue" class="input" type="text" readonly autocomplete="off">
+                <button class="btn btn-secondary btn-sm" onclick="waDonationBridgeCopy()" data-i18n="donation.bridge.copy">Копировать</button>
+                <span id="waDonBridgeMessage" class="text-xs text-muted" aria-live="polite"></span>
+            </div>
+        </div>
+        <div class="flex gap-2 items-center flex-wrap mt-3" style="border-top:1px solid rgba(128,128,128,0.2);padding-top:10px">
+            <span class="text-sm" style="min-width:0" data-i18n="widgets.goalsync_title">🎯 Сбор → челлендж</span>
+            <input type="text" id="waGoalSyncId" class="input" style="max-width:200px" placeholder="Goal ID из ссылки на сбор" data-i18n-placeholder="donation.goal.id">
+            <div class="flex items-center gap-2 text-sm">
+                <div class="toggle" id="waGoalSyncEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)"></div> <span data-i18n="donation.goal.sync">Синхронизировать</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="waGoalSyncSave()" data-i18n-aria-label="donation.save" aria-label="Сохранить">💾</button>
+            <span class="text-xs text-muted" data-i18n="widgets.goalsync_hint">Каждый новый донат в сборе автоматически двигает активный челлендж (дельта, локальные донаты не затираются).</span>
+        </div>
+    </div>
+    </details>
+
+    <details class="widget-group" data-widget-group="overlays">
+        <summary class="widget-group-head"><span class="widget-group-title" data-i18n="widgets.group.overlays">🛡 Оверлеи и механики Twitch</span><span class="badge widget-group-count">0</span></summary>
+
+    <!-- §13: Blur Guard (v2: reactive-блюр + always-on зоны одним оверлеем) -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="panel.blur.title">🛡 Защита сцены (Blur Guard)</span>
+            <code>/obs/blur-guard-v2</code>
+        </div>
+        <p class="text-sm text-muted" data-i18n="blur_guard.description">Защитная маска поверх сцены в OBS: при срабатывании AI она закрывает контент. Browser Source не умеет размывать другие OBS-источники; для настоящего blur используй OBS-фильтр на source/group. 100% полностью скрывает пиксели.</p>
+        <div class="flex gap-2 flex-wrap mb-2">
+            <div class="flex items-center gap-2 text-sm">
+                <div class="toggle" id="waBgEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)" data-i18n-aria-label="panel.blur.toggle" aria-label="Включить защиту сцены"></div> <span data-i18n="panel.blur.enabled">Включён</span>
+            </div>
+            <div class="form-group"><label class="text-xs" for="waBgSensitivity" data-i18n="panel.blur.sensitivity">Чувствительность 1-100</label>
+                <input type="number" id="waBgSensitivity" class="input" style="width:90px" min="1" max="100"></div>
+            <div class="form-group"><label class="text-xs" for="waBgDuration" data-i18n="panel.blur.duration">Длительность блюра, сек</label>
+                <input type="number" id="waBgDuration" class="input" style="width:80px" min="1" max="600"
+                       oninput="waBgPreviewSync(this.value, document.getElementById('waBgPercent').value,true)"></div>
+            <div class="form-group"><label class="text-xs" data-i18n="blur_guard.mode" for="waBgProtectionMode">Защита</label>
+                <select id="waBgProtectionMode" class="input" onchange="waBgModeSync()">
+                    <option value="mask" data-i18n="blur_guard.mode_mask">Цветная маска</option>
+                    <option value="image" data-i18n="blur_guard.mode_image">Своя картинка</option>
+                    <option value="obs_filter" data-i18n="blur_guard.mode_filter">Настоящий OBS blur-фильтр</option>
+                </select></div>
+        </div>
+        <div id="waBgImageFields" class="flex gap-2 flex-wrap mb-2 hidden">
+            <input type="file" id="waBgImage" class="input" accept="image/png,image/jpeg,image/webp,image/gif" data-i18n-aria-label="panel.blur.image" aria-label="Картинка защитной маски">
+            <button class="btn btn-secondary btn-sm" onclick="waBgImageUpload()" data-i18n="blur_guard.upload">Загрузить картинку</button>
+        </div>
+        <div id="waBgObsFields" class="flex gap-2 flex-wrap mb-2 hidden">
+            <input type="text" id="waBgObsSource" class="input" data-i18n-placeholder="blur_guard.obs_source" placeholder="Имя source/group в OBS">
+            <input type="text" id="waBgObsFilter" class="input" data-i18n-placeholder="blur_guard.obs_filter" placeholder="Имя blur-фильтра в OBS">
+            <span class="text-xs text-muted" data-i18n="blur_guard.obs_hint">OBS WebSocket: ws://127.0.0.1:4455; пароль задаётся OBS_WEBSOCKET_PASSWORD.</span>
+        </div>
+        <details class="mt-1 mb-2" id="waBgAdvanced"><summary class="text-xs text-muted cursor-pointer" data-i18n="blur_guard.advanced">Дополнительно</summary>
+        <div class="flex gap-2 flex-wrap mb-2 mt-2">
+            <div class="form-group"><label class="text-xs" for="waBgInterval" data-i18n="panel.blur.interval">Интервал, сек</label>
+                <input type="number" id="waBgInterval" class="input" style="width:80px" min="3" max="120"></div>
+            <div class="form-group"><label class="text-xs" for="waBgPreDelay" data-i18n="panel.blur.delay">Pre-delay, мс</label>
+                <input type="number" id="waBgPreDelay" class="input" style="width:90px" min="0" max="5000"></div>
+            <div class="form-group"><label class="text-xs" data-i18n="blur_guard.cover" for="waBgPercent">Плотность маски, %</label>
+                <input type="number" id="waBgPercent" class="input" style="width:80px" min="1" max="100"
+                       oninput="document.getElementById('waBgPercentRange').value=this.value;waBgPreviewSync(document.getElementById('waBgDuration').value,this.value,true)">
+                <input type="range" id="waBgPercentRange" min="1" max="100" value="100" step="1" style="width:140px;display:block"
+                       oninput="document.getElementById('waBgPercent').value=this.value;waBgPreviewSync(document.getElementById('waBgDuration').value,this.value,true)" data-i18n-aria-label="panel.blur.cover" aria-label="Плотность маски, %">
+            </div>
+            <div class="form-group flex-1" style="min-width:240px"><label class="text-xs" for="waBgPrompt" data-i18n="panel.blur.prompt">Свой промпт (опц.)</label>
+                <input type="text" id="waBgPrompt" class="input" placeholder="доп. инструкция для vision-модели" data-i18n-placeholder="panel.blur.prompt_ph"></div>
+            <div class="form-group"><label class="text-xs" for="waBgCategories" data-i18n="panel.blur.categories">Свои категории (через запятую)</label>
+                <input type="text" id="waBgCategories" class="input" style="width:260px" placeholder="спойлеры, лица друзей" data-i18n-placeholder="panel.blur.categories_ph"></div>
+        </div>
+        </details>
+        <div class="flex gap-2 flex-wrap">
+            <button class="btn btn-primary btn-sm" onclick="waBgSave()" data-i18n="btn.save">💾 Сохранить</button>
+            <button class="btn btn-secondary btn-sm" onclick="waBgBind('on')" data-i18n="panel.blur.on">Блюрить сейчас</button>
+            <button class="btn btn-secondary btn-sm" onclick="waBgBind('off')" data-i18n="panel.blur.off">Выключить блюр</button>
+            <button class="btn btn-secondary btn-sm" onclick="window.open('/obs/blur-guard-v2','_blank')" data-i18n="panel.blur.open">Открыть оверлей</button>
+        </div>
+        <div id="waBgStatus" class="text-xs text-muted mt-2"></div>
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+            <div class="flex gap-2 items-center mb-2 flex-wrap">
+                <b class="text-sm" data-i18n="blur_zones.title">📍 Блюр по зонам (всегда 100%)</b>
+                <span class="text-xs text-muted" data-i18n="blur_zones.badge">beta · blur-guard-v2</span>
+            </div>
+            <p class="text-xs text-muted mb-2" data-i18n="blur_zones.hint">Блюрить не весь экран, а выбранные области (код, поле пароля) — они закрыты ПОСТОЯННО, без «ослабления». Формат: x,y,w,h через точку с запятой; можно px или проценты (например 25%,40%). Координаты — левый верхний угол зоны.</p>
+            <div class="flex gap-2 items-end flex-wrap">
+                <div class="form-group flex-1" style="min-width:260px">
+                    <label class="text-xs" data-i18n="blur_zones.list" for="blurZonesList">Зоны (одна строка = одна зона)</label>
+                    <textarea id="blurZonesList" class="input" rows="3" placeholder="500,100,600,200&#10;25%,70%,50%,25%"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-2 items-center flex-wrap">
+                <button class="btn btn-secondary btn-sm" onclick="buildBlurZonesUrl()" data-i18n="blur_zones.build">🔗 Собрать URL для OBS</button>
+                <button class="btn btn-primary btn-sm" onclick="applyBlurZonesLive()" data-i18n="blur_zones.apply">⚡ Применить сейчас (по WS)</button>
+                <button class="btn btn-secondary btn-sm" onclick="window.open(document.getElementById('blurZonesUrl').value,'_blank')" data-i18n="blur_zones.open">Открыть превью</button>
+                <code id="blurZonesUrl" class="text-xs" style="flex:1 1 300px;word-break:break-all">/obs/blur-guard-v2</code>
+            </div>
+            <p class="text-xs text-muted mt-1" data-i18n="blur_zones.note">Заметка: это отдельный виджет blur-guard-v2 (в OBS добавь его URL отдельным Browser Source). Реактивный блюр по AI-анализу работает в нём так же, зоны просто накладываются сверху всегда.</p>
+        </div>
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+            <div class="mini-preview" style="position:relative;overflow:hidden;min-height:64px">
+                <div style="position:relative;display:flex;flex-direction:column;gap:3px;opacity:.85">
+                    <div style="font-weight:700">🎮 Counter-Strike 2 · Ranked</div>
+                    <div style="font-size:12px;opacity:.75">alekzz_gg: ну это уже спойлер 💀</div>
+                    <div style="font-size:12px;opacity:.75">viewer42: погнали катку, у меня 3 победы</div>
+                </div>
+                <div id="waBgPreviewLayer" style="position:absolute;inset:0;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);background:rgb(15,15,26)"></div>
+                <div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);border:1px solid var(--border-light);border-radius:8px;padding:2px 8px;font-size:11px">🔒 Blur <span id="waBgPrevDur">15</span> сек · <span id="waBgPrevPct">100</span>%</div>
+            </div>
+            <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.blurguard">Маска включается на выбранную длительность; при 100% зритель не видит пиксели сцены под ней.</span></p>
+        </div>
+    </div>
+
+    <!-- Голосование: нативные Twitch Polls (оверлей выведен, Q28) -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widgets.poll.title">🗳 Twitch-голосование</span>
+        </div>
+        <p class="text-sm text-muted" data-i18n="widgets.poll.hint">Создаёт нативное голосование Twitch — его показывает сам Twitch зрителям, OBS-оверлей не нужен. Требуется скоуп channel:manage:polls у приложения бота.</p>
+        <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.poll">«Кто победит?» / «CS2, Dota» — бары растут по голосам зрителей в реальном времени.</span></p>
+        <div class="flex gap-2 flex-wrap mb-2">
+            <input type="text" id="waPollTitle" class="input" style="min-width:220px" data-i18n-placeholder="widgets.poll.title_placeholder" placeholder="Вопрос голосования">
+            <input type="number" id="waPollDuration" class="input" style="width:90px" value="120" min="15" max="1800" data-i18n-title="widgets.poll.duration_title" title="Длительность, сек">
+            <button class="btn btn-primary btn-sm" onclick="waTwitchPollCreate()" data-i18n="widgets.poll.create">Twitch Poll — создать</button>
+            <button class="btn btn-secondary btn-sm" onclick="waTwitchPollEnd()" data-i18n="widgets.poll.end">⏹ Завершить</button>
+        </div>
+        <div id="waPollChoices" class="flex flex-col gap-2 mb-2">
+            <div class="flex gap-2"><input type="text" class="input wa-poll-choice" data-i18n-placeholder="widgets.poll.choice_placeholder" placeholder="Вариант" oninput="waPollValidateChoices()"><button class="btn btn-secondary btn-sm" type="button" onclick="waPollRemoveChoice(this)" data-i18n-title="widgets.poll.remove" title="Удалить вариант" data-i18n-aria-label="widgets.poll.remove" aria-label="Удалить вариант">×</button></div>
+            <div class="flex gap-2"><input type="text" class="input wa-poll-choice" data-i18n-placeholder="widgets.poll.choice_placeholder" placeholder="Вариант" oninput="waPollValidateChoices()"><button class="btn btn-secondary btn-sm" type="button" onclick="waPollRemoveChoice(this)" data-i18n-title="widgets.poll.remove" title="Удалить вариант" data-i18n-aria-label="widgets.poll.remove" aria-label="Удалить вариант">×</button></div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="waPollAddChoice" class="btn btn-secondary btn-sm" type="button" onclick="waPollAddChoice()" data-i18n="widgets.poll.add_choice">+ Добавить вариант</button>
+            <span id="waPollChoiceCount" class="text-xs text-muted">2 из 5 вариантов</span>
+        </div>
+        <div id="waPollStatus" class="text-xs text-muted mt-2" aria-live="polite"></div>
+    </div>
+
+    <!-- Predictions: нативная механика Twitch, отдельная от голосований и OBS -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widgets.prediction.title">🔮 Twitch Predictions</span>
+        </div>
+        <p class="text-sm text-muted" data-i18n="widgets.prediction.hint">Создаёт нативный прогноз Twitch: зрители ставят Channel Points на исход. OBS-оверлей не нужен; у приложения бота нужен scope channel:manage:predictions.</p>
+        <p class="text-xs text-muted mt-1">👀 <span data-i18n="widgets.example.prediction">«Пройдёт ли стример босса?» — зрители ставят баллы на «Да» или «Нет» до закрытия приёма ставок.</span></p>
+        <div class="flex gap-2 flex-wrap mb-2">
+            <input type="text" id="waPredictionTitle" class="input" style="min-width:220px" maxlength="45" data-i18n-placeholder="widgets.prediction.title_placeholder" placeholder="Вопрос прогноза" oninput="waPredictionValidate()">
+            <input type="number" id="waPredictionWindow" class="input" style="width:90px" value="120" min="30" max="1800" data-i18n-title="widgets.prediction.window_title" title="Окно ставок" oninput="waPredictionValidate()">
+            <select id="waPredictionWindowUnit" class="input" style="width:110px" data-i18n-title="widgets.prediction.window_unit_title" title="Единица времени" onchange="waPredictionWindowUnitSync()">
+                <option value="seconds" data-i18n="widgets.prediction.seconds">секунды</option>
+                <option value="minutes" data-i18n="widgets.prediction.minutes">минуты</option>
+            </select>
+            <button class="btn btn-primary btn-sm" type="button" onclick="waTwitchPredictionCreate()" data-i18n="widgets.prediction.create">Создать Prediction</button>
+        </div>
+        <p class="text-xs text-muted mt-1" data-i18n="widgets.prediction.window_hint">Окно приёма ставок: от 30 секунд до 30 минут (1800 секунд).</p>
+        <div id="waPredictionOutcomes" class="flex flex-col gap-2 mb-2">
+            <div class="flex gap-2"><input type="text" class="input wa-prediction-outcome" maxlength="25" data-i18n-placeholder="widgets.prediction.outcome_placeholder" placeholder="Исход" oninput="waPredictionValidate()"><button class="btn btn-secondary btn-sm" type="button" onclick="waPredictionRemoveOutcome(this)" data-i18n-title="widgets.prediction.remove" title="Удалить исход" data-i18n-aria-label="widgets.prediction.remove" aria-label="Удалить исход">×</button></div>
+            <div class="flex gap-2"><input type="text" class="input wa-prediction-outcome" maxlength="25" data-i18n-placeholder="widgets.prediction.outcome_placeholder" placeholder="Исход" oninput="waPredictionValidate()"><button class="btn btn-secondary btn-sm" type="button" onclick="waPredictionRemoveOutcome(this)" data-i18n-title="widgets.prediction.remove" title="Удалить исход" data-i18n-aria-label="widgets.prediction.remove" aria-label="Удалить исход">×</button></div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="waPredictionAddOutcome" class="btn btn-secondary btn-sm" type="button" onclick="waPredictionAddOutcome()" data-i18n="widgets.prediction.add_outcome">+ Добавить исход</button>
+            <span id="waPredictionOutcomeCount" class="text-xs text-muted">2 из 10 исходов</span>
+        </div>
+        <div class="flex items-center gap-2 mt-3">
+            <button class="btn btn-secondary btn-sm" type="button" onclick="waPredictionRefresh()" data-i18n="widgets.prediction.refresh">Обновить статус</button>
+        </div>
+        <div id="waPredictionActive" class="text-sm mt-2" aria-live="polite"></div>
+        <div id="waPredictionStatus" class="text-xs text-muted mt-2" aria-live="polite"></div>
+    </div>
+    </details>
+
+    <details class="widget-group" data-widget-group="extras">
+        <summary class="widget-group-head"><span class="widget-group-title" data-i18n="widgets.group.extras">🧩 Прочее и гайды</span><span class="badge widget-group-count">0</span></summary>
+
+    <!-- §10.6: виджеты без панели — гайд с curl-примерами -->
+    <details class="card mb-4">
+        <summary class="card-title" data-i18n="widgets.standalone_title">🔧 Как менять виджеты без панели</summary>
+        <p class="text-sm text-muted mt-2" data-i18n="widgets.standalone_hint">Публичные API виджетов не требуют авторизации — ими можно управлять из OBS-хоткея, Home Assistant, Streamer.bot или curl. Админ-API требует auth-сессию панели.</p>
+        <pre style="background:var(--bg-input);border-radius:8px;padding:10px;font-size:12px;overflow:auto">curl http://localhost:8000/api/widgets/public/goals                # цели
+curl http://localhost:8000/api/widgets/public/counter/death       # счётчик
+curl http://localhost:8000/api/widgets/public/now-playing         # сейчас играет
+curl http://localhost:8000/api/widgets/public/top-donator/alltime # топ донатеров
+
+# счётчик +1 (как чат-команда !death):
+curl -X POST http://localhost:8000/api/widgets/counters/death/increment \
+  -H "Content-Type: application/json" -d '{"value":"1"}'
+
+# донат из внешнего сервиса (двигает челлендж/топ/recent):
+curl -X POST http://localhost:8000/api/widgets/public/donation-webhook \
+  -H "Content-Type: application/json" \
+  -d '{"username":"nick","amount":100,"message":"го!"}'</pre>
+    </details>
+
+
+    <div class="card mb-4" id="waChatOverlayPanel">
+        <div class="card-header">
+            <span class="card-title" data-i18n="widgets.chat_runtime_title">⭐ Избранный чат</span>
+            <code>/widget/selected-chat</code>
+        </div>
+        <p class="text-sm text-muted" data-i18n="widgets.chat_runtime_hint">Общий список доверенных пользователей фильтрует настоящий Twitch-чат. Список можно редактировать после импорта.</p>
+        <div class="flex gap-3 flex-wrap mt-3">
+            <div style="flex:1 1 420px">
+                <div class="form-group">
+                    <label for="waChatTrustedUsers" data-i18n="widgets.chat_trusted_label">Доверенные логины</label>
+                    <textarea id="waChatTrustedUsers" class="input mt-1" rows="4" data-i18n-placeholder="widgets.chat_trusted_ph" placeholder="friend, moderator_name"></textarea>
+                    <p class="text-xs text-muted mt-1" data-i18n="widgets.chat_trusted_hint">По одному логину в строке или через запятую; @ добавлять необязательно.</p>
+                </div>
+                <div class="flex gap-2 flex-wrap mt-2">
+                    <button class="btn btn-primary btn-sm" onclick="waChatTrustedSave()" data-i18n="btn.save">💾 Сохранить</button>
+                    <select id="waChatImportAccount" class="input" style="max-width:180px" onchange="waChatLoadChannels()" data-i18n-title="widgets.chat_import_account" title="Аккаунт Twitch"></select>
+                    <select id="waChatImportChannel" class="input" style="max-width:180px" data-i18n-title="widgets.chat_import_channel" title="Канал Twitch"></select>
+                    <button class="btn btn-secondary btn-sm" onclick="waChatImport('moderators')" data-i18n="widgets.chat_import_mods">Импорт модераторов</button>
+                    <button class="btn btn-secondary btn-sm" onclick="waChatImport('vips')" data-i18n="widgets.chat_import_vips">Импорт VIP</button>
+                </div>
+                <p class="text-xs text-muted mt-1" data-i18n="widgets.chat_import_hint">Импорт требует broadcaster OAuth с moderation:read или channel:read:vips; существующие логины сохраняются.</p>
+
+                <div class="mt-3 pt-3" style="border-top:1px solid var(--border-light)">
+                    <div class="grid-cards">
+                        <label class="text-xs"><span data-i18n="widgets.chat_max_messages">Сообщений</span><input id="waChatMaxMessages" class="input mt-1" type="number" min="1" max="50"></label>
+                        <label class="text-xs"><span data-i18n="widgets.chat_lifetime">Исчезновение, сек.</span><input id="waChatLifetime" class="input mt-1" type="number" min="0" max="300"></label>
+                        <label class="text-xs"><span data-i18n="widgets.chat_font_size">Размер текста</span><input id="waChatFontSize" class="input mt-1" type="number" min="10" max="72"></label>
+                        <label class="text-xs"><span data-i18n="widgets.chat_emote_size">Размер смайлов</span><input id="waChatEmoteSize" class="input mt-1" type="number" min="12" max="128"></label>
+                        <label class="text-xs"><span data-i18n="widgets.chat_history_limit">Сообщений истории</span><input id="waChatHistoryLimit" class="input mt-1" type="number" min="0" max="50"></label>
+                        <label class="text-xs"><span data-i18n="widgets.chat_history_minutes">История, минут</span><input id="waChatHistoryMinutes" class="input mt-1" type="number" min="1" max="1440"></label>
+                    </div>
+                    <label class="text-xs flex items-center gap-2 mt-2"><input id="waChatShowBadges" type="checkbox"> <span data-i18n="widgets.chat_show_badges">Показывать бейджи</span></label>
+                    <p class="text-xs text-muted mt-1" data-i18n="widgets.chat_display_hint">Ноль секунд оставляет сообщения до заполнения лимита; история ограничивается количеством и временем.</p>
+                    <button class="btn btn-primary btn-sm mt-2" onclick="waChatDisplaySave()" data-i18n="btn.save">💾 Сохранить</button>
+                </div>
+            </div>
+            <iframe id="waChatOverlayPreview" class="widget-preview" style="background:#0f0f1a" src="/widget/selected-chat?preview=1" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+            <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom(document.getElementById('waChatOverlayPreview').src,'widgets.chat_runtime_title',560,600)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/selected-chat?preview=1'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+        </div>
+    </div>
+
+    </details>
+
+    <details class="widget-group" data-widget-group="catalog">
+        <summary class="widget-group-head"><span class="widget-group-title" data-i18n="widgets.group.catalog">📚 Каталог всех виджетов</span><span class="badge widget-group-count">0</span></summary>
+
+    <div class="card mb-4">
+        <label class="text-sm" for="widgetInventorySearch" data-i18n="widgets.search">Поиск по виджетам</label>
+        <input id="widgetInventorySearch" class="input mt-2" type="search" placeholder="Название или slug" data-i18n-placeholder="widgets.search_ph" oninput="waFilterWidgetInventory(this.value)">
+        <p id="widgetInventoryEmpty" class="text-sm text-muted mt-2 hidden" data-i18n="widgets.search_empty">Ничего не найдено.</p>
+    </div>
+
+    <div class="grid-cards" id="canonicalWidgetInventory">
+        {% for widget in widget_inventory %}
+        <div class="card widget-guide-card" data-widget-slug="{{ widget.slug }}" data-widget-search="{{ widget.title }} {{ widget.slug }}" data-preview-contract="{{ widget.preview_mode }}" data-obs-size="{{ widget.obs_width }}x{{ widget.obs_height }}" data-obs-layout="{{ widget.obs_layout }}"{% if widget.slug in ('tts', 'chat-reader') %} data-design-widget="{{ 'tts-raw' if widget.slug == 'tts' else widget.slug }}" data-design-route="{{ widget.route }}" data-design-preview="{{ widget.preview_url }}"{% endif %}>
+            <div class="card-title"><span data-i18n="ui.catalog.title.{{ widget.slug }}">{{ widget.title }}</span> <span class="badge" data-i18n="ui.catalog.verdict.{{ widget.verdict }}">{{ widget.verdict }}</span></div>
+            <p class="text-sm text-muted mb-3" data-i18n="ui.catalog.description.{{ widget.slug }}">{{ widget.description }}</p>
+            {% if widget.slug in ('tts', 'chat-reader') %}
+            <div id="waDesignForm-{{ 'tts-raw' if widget.slug == 'tts' else widget.slug }}" class="mb-3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+                <label class="text-xs"><span data-i18n="widgets.design_theme">Тема</span>
+                    <select class="input mt-1" data-design-field="theme"><option value="dark" data-i18n="ui.design.dark">Тёмная</option><option value="light" data-i18n="ui.design.light">Светлая</option><option value="neon" data-i18n="ui.design.neon">Неоновая</option><option value="fire" data-i18n="ui.design.fire">Огненная</option><option value="glass" data-i18n="ui.design.glass">Стеклянная</option><option value="mono" data-i18n="ui.design.mono">Монохромная</option></select>
+                </label>
+                <label class="text-xs"><span data-i18n="widgets.design_accent">Акцент</span>
+                    <input type="color" class="input mt-1" data-design-field="accent" value="#22d3ee">
+                </label>
+                <label class="text-xs"><span data-i18n="widgets.design_bg">Фон</span>
+                    <input type="color" class="input mt-1" data-design-field="bg" value="#0f0f19">
+                </label>
+                <label class="text-xs"><span data-i18n="widgets.design_opacity">Прозрачность</span>
+                    <input type="range" class="input mt-1" data-design-field="opacity" min="0" max="1" step="0.05">
+                </label>
+                <label class="text-xs"><span data-i18n="widgets.design_radius">Скругление</span>
+                    <input type="number" class="input mt-1" data-design-field="radius" min="0" max="32">
+                </label>
+                <label class="text-xs"><span data-i18n="widgets.design_font">Шрифт</span>
+                    <select class="input mt-1" data-design-field="font"><option value="sans" data-i18n="ui.design.sans">Без засечек</option><option value="serif" data-i18n="ui.design.serif">С засечками</option><option value="mono" data-i18n="ui.design.monospace">Моноширинный</option><option value="condensed" data-i18n="ui.design.condensed">Узкий</option></select>
+                </label>
+                <label class="text-xs"><span data-i18n="widgets.design_size">Размер текста</span>
+                    <input type="number" class="input mt-1" data-design-field="size" min="12" max="48">
+                </label>
+                <label class="text-xs"><span data-i18n="widgets.design_scale">Масштаб</span>
+                    <input type="number" class="input mt-1" data-design-field="scale" min="0.5" max="3" step="0.1">
+                </label>
+                <label class="text-xs"><span data-i18n="widgets.design_position">Позиция</span>
+                    <select class="input mt-1" data-design-field="pos"><option value="tl" data-i18n="ui.media.top-left">Слева сверху</option><option value="tc" data-i18n="ui.media.top">Сверху</option><option value="tr" data-i18n="ui.media.top-right">Справа сверху</option><option value="bl" data-i18n="ui.media.bottom-left">Слева снизу</option><option value="bc" data-i18n="ui.media.bottom">Снизу</option><option value="br" data-i18n="ui.media.bottom-right">Справа снизу</option></select>
+                </label>
+                {% if widget.slug == 'chat-reader' %}
+                <label class="text-xs"><span data-i18n="widgets.design_hold">Показ, сек.</span>
+                    <input type="number" class="input mt-1" data-design-field="hold" min="1" max="60">
+                </label>
+                <label class="text-xs"><span data-i18n="widgets.design_maxw">Макс. ширина</span>
+                    <input type="number" class="input mt-1" data-design-field="maxw" min="240" max="1600">
+                </label>
+                {% endif %}
+                <label class="text-xs flex items-center gap-2"><input type="checkbox" data-design-field="shadow"> <span data-i18n="widgets.design_shadow">Тень</span></label>
+                {% if widget.slug == 'tts' %}
+                <label class="text-xs flex items-center gap-2"><input type="checkbox" data-design-field="showstatus"> <span data-i18n="widgets.design_status">Статус</span></label>
+                {% endif %}
+            </div>
+            <div class="flex gap-2 mb-3">
+                <button class="btn btn-primary btn-sm" onclick="waDesignSave('{{ 'tts-raw' if widget.slug == 'tts' else widget.slug }}')" data-i18n="btn.save">💾 Сохранить</button>
+            </div>
+            {% endif %}
+            <label class="text-xs text-muted" data-i18n="panel.catalog.url">URL для OBS</label>
+            {% if widget.slug == 'media-share' %}
+            <!-- Q16 F2: вместо модалки-предупреждения — одна строка-подсказка в форме -->
+            <p class="text-xs text-muted mt-1" data-i18n="widgets.media_share_hint">Media Share загружает YouTube IFrame API из сети: YouTube получает данные запроса и сведения браузера/OBS.</p>
+            {% endif %}
+            <div class="flex gap-2 widget-url-form">
+                <input class="input font-mono" value="{{ widget.route }}" readonly data-i18n-aria-label="panel.catalog.url" aria-label="URL для OBS"{% if widget.slug in ('tts', 'chat-reader') %} data-design-url{% endif %}>
+                <button class="btn btn-secondary btn-sm" data-i18n="widgets.copy_url" onclick="{% if widget.slug == 'tts' or widget.slug == 'chat-reader' %}waDesignCopy('{{ 'tts-raw' if widget.slug == 'tts' else widget.slug }}'){% else %}waCopyWidgetUrl('{{ widget.route }}'){% endif %}">📋 Копировать URL</button>
+                <button class="btn btn-secondary btn-sm" data-i18n="widgets.instr" onclick="showWidgetInstr('{{ widget.route }}', '{{ widget.slug }}', {{ widget.obs_width }}, {{ widget.obs_height }})">❓ Инструкция</button>
+            </div>
+            <p class="text-xs text-muted mt-2"><span data-i18n="widgets.obs_size">Размер Browser Source</span>: <strong>{{ widget.obs_width }} × {{ widget.obs_height }}</strong> · <span data-i18n="widgets.obs_layout_{{ widget.obs_layout }}">{{ widget.obs_layout }}</span></p>
+            <iframe class="widget-preview mt-3" src="{{ widget.preview_url }}" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью: {{ widget.title }}"{% if widget.slug in ('tts', 'chat-reader') %} data-design-preview-frame{% endif %}></iframe>
+            <p class="text-xs text-muted mt-3"><strong data-i18n="panel.catalog.example">Например:</strong> <span data-i18n="panel.catalog.example_{{ widget.slug }}">{{ widget.example }}</span></p>
+            <p class="text-xs text-muted mt-2"><strong data-i18n="panel.catalog.decision">Решение:</strong> <span data-i18n="panel.catalog.note_{{ widget.slug }}">{{ widget.catalog_note }}</span></p>
+            <!-- Q28: брендовая палитра + пипетка + готовые темы, живое перекрашивание превью -->
+            <div class="wa-card-palette" data-palette-card="{{ widget.slug }}" data-palette-route="{{ widget.route }}"></div>
+            {% if widget.slug == 'lower-third' %}
+            <details class="wa-card-admin-form"><summary>⚙️ <span data-i18n="panel.extra.content_form">Настройки контента</span></summary>
+            <div style="border:1px solid var(--border-light);border-radius:10px;padding:10px" id="wa2Form-lower-third">
+                <div class="flex items-center justify-between mb-2"><b class="text-sm" data-i18n="panel.extra.lower">🏷 Плашка стримера</b>
+                    <div class="flex items-center gap-2"><span class="text-xs text-muted" data-i18n="panel.extra.visible">виден</span>
+                        <div class="toggle" id="wa2LtVisible" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)" data-i18n-aria-label="panel.extra.lower_visible" aria-label="Показывать плашку стримера"></div></div></div>
+                <input id="wa2LtName" class="input mb-1" placeholder="Alekzz" data-i18n-aria-label="panel.extra.name" aria-label="Имя стримера" data-i18n-placeholder="panel.extra.name">
+                <input id="wa2LtTagline" class="input mb-1" placeholder="играет в CS2" data-i18n-aria-label="panel.extra.tagline" aria-label="Описание (например, играет в CS2)" data-i18n-placeholder="panel.extra.tagline">
+                <input id="wa2LtSocial" class="input mb-1" placeholder="@alekzz" data-i18n-aria-label="panel.extra.social" aria-label="Социальный аккаунт (например, @alekzz)" data-i18n-placeholder="panel.extra.social">
+                <input id="wa2LtAvatar" class="input mb-1" placeholder="URL аватара (опц.)" data-i18n-aria-label="panel.extra.avatar" aria-label="URL аватара (необязательно)" data-i18n-placeholder="panel.extra.avatar">
+                <div class="flex gap-2"><select id="wa2LtTheme" class="input" data-i18n-aria-label="panel.extra.lower_theme" aria-label="Тема плашки стримера"><option value="minimal" data-i18n="panel.extra.minimal">Минимализм</option><option value="neon" data-i18n="panel.extra.neon">Неон</option><option value="glass" data-i18n="panel.extra.glass">Стекло</option></select>
+                    <button class="btn btn-primary btn-sm" onclick="wa2LtSave()" data-i18n-aria-label="btn.save" aria-label="Сохранить">💾</button></div>
+                <p class="text-xs text-muted mt-2" data-i18n="widgets.wa2.example.lower_third">👀 Например: Alekzz / играет в CS2 / @alekzz</p>
+                <code class="text-xs">/widget/lower-third</code>
+            </div>
+            </details>
+            {% endif %}
+            {% if widget.slug == 'mascot' %}
+            <details class="wa-card-admin-form"><summary>⚙️ <span data-i18n="panel.extra.content_form">Настройки контента</span></summary>
+            <div style="border:1px solid var(--border-light);border-radius:10px;padding:10px" id="wa2Form-mascot">
+                <div class="flex items-center justify-between mb-2"><b class="text-sm" data-i18n="panel.extra.mascot">🐭 Маскот</b></div>
+                <div class="flex gap-2 mb-1"><select id="wa2MascotPreset" class="input" data-i18n-aria-label="panel.extra.preset" aria-label="Персонаж маскота">
+                    <option value="blob" data-i18n="panel.extra.blob">Капля</option><option value="owl" data-i18n="panel.extra.owl">Сова</option><option value="cat" data-i18n="panel.extra.cat">Кот</option>
+                    <option value="bot" data-i18n="panel.extra.bot">Робот</option><option value="ghost" data-i18n="panel.extra.ghost">Призрак</option><option value="custom" data-i18n="panel.extra.custom">Свой персонаж</option></select>
+                    <button class="btn btn-primary btn-sm" onclick="wa2MascotSave()" data-i18n-aria-label="btn.save" aria-label="Сохранить">💾</button></div>
+                <input id="wa2MascotUrl" class="input mb-1" placeholder="https://i.imgur.com/mascot.png (custom)" data-i18n-aria-label="panel.extra.mascot_url" aria-label="URL картинки для своего маскота" data-i18n-placeholder="panel.extra.mascot_url">
+                <input id="wa2MascotIdle" class="input" type="number" min="30" max="3600" placeholder="Idle, сек (30-3600), напр. 120" data-i18n-aria-label="panel.extra.idle" aria-label="Интервал покоя маскота, сек (30–3600)" data-i18n-placeholder="panel.extra.idle">
+                <p class="text-xs text-muted mt-2" data-i18n="bindings.scope_hint">Только у выбранного бота и в выбранном канале.</p>
+                <p class="text-xs text-muted mt-2" data-i18n="widgets.wa2.example.mascot">👀 Например: owl · idle 120 сек; для custom — ссылка на картинку</p>
+                <code class="text-xs">/widget/mascot</code>
+            </div>
+            </details>
+            {% endif %}
+            {% if widget.slug == 'anime-runner' %}
+            <details class="wa-card-admin-form"><summary>⚙️ <span data-i18n="panel.extra.content_form">Настройки контента</span></summary>
+            <div style="border:1px solid var(--border-light);border-radius:10px;padding:10px" id="wa2Form-anime-runner">
+                <div class="flex items-center justify-between mb-2"><b class="text-sm" data-i18n="panel.extra.runner">🏃 Аниме-бегун</b></div>
+                <div class="flex gap-2 flex-wrap mb-1">
+                    <label class="text-xs"><span data-i18n="panel.runner.hair">Волосы</span> <input type="color" id="wa2ArHair" style="width:36px;height:26px"></label>
+                    <label class="text-xs"><span data-i18n="panel.runner.outfit">Одежда</span> <input type="color" id="wa2ArOutfit" style="width:36px;height:26px"></label>
+                    <label class="text-xs"><span data-i18n="widgets.design_accent">Акцент</span> <input type="color" id="wa2ArAccent" style="width:36px;height:26px"></label>
+                    <label class="text-xs"><span data-i18n="panel.runner.eyes">Глаза</span> <input type="color" id="wa2ArEye" style="width:36px;height:26px"></label>
+                </div>
+                <div class="flex gap-2 mb-1">
+                    <select id="wa2ArCorner" class="input" style="max-width:90px" data-i18n-aria-label="panel.extra.corner" aria-label="Угол экрана для бегуна"><option value="br" data-i18n="panel.extra.br">↘ Справа внизу</option><option value="bl" data-i18n="panel.extra.bl">↙ Слева внизу</option><option value="tr" data-i18n="panel.extra.tr">↗ Справа вверху</option><option value="tl" data-i18n="panel.extra.tl">↖ Слева вверху</option></select>
+                    <select id="wa2ArSpeed" class="input" style="max-width:110px" data-i18n-aria-label="panel.extra.speed" aria-label="Скорость бегуна"><option value="slow" data-i18n="panel.extra.slow">Медленно</option><option value="normal" data-i18n="panel.extra.normal">Обычно</option><option value="fast" data-i18n="panel.extra.fast">Быстро</option><option value="turbo" data-i18n="panel.extra.turbo">Турбо</option></select>
+                    <select id="wa2ArSize" class="input" style="max-width:80px" data-i18n-aria-label="panel.extra.size" aria-label="Размер бегуна"><option value="S" data-i18n="panel.extra.small">Маленький</option><option value="M" data-i18n="panel.extra.medium">Средний</option><option value="L" data-i18n="panel.extra.large">Большой</option><option value="XL" data-i18n="panel.extra.xlarge">Очень большой</option></select>
+                    <button class="btn btn-primary btn-sm" onclick="wa2AnimeSave()" data-i18n-aria-label="btn.save" aria-label="Сохранить">💾</button></div>
+                <div class="flex gap-3 flex-wrap items-center mb-1 text-xs">
+                    <span class="flex items-center gap-1"><span data-i18n="panel.runner.ears">Ушки</span>
+                        <div class="toggle" id="wa2ArEarsEnabled" role="switch" aria-checked="true" tabindex="0" onclick="uiToggle(this)" data-i18n-aria-label="panel.runner.ears" aria-label="Ушки"></div>
+                        <input type="color" id="wa2ArEarsColor" style="width:30px;height:24px" data-i18n-aria-label="panel.runner.ears_color" aria-label="Цвет ушек">
+                        <input type="color" id="wa2ArEarsInner" style="width:30px;height:24px" data-i18n-aria-label="panel.runner.ears_inner" aria-label="Внутренний цвет ушек"></span>
+                    <span class="flex items-center gap-1"><span data-i18n="panel.runner.gloves">Перчатки</span>
+                        <div class="toggle" id="wa2ArGlovesEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)" data-i18n-aria-label="panel.runner.gloves" aria-label="Перчатки"></div>
+                        <input type="color" id="wa2ArGlovesColor" style="width:30px;height:24px" data-i18n-aria-label="panel.runner.gloves_color" aria-label="Цвет перчаток"></span>
+                    <label class="text-xs"><span data-i18n="panel.runner.shoes">Кроссовки</span> <input type="color" id="wa2ArShoes" style="width:30px;height:24px" data-i18n-aria-label="panel.runner.shoes" aria-label="Цвет кроссовок"></label>
+                    <label class="text-xs"><span data-i18n="panel.runner.shorts">Шорты</span> <input type="color" id="wa2ArShorts" style="width:30px;height:24px" data-i18n-aria-label="panel.runner.shorts" aria-label="Цвет шорт; пусто — как футболка"></label>
+                </div>
+                <details class="mt-1"><summary class="text-xs text-muted cursor-pointer" data-i18n="panel.runner.details">Дополнительно</summary>
+                    <div class="flex gap-2 flex-wrap mt-1 items-center">
+                        <label class="text-xs"><span data-i18n="panel.runner.shirt_pattern">Узор футболки</span>
+                            <select id="wa2ArShirtPattern" class="input" style="max-width:130px" data-i18n-aria-label="panel.runner.shirt_pattern" aria-label="Узор футболки">
+                                <option value="solid" data-i18n="panel.runner.shirt_solid">Однотонная</option>
+                                <option value="palm" data-i18n="panel.runner.shirt_palm">Пальмы</option>
+                                <option value="stripes" data-i18n="panel.runner.shirt_stripes">Полоски</option>
+                            </select></label>
+                        <label class="text-xs"><span data-i18n="panel.runner.path_mode">Маршрут</span>
+                            <select id="wa2ArPathMode" class="input" style="max-width:150px" data-i18n-aria-label="panel.runner.path_mode" aria-label="Режим маршрута">
+                                <option value="lane" data-i18n="panel.runner.path_lane">Полоса внизу</option>
+                                <option value="custom" data-i18n="panel.runner.path_custom">Свой (JSON-точки)</option>
+                                <option value="random" data-i18n="panel.runner.path_random">Случайный</option>
+                            </select></label>
+                        <input type="text" id="wa2ArPathPoints" class="input" style="max-width:180px" placeholder="[[0.1,0.9],[0.9,0.85]]" data-i18n-placeholder="panel.runner.path_points" data-i18n-aria-label="panel.runner.path_points" aria-label="Точки маршрута в JSON, пары x;y от 0 до 1">
+                        <label class="text-xs"><span data-i18n="panel.runner.pause">Шанс паузы</span> <input type="number" id="wa2ArPause" class="input" style="width:74px" min="0" max="0.9" step="0.05" data-i18n-aria-label="panel.runner.pause" aria-label="Шанс паузы от 0 до 0.9"></label>
+                        <label class="text-xs"><span data-i18n="panel.runner.idle">Idle, сек</span> <input type="number" id="wa2ArIdle" class="input" style="width:74px" min="30" max="3600" data-i18n-aria-label="panel.runner.idle" aria-label="Время до сна, сек от 30 до 3600"></label>
+                        <label class="text-xs"><span data-i18n="panel.runner.random_period">Период случайного маршрута, сек</span> <input type="number" id="wa2ArRandomPeriod" class="input" style="width:74px" min="10" max="1800" data-i18n-aria-label="panel.runner.random_period" aria-label="Период смены случайного маршрута, сек от 10 до 1800"></label>
+                    </div>
+                </details>
+                <p class="text-xs text-muted mt-2" data-i18n="widgets.wa2.example.anime_runner">👀 Например: угол br · скорость normal · размер M, цвета — под свой стрим</p>
+                <code class="text-xs">/widget/anime-runner</code>
+            </div>
+            </details>
+            {% endif %}
+            {% if widget.slug == 'chat-roulette' %}
+            <details class="wa-card-admin-form"><summary>⚙️ <span data-i18n="panel.extra.content_form">Настройки контента</span></summary>
+            <div style="border:1px solid var(--border-light);border-radius:10px;padding:10px" id="wa2Form-chat-roulette">
+                <div class="flex items-center justify-between mb-2"><b class="text-sm" data-i18n="panel.extra.roulette">🎰 Рулетка чата</b>
+                    <div class="flex items-center gap-2"><span class="text-xs text-muted" data-i18n="panel.extra.visible">виден</span>
+                        <div class="toggle" id="wa2RlVisible" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)" data-i18n-aria-label="panel.extra.roulette_visible" aria-label="Показывать рулетку чата"></div></div></div>
+                <input id="wa2RlParticipants" class="input mb-1" placeholder="Nick, Alex, Мария" data-i18n-aria-label="panel.extra.participants" aria-label="Участники через запятую" data-i18n-placeholder="panel.extra.participants">
+                <div class="flex gap-2 mb-1">
+                    <input id="wa2RlSpin" class="input" type="number" min="1" max="60" placeholder="Спин, сек (5)" style="max-width:110px" data-i18n-aria-label="panel.extra.spin_time" aria-label="Вращение, сек (например, 5)" data-i18n-placeholder="panel.extra.spin_time">
+                    <input id="wa2RlAuto" class="input" type="number" min="0" max="600" placeholder="Авто, мин (10)" style="max-width:110px" data-i18n-aria-label="panel.extra.auto_time" aria-label="Авто, мин (например, 10)" data-i18n-placeholder="panel.extra.auto_time">
+                    <button class="btn btn-primary btn-sm" onclick="wa2RouletteSave()" data-i18n-aria-label="btn.save" aria-label="Сохранить">💾</button></div>
+                <div class="flex gap-2"><input id="wa2RlWinner" class="input" placeholder="Победитель (опц.)" data-i18n-aria-label="panel.extra.winner" aria-label="Победитель (необязательно)" data-i18n-placeholder="panel.extra.winner">
+                    <button class="btn btn-secondary btn-sm" onclick="wa2RouletteSpin()" data-i18n="panel.extra.spin">🎲 Крутить</button></div>
+                <p class="text-xs text-muted mt-2" data-i18n="widgets.wa2.example.roulette">👀 Например: Nick, Alex, Мария · спин 5 сек</p>
+                <code class="text-xs">/widget/chat-roulette</code>
+            </div>
+            </details>
+            {% endif %}
+            {% if widget.slug == 'latest-event-card' %}
+            <details class="wa-card-admin-form"><summary>⚙️ <span data-i18n="panel.extra.content_form">Настройки контента</span></summary>
+            <div style="border:1px solid var(--border-light);border-radius:10px;padding:10px" id="wa2Form-latest-event-card">
+                <div class="flex items-center justify-between mb-2"><b class="text-sm" data-i18n="panel.extra.latest">🃏 Карточка последнего события</b></div>
+                <div class="flex gap-2 mb-1">
+                    <select id="wa2LeTheme" class="input" data-i18n-aria-label="panel.extra.event_theme" aria-label="Тема карточки события"><option value="neon" data-i18n="panel.extra.neon">Неон</option><option value="glass" data-i18n="panel.extra.glass">Стекло</option><option value="rainbow" data-i18n="panel.extra.rainbow">Радуга</option><option value="minimal" data-i18n="panel.extra.minimal">Минимализм</option></select>
+                    <select id="wa2LeFilter" class="input" data-i18n-aria-label="panel.extra.event_filter" aria-label="Фильтр событий">
+                        <option value="" data-i18n="panel.extra.all_events">Все события</option><option value="follow" data-i18n="panel.extra.follow">Фолловер</option>
+                        <option value="subscribe" data-i18n="panel.extra.subscribe">Подписка</option><option value="cheer" data-i18n="panel.extra.cheer">Биты</option><option value="raid" data-i18n="panel.extra.raid">Рейд</option></select>
+                    <button class="btn btn-primary btn-sm" onclick="wa2LatestSave()" data-i18n-aria-label="btn.save" aria-label="Сохранить">💾</button></div>
+                <p class="text-xs text-muted mt-2" data-i18n="widgets.wa2.example.latest_event">👀 Например: только сабы · тема glass</p>
+                <code class="text-xs">/widget/latest-event-card</code>
+            </div>
+            </details>
+            {% endif %}
+            {% if widget.slug == 'uptime' %}
+            <details class="wa-card-admin-form"><summary>⚙️ <span data-i18n="panel.extra.content_form">Настройки контента</span></summary>
+            <div style="border:1px solid var(--border-light);border-radius:10px;padding:10px" id="wa2Form-uptime">
+                <div class="flex items-center justify-between mb-2"><b class="text-sm" data-i18n="panel.extra.session">⏱ Сессия стрима</b></div>
+                <div class="text-xs text-muted mb-2" id="wa2SsStatus">—</div>
+                <div class="flex gap-2">
+                    <button class="btn btn-primary btn-sm" onclick="wa2SessionStart()" data-i18n="panel.extra.start">▶ Начать стрим</button>
+                    <button class="btn btn-danger btn-sm" onclick="wa2SessionStop()" data-i18n="panel.extra.stop">⏹ Закончить</button></div>
+                <p class="text-xs text-muted mt-2" data-i18n="widgets.wa2.example.session">👀 Например: нажмите ▶ при начале эфира — uptime пойдёт в OBS</p>
+                <code class="text-xs">/widget/uptime</code>
+            </div>
+            </details>
+            {% endif %}
+            {% if widget.slug == 'recent-events' %}
+            <details class="wa-card-admin-form"><summary>⚙️ <span data-i18n="panel.extra.content_form">Настройки контента</span></summary>
+            <div style="border:1px solid var(--border-light);border-radius:10px;padding:10px" id="wa2Form-recent-events">
+                <div class="flex items-center justify-between mb-2"><b class="text-sm" data-i18n="panel.extra.recent">📨 Последние события</b></div>
+                <div class="flex gap-2 mb-1">
+                    <select id="wa2ReKind" class="input" style="max-width:130px" data-i18n-aria-label="panel.extra.event_kind" aria-label="Тип тестового события"><option value="manual" data-i18n="panel.extra.manual">Вручную</option><option value="follow" data-i18n="panel.extra.follow">Фолловер</option><option value="subscribe" data-i18n="panel.extra.subscribe">Подписка</option><option value="cheer" data-i18n="panel.extra.cheer">Биты</option><option value="raid" data-i18n="panel.extra.raid">Рейд</option></select>
+                    <input id="wa2ReUser" class="input" placeholder="Nick" data-i18n-aria-label="panel.extra.user" aria-label="Имя пользователя события" data-i18n-placeholder="panel.extra.user"></div>
+                <div class="flex gap-2">
+                    <input id="wa2ReAmount" class="input" type="number" placeholder="Сумма (100)" style="max-width:100px" data-i18n-aria-label="panel.extra.amount" aria-label="Сумма (например, 100)" data-i18n-placeholder="panel.extra.amount">
+                    <button class="btn btn-secondary btn-sm" onclick="wa2RecentAdd()" data-i18n="panel.extra.test">+ Тест-событие</button>
+                    <button class="btn btn-danger btn-sm" onclick="wa2RecentClear()" data-i18n="btn.clear">🗑 Очистить</button></div>
+                <p class="text-xs text-muted mt-2" data-i18n="widgets.wa2.example.recent">👀 Например: follow / Nick — добавит тест-событие в ленту</p>
+                <iframe class="widget-preview mt-2" style="background:#0f0f1a;width:100%" src="/widget/recent-events?preview=1" loading="lazy" data-i18n-title="widgets.preview_title" title="Превью виджета"></iframe>
+                <div class="widget-preview-toolbar"><button class="btn btn-secondary btn-sm" onclick="waWidgetZoom('/widget/recent-events?preview=1','panel.extra.recent',480,420)" data-i18n="widgets.zoom">🔍 Увеличить</button><button class="btn btn-secondary btn-sm" onclick="window.open(waWidgetBestUrl('/widget/recent-events?preview=1'),'_blank')" data-i18n="widgets.preview_tab">↗ В новой вкладке</button></div>
+            </div>
+            </details>
+            {% endif %}
+            <!-- Q11b: у виджета без биндингов в UI нет ни одного упоминания биндингов -->
+            {% if widget.binding_slug %}
+            <button class="btn btn-secondary btn-sm mt-3" onclick="waWidgetBindingAdd('{{ widget.binding_slug }}')" data-i18n="bindings.open_builder">🔗 Настроить правило</button>
+            <details class="wa-widget-rules" data-rules-slug="{{ widget.binding_slug }}"><summary>⚡ <span data-i18n="bindings.rules_section">Правила</span></summary><div class="wa-widget-rules-body"></div></details>
+            {% endif %}
+            <div class="flex gap-2 mt-3">
+                <button class="btn btn-secondary btn-sm" data-i18n="widgets.zoom" onclick="waWidgetZoom('{{ widget.preview_url }}','ui.catalog.title.{{ widget.slug }}', {{ widget.obs_width }}, {{ widget.obs_height }})">🔍 Увеличить</button>
+                <button class="btn btn-primary btn-sm" data-i18n="widgets.preview" onclick="window.open('{{ widget.preview_url }}', '_blank')">Открыть превью</button>
+                {% if widget.slug in ('lower-third', 'mascot', 'anime-runner', 'chat-roulette', 'latest-event-card', 'uptime', 'recent-events') %}
+                <button class="btn btn-secondary btn-sm" data-i18n="widgets.settings" onclick="waWidgetSettingsOpen('{{ widget.slug }}')">⚙ Настройки</button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    </details>
+
+</section>

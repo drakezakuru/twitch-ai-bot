@@ -1,0 +1,9 @@
+{
+  "public_origin": "https://mod.example.com",
+  "allowed_hosts": ["mod.example.com"],
+  "tls_cert": "/etc/modsite/tls/mod.example.com.crt",
+  "tls_key": "/etc/modsite/tls/mod.example.com.key",
+  "gateway_port": 8443,
+  "bridge_port": 12701,
+  "published_ports": [8443]
+}

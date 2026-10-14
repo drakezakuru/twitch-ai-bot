@@ -1,0 +1,139 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title data-widget-i18n="donation-challenge.title"></title>
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;width:100vw}
+.dc-wrap{position:relative;width:90vw;max-width:500px;padding:24px 30px;border-radius:16px;transition:all .3s}
+.dc-title{font-size:1.3em;font-weight:bold;margin-bottom:6px}
+.dc-reward{font-size:.9em;opacity:.8;margin-bottom:12px}
+.dc-bar-bg{width:100%;height:28px;border-radius:14px;overflow:hidden;position:relative;background:rgba(255,255,255,.1)}
+.dc-bar-fill{height:100%;border-radius:14px;transition:width .8s ease;position:relative}
+.dc-bar-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.85em;font-weight:bold;white-space:nowrap;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+.dc-amounts{display:flex;justify-content:space-between;margin-top:6px;font-size:.8em;opacity:.7}
+/* Themes */
+.theme-neon{background:rgba(0,0,0,var(--widget-opacity,.7));color:#0f0;border:2px solid #0f0;box-shadow:0 0 20px #0f080}
+.theme-neon .dc-bar-fill{background:linear-gradient(90deg,#0a0,#0f0)}
+.theme-glass{background:rgba(255,255,255,var(--widget-opacity,.08));color:#fff;border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(10px)}
+.theme-glass .dc-bar-fill{background:linear-gradient(90deg,#667eea,#764ba2)}
+.theme-fire{background:rgba(30,0,0,var(--widget-opacity,.8));color:#ff4500;border:2px solid #ff4500;box-shadow:0 0 20px #ff450040}
+.theme-fire .dc-bar-fill{background:linear-gradient(90deg,#ff4500,#ff8800)}
+.theme-minimal{background:transparent;color:#fff}
+.theme-minimal .dc-bar-fill{background:#fff}
+.theme-minimal .dc-bar-bg{border:1px solid rgba(255,255,255,.3)}
+/* Celebration */
+@keyframes celebrate-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes firework{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-60px) scale(0);opacity:0}}
+@keyframes confetti-fall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.celebrate{animation:celebrate-pulse .6s ease-in-out 5}
+.confetti-piece{position:fixed;width:10px;height:10px;top:-10px;animation:confetti-fall 3s linear forwards}
+.firework-dot{position:absolute;width:6px;height:6px;border-radius:50%;animation:firework 1.5s ease-out forwards}
+</style></head><body>
+<div class="dc-wrap widget-theme-surface" id="wrap">
+  <div class="dc-title" id="title"></div>
+  <div class="dc-reward" id="reward"></div>
+  <div class="dc-bar-bg"><div class="dc-bar-fill widget-theme-fill" id="bar" style="width:0%"></div><div class="dc-bar-text" id="pct">0%</div></div>
+  <div class="dc-amounts"><span id="current">$0</span><span id="target">$0</span></div>
+</div>
+<div id="noChallenge" aria-live="polite" style="display:none;color:#888;font-size:1.2em;text-align:center"></div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "donation-challenge.title": "Донат-челлендж",
+    "donation-challenge.empty": "Нет активного сбора",
+    "donation-challenge.demo_reward": "Награда: стрим в костюме курицы"
+  },
+  "en": {
+    "donation-challenge.title": "Donation challenge",
+    "donation-challenge.empty": "No active fundraiser",
+    "donation-challenge.demo_reward": "Reward: a stream in a chicken costume"
+  },
+  "ua": {
+    "donation-challenge.title": "Донат-челендж",
+    "donation-challenge.empty": "Немає активного збору",
+    "donation-challenge.demo_reward": "Нагорода: стрим у костюмі курки"
+  }
+});
+WidgetI18n.apply();
+document.getElementById('title').textContent=WidgetI18n.t('donation-challenge.title');
+showNotice(WidgetI18n.t('common.loading'));
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const params=new URLSearchParams(location.search);
+const requestedTheme=params.get('theme');
+const THEMES=new Set(['dark','light','neon','fire','glass','mono','minimal']);
+const THEME=THEMES.has(requestedTheme)?requestedTheme:'neon';
+document.getElementById('wrap').classList.add('theme-'+THEME);
+let celebrated=false;
+
+function celebrate(){
+  const wrap=document.getElementById('wrap');
+  wrap.classList.add('celebrate');
+  const colors=['#ff0','#0f0','#f0f','#0ff','#f00','#ff8800','#fff'];
+  for(let i=0;i<50;i++){
+    const p=document.createElement('div');
+    p.className='confetti-piece';
+    p.style.left=Math.random()*100+'vw';
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.animationDelay=(Math.random()*2)+'s';
+    p.style.width=(6+Math.random()*10)+'px';
+    p.style.height=(6+Math.random()*10)+'px';
+    p.style.borderRadius=Math.random()>.5?'50%':'0';
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),5000);
+  }
+  // Firework dots
+  for(let i=0;i<20;i++){
+    const d=document.createElement('div');
+    d.className='firework-dot';
+    d.style.background=colors[Math.floor(Math.random()*colors.length)];
+    d.style.left=(40+Math.random()*20)+'%';
+    d.style.top=(40+Math.random()*20)+'%';
+    d.style.animationDelay=(Math.random()*.5)+'s';
+    wrap.appendChild(d);
+    setTimeout(()=>d.remove(),3000);
+  }
+  setTimeout(()=>{wrap.classList.remove('celebrate')},5000);
+}
+
+function apply(d){
+  document.getElementById('wrap').style.display='';
+  document.getElementById('noChallenge').style.display='none';
+  document.getElementById('title').textContent=d.title||WidgetI18n.t('donation-challenge.title');
+  document.getElementById('reward').textContent=d.reward_text||'';
+  const pct=d.progress_pct||0;
+  document.getElementById('bar').style.width=pct+'%';
+  document.getElementById('pct').textContent=Math.round(pct)+'%';
+  document.getElementById('current').textContent="$"+Number(d.current_amount||0).toFixed(2);
+  document.getElementById('target').textContent="$"+Number(d.target_amount||0).toFixed(2);
+  if(pct>=100&&!celebrated){celebrated=true;celebrate();}
+  if(pct<100)celebrated=false;
+}
+function showNotice(text){
+  document.getElementById('wrap').style.display='none';
+  const el=document.getElementById('noChallenge');
+  el.textContent=text;
+  el.style.display='block';
+}
+async function poll(){
+  try{
+    const query=new URLSearchParams({t:String(Date.now())});
+    if(params.has('account_id'))query.set('account_id',params.get('account_id'));
+    if(params.has('channel'))query.set('channel',params.get('channel'));
+    const r=await fetch(_WIDGET_API_BASE + '/api/widgets/public/donation-challenge/active?'+query);
+    if(!r.ok){showNotice(WidgetI18n.t('common.unavailable_http',{status:r.status}));return;}
+    const d=await r.json();
+    if(!d.active){showNotice(WidgetI18n.t('donation-challenge.empty'));return;}
+    apply(d);
+  }catch(e){showNotice(WidgetI18n.t('common.disconnected'))}
+}
+if(params.get('preview')==='1'){
+  document.body.style.background='#0f0f1a';
+  apply({title:WidgetI18n.t('donation-challenge.title'),reward_text:WidgetI18n.t('donation-challenge.demo_reward'),
+         progress_pct:62,current_amount:124,target_amount:200});
+}else{
+  poll();setInterval(poll,3000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

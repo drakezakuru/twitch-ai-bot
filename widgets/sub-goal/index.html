@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="sub-goal.title"></title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:transparent;
+  color:#fff;padding:14px;overflow:hidden}
+.wrap{max-width:480px;margin:0 auto}
+.title{font-size:20px;font-weight:600;text-align:center;margin-bottom:6px;
+  text-shadow:0 2px 8px rgba(0,0,0,0.6)}
+.count{font-size:14px;text-align:center;color:#a78bfa;
+  text-shadow:0 1px 4px rgba(0,0,0,0.6);margin-bottom:4px}
+.scene{position:relative;width:100%;height:340px;
+  background:linear-gradient(180deg,rgba(26,29,46,var(--widget-opacity,1)) 0%,rgba(61,42,90,var(--widget-opacity,1)) 60%,rgba(90,45,74,var(--widget-opacity,1)) 100%);
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.scene.reef{background:linear-gradient(180deg,rgba(0,53,102,var(--widget-opacity,1)) 0%,rgba(0,100,148,var(--widget-opacity,1)) 50%,rgba(0,149,168,var(--widget-opacity,1)) 100%)}
+.scene.city{background:linear-gradient(180deg,rgba(10,14,39,var(--widget-opacity,1)) 0%,rgba(26,52,96,var(--widget-opacity,1)) 60%,rgba(255,107,157,var(--widget-opacity,1)) 100%)}
+.ground{position:absolute;bottom:0;left:0;right:0;height:50px;
+  background:linear-gradient(180deg,rgba(58,40,24,var(--widget-opacity,1)) 0%,rgba(26,14,8,var(--widget-opacity,1)) 100%)}
+.scene.reef .ground{background:linear-gradient(180deg,rgba(212,165,116,var(--widget-opacity,1)) 0%,rgba(138,106,58,var(--widget-opacity,1)) 100%);height:30px}
+.scene.city .ground{background:rgba(0,0,0,var(--widget-opacity,1));height:8px}
+svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.bar-wrap{margin-top:10px;height:12px;background:rgba(0,0,0,var(--widget-opacity,0.4));
+  border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,0.1)}
+.bar{height:100%;background:linear-gradient(90deg,#a78bfa,#22c55e);
+  transition:width 1s ease}
+.flash{position:absolute;inset:0;background:radial-gradient(circle,rgba(255,255,255,0.6),transparent 60%);
+  opacity:0;pointer-events:none;transition:opacity 0.5s}
+.flash.on{opacity:1}
+.confetti{position:absolute;width:8px;height:8px;border-radius:2px;
+  pointer-events:none;animation:fall 2s linear forwards}
+@keyframes fall{0%{transform:translateY(-20px) rotate(0)}
+  100%{transform:translateY(360px) rotate(720deg)}}
+</style></head><body>
+<div class="wrap">
+  <div class="title widget-theme-accent" id="title"></div>
+  <div class="count widget-theme-muted" id="count" aria-live="polite"></div>
+  <div class="scene" id="scene">
+    <svg id="art" viewBox="0 0 480 340" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="ground"></div>
+    <div class="flash" id="flash"></div>
+  </div>
+  <div class="bar-wrap"><div class="bar widget-theme-fill" id="bar"></div></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "sub-goal.title": "Цель по подпискам",
+    "sub-goal.fallback": "Цель",
+    "sub-goal.increment": "Добавить подписку",
+    "sub-goal.decrement": "Убрать подписку"
+  },
+  "en": {
+    "sub-goal.title": "Subscription goal",
+    "sub-goal.fallback": "Goal",
+    "sub-goal.increment": "Add a subscription",
+    "sub-goal.decrement": "Remove a subscription"
+  },
+  "ua": {
+    "sub-goal.title": "Ціль підписок",
+    "sub-goal.fallback": "Ціль",
+    "sub-goal.increment": "Додати підписку",
+    "sub-goal.decrement": "Прибрати підписку"
+  }
+});
+WidgetI18n.apply();
+document.getElementById('count').textContent=WidgetI18n.t('common.loading');
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+// О3: админ-режим ?admin=1 — кнопки поверх OBS-превью (+1/-1 саб).
+const IS_ADMIN = new URLSearchParams(location.search).get('admin') === '1';
+if(IS_ADMIN){
+  const s=document.createElement('style');
+  s.textContent=`#root,.box,body>div:first-child{outline:2px dashed rgba(167,139,250,.6);outline-offset:-4px}
+.admin-bar{position:fixed;top:6px;right:6px;z-index:99;display:flex;gap:6px}
+.admin-bar button{width:32px;height:32px;border-radius:8px;border:none;background:rgba(167,139,250,.9);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+.admin-bar button:active{transform:scale(.92)}`;
+  document.head.appendChild(s);
+  const bar=document.createElement('div');bar.className='admin-bar';
+  bar.innerHTML='<button data-widget-i18n-title="sub-goal.increment" data-widget-i18n-aria-label="sub-goal.increment">＋</button><button data-widget-i18n-title="sub-goal.decrement" data-widget-i18n-aria-label="sub-goal.decrement">－</button>';
+  WidgetI18n.apply(bar);
+  bar.children[0].onclick=()=>adminSub(1);
+  bar.children[1].onclick=()=>adminSub(-1);
+  document.body.appendChild(bar);
+}
+async function adminSub(d){
+  try{ await fetch(widgetScopedUrl(_WIDGET_API_BASE+'/api/widgets/public/sub-goal/increment'),
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({delta:d})}); poll(); }catch(e){}
+}
+
+const titleEl=document.getElementById('title'),countEl=document.getElementById('count'),
+      barEl=document.getElementById('bar'),sceneEl=document.getElementById('scene'),
+      artEl=document.getElementById('art'),flashEl=document.getElementById('flash');
+let lastCurrent=-1;
+
+function rng(seed){let s=seed;return ()=>{s=(s*9301+49297)%233280;return s/233280}}
+
+function drawTree(current,target){
+  // Дерево: ствол всегда есть. Каждый «sub» = листик/яблоко на ветке.
+  const r=rng(42);
+  const parts=[];
+  // Ствол
+  parts.push('<path d="M230 290 Q236 200 240 100 Q244 200 250 290 Z" fill="#5a3820"/>');
+  // Ветви — рисуем по 1 на ~5 субов
+  const branches=Math.min(8, Math.floor(current/5)+(current>0?1:0));
+  for(let i=0;i<branches;i++){
+    const side=i%2===0?-1:1;
+    const y=240-i*22;
+    const len=80+r()*30;
+    const ex=240+side*len,ey=y-30+r()*15;
+    parts.push('<path d="M240 '+y+' Q'+(240+side*30)+' '+(y-15)+' '+ex+' '+ey+'" stroke="#5a3820" stroke-width="'+(8-i*0.5)+'" fill="none" stroke-linecap="round"/>');
+  }
+  // Листья: каждый sub = 1 листок
+  for(let i=0;i<current;i++){
+    const angle=r()*Math.PI*2;
+    const radius=80+r()*40;
+    const cx=240+Math.cos(angle)*radius;
+    const cy=180+Math.sin(angle)*radius*0.7;
+    const hue=80+r()*60; // зелёный → жёлтый
+    parts.push('<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+(8+r()*4)+'" ry="'+(5+r()*3)+'" fill="hsl('+hue+',70%,50%)" transform="rotate('+(r()*360)+' '+cx+' '+cy+')"/>');
+  }
+  // Если достигли цели — добавим яблоки
+  if(current>=target){
+    for(let i=0;i<10;i++){
+      const cx=200+r()*80,cy=130+r()*60;
+      parts.push('<circle cx="'+cx+'" cy="'+cy+'" r="6" fill="#e63946"/>');
+      parts.push('<rect x="'+(cx-1)+'" y="'+(cy-9)+'" width="2" height="6" fill="#5a3820"/>');
+    }
+  }
+  artEl.innerHTML=parts.join('');
+}
+
+function drawReef(current,target){
+  const r=rng(123);const parts=[];
+  // Песок уже в .ground. Кораллы:
+  for(let i=0;i<current;i++){
+    const x=20+r()*440;
+    const baseY=310;
+    const h=20+r()*60;
+    const colors=['#ff6b9d','#ffb84d','#a78bfa','#5eead4','#fbbf24'];
+    const c=colors[Math.floor(r()*colors.length)];
+    // Коралл — ветвистая фигура
+    parts.push('<path d="M'+x+' '+baseY+' Q'+(x-5+r()*10)+' '+(baseY-h/2)+' '+(x+r()*10-5)+' '+(baseY-h)+' M'+x+' '+(baseY-h*0.6)+' L'+(x+10)+' '+(baseY-h*0.8)+' M'+x+' '+(baseY-h*0.4)+' L'+(x-10)+' '+(baseY-h*0.7)+'" stroke="'+c+'" stroke-width="3" fill="none" stroke-linecap="round"/>');
+  }
+  // Пузырьки
+  for(let i=0;i<8;i++){
+    const x=40+r()*400,y=50+r()*250;
+    parts.push('<circle cx="'+x+'" cy="'+y+'" r="'+(2+r()*3)+'" fill="rgba(255,255,255,0.4)"/>');
+  }
+  // Рыбки если достигли
+  if(current>=target){
+    for(let i=0;i<5;i++){
+      const x=40+r()*400,y=80+r()*180;
+      parts.push('<g transform="translate('+x+' '+y+')"><ellipse rx="14" ry="6" fill="#ffd166"/><polygon points="-14,0 -22,-6 -22,6" fill="#ffd166"/><circle cx="6" cy="-1" r="1" fill="#000"/></g>');
+    }
+  }
+  artEl.innerHTML=parts.join('');
+}
+
+function drawCity(current,target){
+  const r=rng(7);const parts=[];
+  // Кол-во зданий = current
+  const positions=[];
+  for(let i=0;i<current;i++){
+    const x=10+r()*450;
+    const w=20+r()*30;
+    const h=40+r()*180;
+    positions.push({x,w,h});
+  }
+  positions.sort((a,b)=>(a.h-b.h)); // фоновые ниже
+  for(let p of positions){
+    const baseY=332;
+    parts.push('<rect x="'+p.x+'" y="'+(baseY-p.h)+'" width="'+p.w+'" height="'+p.h+'" fill="#1a1530"/>');
+    // Окошки
+    for(let wy=baseY-p.h+8;wy<baseY-4;wy+=10){
+      for(let wx=p.x+3;wx<p.x+p.w-3;wx+=7){
+        if(r()>0.4){
+          parts.push('<rect x="'+wx+'" y="'+wy+'" width="3" height="3" fill="#fbbf24"/>');
+        }
+      }
+    }
+  }
+  // Звёзды на небе
+  for(let i=0;i<25;i++){
+    const x=r()*480,y=r()*120;
+    parts.push('<circle cx="'+x+'" cy="'+y+'" r="0.8" fill="rgba(255,255,255,0.8)"/>');
+  }
+  // Луна
+  parts.push('<circle cx="420" cy="50" r="22" fill="#fef3c7"/>');
+  parts.push('<circle cx="412" cy="48" r="20" fill="#0a0e27"/>');
+  // Феерверки если достигли цели
+  if(current>=target){
+    for(let i=0;i<3;i++){
+      const cx=80+i*150+r()*40,cy=80+r()*40;
+      const colors=['#ff6b9d','#fbbf24','#5eead4'];
+      const col=colors[i%3];
+      for(let a=0;a<12;a++){
+        const ang=a/12*Math.PI*2;
+        const ex=cx+Math.cos(ang)*25,ey=cy+Math.sin(ang)*25;
+        parts.push('<line x1="'+cx+'" y1="'+cy+'" x2="'+ex+'" y2="'+ey+'" stroke="'+col+'" stroke-width="2" stroke-linecap="round"/>');
+      }
+    }
+  }
+  artEl.innerHTML=parts.join('');
+}
+
+function celebrate(){
+  flashEl.classList.add('on');setTimeout(()=>flashEl.classList.remove('on'),500);
+  const colors=['#ff6b9d','#fbbf24','#5eead4','#a78bfa','#22c55e'];
+  for(let i=0;i<30;i++){
+    const c=document.createElement('div');c.className='confetti';
+    c.style.left=(Math.random()*100)+'%';
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDelay=(Math.random()*0.5)+'s';
+    sceneEl.appendChild(c);setTimeout(()=>c.remove(),2200);
+  }
+}
+
+function apply(d){
+  const titleOverride='__TITLE_OVERRIDE__';
+  titleEl.textContent=titleOverride||d.title||WidgetI18n.t('sub-goal.fallback');
+  countEl.textContent=d.current+' / '+d.target;
+  const pct=d.target?Math.min(100,d.current/d.target*100):0;
+  barEl.style.width=pct+'%';
+  sceneEl.className='scene '+(d.theme||'tree');
+  if(d.theme==='reef')drawReef(d.current,d.target);
+  else if(d.theme==='city')drawCity(d.current,d.target);
+  else drawTree(d.current,d.target);
+  if(lastCurrent>=0&&d.current>lastCurrent)celebrate();
+  lastCurrent=d.current;
+}
+async function poll(){
+  try{
+    const res=await fetch(widgetScopedUrl(_WIDGET_API_BASE + '/api/widgets/public/sub-goal'));
+    if(!res.ok){countEl.textContent=WidgetI18n.t('common.unavailable_http',{status:res.status});return;}
+    apply(await res.json());
+  }catch(e){countEl.textContent=WidgetI18n.t('common.disconnected')}
+}
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  // Представительная сцена: цель наполовину закрыта — видны и дерево, и прогресс-бар.
+  document.body.style.background='#0f0f1a';
+  apply({title:WidgetI18n.t('sub-goal.title'),current:12,target:25,theme:'tree'});
+}else{
+  poll();setInterval(poll,3000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

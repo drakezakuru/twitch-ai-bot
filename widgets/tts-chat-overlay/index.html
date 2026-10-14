@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title data-widget-i18n="tts-chat-overlay.title">Чат озвучки · Golden Voice</title>
+    <style>
+        :root { --tts-accent: __TTS_ACCENT__; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: transparent;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+        }
+        #tts-chat {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            max-width: 720px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .tts-msg {
+            background: rgba(15, 12, 4, var(--widget-opacity, 0.85));
+            border-left: 3px solid var(--tts-accent);
+            border-radius: 8px;
+            padding: 8px 14px;
+            color: #fef9e7;
+            font-size: 18px;
+            line-height: 1.4;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+            animation: slide-in 0.3s ease-out;
+            backdrop-filter: blur(6px);
+            word-wrap: break-word;
+        }
+        .tts-msg .speaker {
+            display: inline-block;
+            font-size: 14px;
+            color: var(--tts-accent);
+            margin-bottom: 0;
+            margin-right: 6px;
+            font-weight: 700;
+        }
+        .tts-msg .emoji { margin-right: 4px; }
+        @keyframes slide-in {
+            from { opacity: 0; transform: translateX(-12px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slide-out {
+            to { opacity: 0; transform: translateX(-8px); }
+        }
+        .tts-msg.removing { animation: slide-out 0.3s ease-in forwards; }
+        #status {
+            position: fixed;
+            top: 8px;
+            left: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #94a3b8;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+        }
+        #status::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #64748b;
+        }
+        #status.connected::before { background: #10b981; }
+        /* На живой сцене подпись не нужна — только когда связи действительно нет. */
+        #status.connected #statusText { display: none; }
+    </style>
+</head>
+<body>
+    <div id="status"><span id="statusText" role="status" aria-live="polite"></span></div>
+    <div id="tts-chat"></div>
+    <script src="/widget/_shared/tts-core.js"></script>
+    <script>
+WidgetI18n.add({
+  "ru": {
+    "tts-chat-overlay.title": "Чат озвучки · Golden Voice",
+    "tts-chat-overlay.bot": "Бот",
+    "tts-chat-overlay.demo_bot": "Это живое превью TTS-сообщения",
+    "tts-chat-overlay.demo_viewer": "Привет из чата · бот озвучил сообщение"
+  },
+  "en": {
+    "tts-chat-overlay.title": "Speech chat overlay · Golden Voice",
+    "tts-chat-overlay.bot": "Bot",
+    "tts-chat-overlay.demo_bot": "This is a live preview of a TTS message",
+    "tts-chat-overlay.demo_viewer": "Hello from chat · the bot read the message aloud"
+  },
+  "ua": {
+    "tts-chat-overlay.title": "Чат озвучення · Golden Voice",
+    "tts-chat-overlay.bot": "Бот",
+    "tts-chat-overlay.demo_bot": "Це живий попередній перегляд TTS-повідомлення",
+    "tts-chat-overlay.demo_viewer": "Привіт із чату · бот озвучив повідомлення"
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+        const TTS_ACCOUNT_ID = __ACCOUNT_ID__;
+        const MAX_MSGS = __MAX_MSGS__;
+        const RETAIN_MS = __RETAIN_MS__;
+        const TTS_FILTER = __TTS_FILTER__;
+        const container = document.getElementById('tts-chat');
+        const statusEl = document.getElementById('status');
+        const statusTextEl = document.getElementById('statusText');
+        statusTextEl.textContent = wt('common.disconnected');
+        const IS_PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
+        if (IS_PREVIEW) {
+            document.body.style.background = '#0f0f1a';
+        }
+
+        function setStatus(connected, text) {
+            statusEl.className = connected ? 'connected' : '';
+            statusTextEl.textContent = text;
+        }
+
+        function addMsg(emoji, speaker, text) {
+            const el = document.createElement('div');
+            el.className = 'tts-msg widget-theme-surface';
+            // P6 PLAN.md: строка «как в обычном чате» — [эмодзи][ник] текст.
+            const em = document.createElement('span');
+            em.className = 'emoji';
+            em.textContent = emoji || '';
+            const sp = document.createElement('span');
+            sp.className = 'speaker widget-theme-accent';
+            sp.textContent = speaker ? speaker + ':' : '';
+            const tx = document.createElement('span');
+            tx.className = 'widget-theme-text';
+            tx.textContent = text;
+            el.appendChild(em);
+            el.appendChild(sp);
+            el.appendChild(tx);
+            container.appendChild(el);
+            // Cap по кількості.
+            while (container.children.length > MAX_MSGS) {
+                const first = container.firstChild;
+                first.classList.add('removing');
+                setTimeout(() => first.remove(), 300);
+                container.removeChild(first);
+            }
+            // Видаляємо через RETAIN_MS.
+            setTimeout(() => {
+                if (!el.parentNode) return;
+                el.classList.add('removing');
+                setTimeout(() => el.remove(), 300);
+            }, RETAIN_MS);
+        }
+
+        // Wave 5: транспорт общий (_shared/tts-core.js). Этот виджет ничего не
+        // проигрывает — только показывает ленту реплик, поэтому очередь не нужна.
+        function connect() {
+            TtsCore.connect({
+                types: ['tts'],
+                accountId: TTS_ACCOUNT_ID,
+                onOpen: () => { setStatus(true, ''); },
+                onClose: () => { setStatus(false, wt('common.disconnected')); },
+                onMessage: (msg) => {
+                    if (TTS_FILTER === 'bot' && msg.speaker_kind !== 'bot') return;
+                    if (TTS_FILTER === 'rewards' && msg.speaker_kind !== 'viewer') return;
+                    addMsg(
+                        msg.speaker_emoji || '',
+                        msg.speaker || msg.channel || wt('tts-chat-overlay.bot'),
+                        msg.display_text || msg.text || ''
+                    );
+                },
+            });
+        }
+
+        if (IS_PREVIEW) {
+            // Карточка не подключается к живому WS: показываем зацикленную демо-ленту,
+            // чтобы превью оставалось представительным и не зависело от эфира.
+            setStatus(true, '');
+            const DEMO = [
+                ['🔊', 'DemoBot', wt('tts-chat-overlay.demo_bot')],
+                ['🎙', wt('common.viewer'), wt('tts-chat-overlay.demo_viewer')],
+            ];
+            let i = 0;
+            const tick = () => addMsg(...DEMO[i++ % DEMO.length]);
+            tick();
+            setInterval(tick, 2500);
+        } else {
+            connect();
+        }
+    </script>
+</body>
+</html>

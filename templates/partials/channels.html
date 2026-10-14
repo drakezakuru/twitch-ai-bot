@@ -1,0 +1,539 @@
+<!-- ========== CHANNELS ========== -->
+<section id="section-channels" class="section">
+  <div id="channelsListView">
+    <div class="section-header">
+        <div>
+            <h1 class="section-title"># <span data-i18n="channels.title">Каналы</span></h1>
+            <p class="text-sm text-muted" data-i18n="channels.hint">Используемые Twitch-каналы, добавленные боты и их фактическое подключение.</p>
+        </div>
+        <button class="btn btn-secondary" onclick="loadChannelsSection()" data-i18n="btn.refresh">Обновить</button>
+        <button class="btn btn-primary" onclick="openChannelCreateModal()" data-i18n="channels.add">+ Добавить канал</button>
+    </div>
+    <div id="channelsOverview" class="grid-cards" aria-live="polite">
+        <div class="card text-muted p-4" data-i18n="label.loading">Загрузка...</div>
+    </div>
+  </div>
+
+    <!-- Владелец 27.09: своя страница на канал вместо трёх всплывашек (правила / модерация / профиль) -->
+  <div id="channelSettingsPage" class="hidden">
+    <div class="section-header">
+        <div class="flex items-center gap-2">
+            <button class="btn btn-secondary btn-sm" onclick="closeChannelSettings()" data-i18n="btn.back">← Назад</button>
+            <h2 class="section-title" id="channelSettingsTitle">⚙️ <span id="channelBaseRulesChannel" class="text-muted"></span></h2>
+            <button class="btn btn-secondary btn-sm" onclick="openChannelCloneModal()" data-i18n="channels.clone_btn">📋 Скопировать с канала...</button>
+        </div>
+        <div class="flex gap-2 flex-wrap" role="tablist" data-i18n-aria-label="channels.settings_tabs" aria-label="Настройки канала">
+            <button type="button" class="btn btn-primary btn-sm channel-settings-tab-btn" data-channel-tab="bots" onclick="showChannelSettingsTab('bots')" data-i18n="channels.bots_tab">🤖 Боты канала</button>
+            <button type="button" class="btn btn-secondary btn-sm channel-settings-tab-btn" data-channel-tab="rules" onclick="showChannelSettingsTab('rules')" data-i18n="channels.base_rules">🛡 База правил модерации</button>
+            <button type="button" class="btn btn-secondary btn-sm channel-settings-tab-btn" data-channel-tab="moderation" onclick="showChannelSettingsTab('moderation')" data-i18n="channels.mod_tab">🧾 Модерация канала</button>
+            <button type="button" class="btn btn-secondary btn-sm channel-settings-tab-btn" data-channel-tab="profile" onclick="showChannelSettingsTab('profile')" data-i18n="channels.profile_tab">👤 Профиль канала</button>
+        </div>
+    </div>
+    <div id="channelSettingsTabBots">
+        <p class="text-sm text-muted mb-3" data-i18n="channels.bots_tab_hint">Боты, привязанные к этому каналу — статус подключения, переименование канала для конкретного бота, отвязка, добавление новых ботов.</p>
+        <div id="channelSettingsBotsList" class="flex gap-2 flex-wrap mb-3"></div>
+        <div class="flex gap-2 flex-wrap items-center">
+            <button class="btn btn-success btn-sm" onclick="startChannelBots(_channelSettingsChannel)">▶ Запустить ботов канала</button>
+            <button class="btn btn-secondary btn-sm" onclick="stopChannelBots(_channelSettingsChannel)">⏹ Остановить</button>
+            <button class="btn btn-secondary btn-sm" onclick="openChannelFleetModal(_channelSettingsChannel)">⚡ Автоматизация флота</button>
+            <button class="btn btn-primary btn-sm" onclick="openChannelToBotsBulk(_channelSettingsChannel)" data-i18n="bulk.add_bots">Добавить ботов</button>
+        </div>
+        <div class="card p-3 mt-4" id="channelEmotesCard">
+            <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="font-semibold">😃 Смайлы канала (7TV / BTTV / FFZ)</span>
+                    <span id="channelEmotesBadge" class="badge badge-outline text-xs">...</span>
+                </div>
+                <button type="button" id="channelEmotesSyncBtn" class="btn btn-secondary btn-sm" onclick="syncCurrentChannelEmotes()">
+                    🔄 Синхронизировать смайлы
+                </button>
+            </div>
+            <p class="text-xs text-muted mb-2">Боты распознают эти смайлы в чате и естественно поддерживают реакции, хайп и локальные мемы канала.</p>
+            <div id="channelEmotesList" class="flex flex-wrap gap-1 logs-scroll" style="max-height: 100px; overflow-y: auto;"></div>
+        </div>
+    </div>
+    <div id="channelSettingsTabRules" class="hidden">
+        <div class="flex justify-end mb-2 gap-2 flex-wrap">
+            <button class="btn btn-secondary btn-sm" onclick="bulkToggleChannelBaseRules(true)" title="Включить все правила модерации этого канала">⚡ Включить все</button>
+            <button class="btn btn-secondary btn-sm" onclick="bulkToggleChannelBaseRules(false)" title="Выключить все правила модерации этого канала">⏸ Выключить все</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportChannelBaseRules()" title="Выгрузить правила модерации канала в JSON-файл">📤 Экспорт</button>
+            <label class="btn btn-secondary btn-sm" title="Загрузить правила модерации из JSON-файла">
+                📥 Импорт
+                <input type="file" accept=".json,.txt" class="visually-hidden-input" onchange="importChannelBaseRules(event)">
+            </label>
+            <button class="btn btn-secondary btn-sm" onclick="seedChannelBaseRules('ru')" data-i18n="channels.base_rules_seed_ru">🇷🇺 Пресет РФ/СНГ</button>
+            <button class="btn btn-secondary btn-sm" onclick="seedChannelBaseRules()" data-i18n="channels.base_rules_seed">🌱 Стартовать из пресета Twitch</button>
+            <button type="button" class="btn btn-secondary btn-sm text-danger" onclick="clearChannelBaseRules()" title="Очистить все правила модерации этого канала">🗑️ Очистить все</button>
+        </div>
+<p class="text-sm text-muted mb-3" data-i18n="channels.base_rules_hint">Свой список правил этого канала. Наказывают по нему только боты с ролью «модератор»; правило конкретного бота с тем же словом переопределяет базу.</p>
+
+        <!-- Песочница проверки правил канала -->
+        <div class="card p-3 mb-3" style="background:var(--bg-secondary, rgba(0,0,0,0.15)); border:1px solid var(--border);">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-semibold">🧪 Песочница модерации (проверка фраз)</span>
+                <span class="text-xs text-muted">Проверьте, сработает ли правило на фразу зрителя</span>
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="channelRuleTestInput" class="input flex-1" placeholder="Введите фразу для теста..." onkeydown="if(event.key==='Enter')testChannelModerationPhrase()">
+                <button class="btn btn-secondary btn-sm" onclick="testChannelModerationPhrase()">🔍 Проверить</button>
+            </div>
+            <div id="channelRuleTestResult" class="mt-2 text-sm hidden"></div>
+        </div>
+
+        <div id="channelBaseRulesList" class="space-y-2 mb-3 logs-scroll" style="max-height:260px;overflow-y:auto"></div>
+        <div class="flex gap-2 flex-wrap items-end mb-3">
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="channelBaseRulePattern" data-i18n="panel.mod.pattern">Слово / re:regex</label>
+                <input type="text" id="channelBaseRulePattern" class="input field-200" placeholder="слово или re:паттерн" data-i18n-placeholder="panel.mod.pattern_ph">
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="channelBaseRuleCategory" data-i18n="panel.mod.category">Категория</label>
+                <select id="channelBaseRuleCategory" class="input select-120">
+                    <option value="custom" data-i18n="panel.mod.cat_custom">Своя</option>
+                    <option value="insult" data-i18n="panel.mod.cat_insult">Оскорбление</option>
+                    <option value="hate" data-i18n="panel.mod.cat_hate">Ненависть</option>
+                    <option value="threat" data-i18n="panel.mod.cat_threat">Угроза</option>
+                    <option value="sexual" data-i18n="panel.mod.cat_sexual">Сексуальный контент</option>
+                    <option value="spam" data-i18n="panel.mod.cat_spam">Спам</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="channelBaseRuleAction" data-i18n="panel.mod.action">Действие</label>
+                <select id="channelBaseRuleAction" class="input select-120">
+                    <option value="replace" data-i18n="panel.mod.action_replace">Заменить</option>
+                    <option value="block" data-i18n="panel.mod.action_block">Блок</option>
+                    <option value="timeout" data-i18n="panel.mod.action_timeout">Таймаут</option>
+                    <option value="log" data-i18n="panel.mod.log">Только лог</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="channelBaseRuleExt" data-i18n="panel.mod.action_ext">Наказание (явное)</label>
+                <select id="channelBaseRuleExt" class="input select-160" data-i18n-aria-label="panel.mod.action_ext" aria-label="Наказание (явное)">
+                    <option value="" data-i18n="panel.mod.ext_auto">По тяжести</option>
+                    <option value="mask" data-i18n="panel.mod.ext_mask">Маскировать</option>
+                    <option value="block" data-i18n="panel.mod.ext_block">Блокировать</option>
+                    <option value="timeout_600" data-i18n="panel.mod.ext_timeout_600">Таймаут 10 мин</option>
+                    <option value="timeout_3600" data-i18n="panel.mod.ext_timeout_3600">Таймаут 1 час</option>
+                    <option value="timeout_86400" data-i18n="panel.mod.ext_timeout_86400">Таймаут 1 день</option>
+                    <option value="timeout_604800" data-i18n="panel.mod.ext_timeout_604800">Таймаут 1 неделя</option>
+                    <option value="timeout_1209600" data-i18n="panel.mod.ext_timeout_1209600">Таймаут 2 недели</option>
+                    <option value="ban" data-i18n="panel.mod.ext_ban">Бан навсегда</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="channelBaseRuleSeverity" data-i18n="panel.mod.severity">Уровень нарушения 1–5</label>
+                <input type="number" id="channelBaseRuleSeverity" class="input select-80" min="1" max="5" value="3">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="addChannelBaseRule()" data-i18n="channels.base_rules_add">+ Добавить в базу канала</button>
+        </div>
+    </div>
+    <div id="channelSettingsTabModeration" class="hidden">
+        <span id="channelModerationChannel" class="hidden"></span>
+        <div class="flex justify-end mb-2">
+            <button class="btn btn-secondary btn-sm" onclick="loadChannelModeration()" data-i18n="btn.refresh">Обновить</button>
+        </div>
+<div class="flex gap-2 items-center mb-3">
+            <label class="text-sm text-muted" for="channelModerationBot" data-i18n="channels.mod_bot">Бот</label>
+            <select id="channelModerationBot" class="input select-160" onchange="loadChannelModeration()" data-i18n-aria-label="channels.mod_bot" aria-label="Бот"></select>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><span class="card-title" data-i18n="channels.mod_queue">⏳ Очередь подтверждения</span></div>
+            <p class="text-xs text-muted mb-2" data-i18n="channels.mod_queue_hint">«Бан навсегда» защищённого зрителя не применён и ждёт вашего решения: до него сообщение не удаляется, не маскируется и таймаут не даётся.</p>
+            <div id="channelModQueue" class="space-y-2" aria-live="polite"></div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><span class="card-title" data-i18n="channels.mod_journal">📜 Журнал наказаний</span></div>
+            <div id="channelModJournal" class="space-y-2 logs-scroll" style="max-height:240px;overflow-y:auto"></div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><span class="card-title" data-i18n="channels.mod_protected">🛡 Защищённые от «бана навсегда»</span></div>
+            <p class="text-xs text-muted mb-2" data-i18n="channels.mod_protected_hint">Модераторы, редакторы и стример защищены автоматически — вписывать их не нужно. Таймауты применяются к защищённым как настроено: защита только от вечного бана.</p>
+            <div id="channelModProtected" class="space-y-2 mb-2"></div>
+            <div class="flex gap-2 items-end flex-wrap">
+                <div>
+                    <label class="text-xs text-muted" for="channelModProtectedUser" data-i18n="channels.mod_protected_user">Ник зрителя</label>
+                    <input id="channelModProtectedUser" class="input field-160" placeholder="username">
+                </div>
+                <div>
+                    <label class="text-xs text-muted" for="channelModProtectedNote" data-i18n="channels.mod_protected_note">Заметка</label>
+                    <input id="channelModProtectedNote" class="input field-160" placeholder="vip / друг канала">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="addChannelProtected()" data-i18n="channels.mod_protected_add">+ Защитить</button>
+            </div>
+            <div class="flex gap-1 items-center flex-wrap mt-2">
+                <span class="text-xs text-muted" data-i18n="channels.mod_quick_notes">Быстрые заметки:</span>
+                <button type="button" class="btn btn-xs btn-secondary" onclick="setChannelProtectedNote('VIP')">VIP</button>
+                <button type="button" class="btn btn-xs btn-secondary" onclick="setChannelProtectedNote('Друг канала')">Друг канала</button>
+                <button type="button" class="btn btn-xs btn-secondary" onclick="setChannelProtectedNote('Модератор')">Модератор</button>
+                <button type="button" class="btn btn-xs btn-secondary" onclick="setChannelProtectedNote('Саб')">Саб</button>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><span class="card-title" data-i18n="channels.mod_manual_punish">⚡ Быстрое наказание</span></div>
+            <div class="flex gap-2 items-end flex-wrap mb-2">
+                <div>
+                    <label class="text-xs text-muted" for="channelModPunishUser" data-i18n="channels.mod_protected_user">Ник зрителя</label>
+                    <input id="channelModPunishUser" class="input field-160" placeholder="username">
+                </div>
+                <div>
+                    <label class="text-xs text-muted" for="channelModPunishDuration" data-i18n="channels.mod_duration">Длительность</label>
+                    <select id="channelModPunishDuration" class="input select-160">
+                        <option value="60">1 мин (60с)</option>
+                        <option value="600" selected>10 мин (600с)</option>
+                        <option value="3600">1 час (3600с)</option>
+                        <option value="86400">1 день (86400с)</option>
+                        <option value="0">Бан навсегда</option>
+                    </select>
+                </div>
+                <div class="flex-1 min-w-200">
+                    <label class="text-xs text-muted" for="channelModPunishReason" data-i18n="channels.mod_reason">Причина</label>
+                    <input id="channelModPunishReason" class="input w-full" placeholder="Причина наказания">
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="applyChannelManualPunishment()" data-i18n="channels.mod_apply_punish">Применить</button>
+            </div>
+            <div class="flex gap-1 items-center flex-wrap mt-2">
+                <span class="text-xs text-muted" data-i18n="channels.mod_quick_reasons">Быстрые шаблоны:</span>
+                <button type="button" class="btn btn-xs btn-secondary" onclick="setChannelModReason('Спам / флуд')">Спам / флуд</button>
+                <button type="button" class="btn btn-xs btn-secondary" onclick="setChannelModReason('Оскорбления')">Оскорбления</button>
+                <button type="button" class="btn btn-xs btn-secondary" onclick="setChannelModReason('Спойлеры')">Спойлеры</button>
+                <button type="button" class="btn btn-xs btn-secondary" onclick="setChannelModReason('Реклама / ссылки')">Реклама / ссылки</button>
+                <button type="button" class="btn btn-xs btn-secondary" onclick="setChannelModReason('Токсичность')">Токсичность</button>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><span class="card-title" data-i18n="channels.mod_unban">🔓 Разбанить</span></div>
+            <div class="flex gap-2 items-end flex-wrap">
+                <div>
+                    <label class="text-xs text-muted" for="channelModUnbanUser" data-i18n="channels.mod_protected_user">Ник зрителя</label>
+                    <input id="channelModUnbanUser" class="input field-160" placeholder="username">
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="unbanChannelViewer()" data-i18n="channels.mod_unban_btn">Разбанить</button>
+            </div>
+        </div>
+    </div>
+    <div id="channelSettingsTabProfile" class="hidden">
+        <span id="channelProfileChannel" class="hidden"></span>
+        <p class="text-sm text-muted mb-3" data-i18n="channels.profile_hint">Инфо о стримере этого канала: профиль и фото хранятся per-channel. Бот ниже понадобится для lore и live-сводок этого канала.</p>
+        <div class="flex justify-end mb-2">
+            <button class="btn btn-secondary btn-sm" onclick="loadGlobalStreamerProfile('ccp')" data-i18n="btn.refresh">Обновить</button>
+        </div>
+<div class="flex gap-2 items-center mb-3">
+            <label class="text-sm text-muted" for="channelProfileBot" data-i18n="channels.profile_bot">Бот (для lore и сводок)</label>
+            <select id="channelProfileBot" class="input select-160" onchange="cpLoadLore(); cpLoadSummarySettings(); cpLoadRuns()" data-i18n-aria-label="channels.profile_bot" aria-label="Бот (для lore и сводок)"></select>
+        </div>
+        <input type="hidden" id="ccpChannel" value="">
+        <div class="card mb-3">
+            <div class="card-header"><span class="card-title" data-i18n="brain.profile_title">👤 Профиль стримера</span><span id="ccpScopeBadge" class="badge"></span></div>
+            <div class="flex gap-2 flex-wrap mb-3">
+                <div class="form-group flex-1" style="min-width:120px"><label data-i18n="streamer.age" for="ccpAge">Возраст</label><input type="number" id="ccpAge" class="input" min="0" max="120"></div>
+                <div class="form-group flex-1" style="min-width:120px"><label data-i18n="streamer.gender" for="ccpGender">Пол</label><input type="text" id="ccpGender" class="input"></div>
+                <div class="form-group flex-1" style="min-width:120px"><label data-i18n="streamer.location" for="ccpLocation">Локация</label><input type="text" id="ccpLocation" class="input"></div>
+                <div class="form-group flex-1" style="min-width:140px"><label data-i18n="streamer.occupation" for="ccpOccupation">Род занятий</label><input type="text" id="ccpOccupation" class="input"></div>
+                <div class="form-group" style="min-width:160px"><label data-i18n="streamer.style" for="ccpStyle">Стиль стрима</label>
+                    <select id="ccpStyle" class="input">
+                        <option value="" data-i18n="streamer.style_none">Не указан</option>
+                        <option value="educational" data-i18n="streamer.style_edu">educational</option>
+                        <option value="entertaining" data-i18n="streamer.style_fun">entertaining</option>
+                        <option value="competitive" data-i18n="streamer.style_comp">competitive</option>
+                    </select></div>
+            </div>
+            <div class="form-group mb-3"><label data-i18n="streamer.bio" for="ccpBio">Био стримера</label><textarea id="ccpBio" class="input" rows="3"></textarea></div>
+            <div class="flex gap-2 flex-wrap mb-3">
+                <div class="form-group flex-1" style="min-width:180px"><label data-i18n="streamer.interests" for="ccpInterests">Интересы (через запятую)</label><input type="text" id="ccpInterests" class="input"></div>
+                <div class="form-group flex-1" style="min-width:180px"><label data-i18n="streamer.games" for="ccpGames">Любимые игры (через запятую)</label><input type="text" id="ccpGames" class="input"></div>
+            </div>
+            <div class="flex gap-2 flex-wrap items-center">
+                <button class="btn btn-primary btn-sm" onclick="saveGlobalStreamerProfile('ccp')" data-i18n="streamer.save">💾 Сохранить профиль</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteGlobalStreamerProfile('ccp')" data-i18n="streamer.global_delete">🗑 Удалить профиль</button>
+                <label class="btn btn-secondary btn-sm" style="cursor:pointer"><span data-i18n="panel.brain.photo">📷 Фото</span><input type="file" id="ccpFaceFile" class="hidden" accept="image/jpeg,image/png" onchange="uploadGlobalStreamerFace(this, 'ccp')"></label>
+                <span id="ccpFacePreview" class="text-xs text-muted" aria-live="polite"></span>
+            </div>
+        </div>
+        <!-- Q09b: lore per (бот × канал) — тот же API, что был в «Мозге» -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <span class="card-title" data-i18n="panel.brain.lore">📖 Lore стримера</span>
+                <button class="btn btn-primary btn-sm" onclick="cpLoreShowAdd()" data-i18n="panel.brain.add_fact">+ Добавить факт</button>
+            </div>
+            <p class="text-sm text-muted mb-3" data-i18n="channels.profile_lore_hint">Факты о стримере у выбранного бота на этом канале: добавленные вручную и предложенные сводками/чатом. В список попадают только после подтверждения ✓.</p>
+            <div id="cpLoreAddForm" class="hidden mb-3 p-3 form-panel">
+                <input type="text" id="cpLoreNewFact" class="input mb-2 w-full" data-i18n-placeholder="panel.brain.fact_hint" placeholder="Факт о стримере (напр. «любит играть в хорроры по ночам»)" data-i18n-aria-label="panel.brain.fact" aria-label="Факт о стримере">
+                <div class="flex gap-2 mb-2 flex-wrap items-end">
+                    <div class="form-group" style="min-width:150px"><label class="text-xs" data-i18n="brain.importance" for="cpLoreNewImportance">Важность 0–100</label>
+                        <input type="number" id="cpLoreNewImportance" class="input" style="max-width:110px" min="0" max="100" value="50" data-i18n-title="panel.brain.importance_hint" title="Чем выше — тем чаще бот вспоминает факт"></div>
+                    <div class="form-group" style="min-width:170px"><label class="text-xs" data-i18n="brain.fact_source" for="cpLoreNewSource">Источник факта</label>
+                        <select id="cpLoreNewSource" class="input" style="max-width:170px" data-i18n-title="panel.brain.source_hint" title="Вручную, из сводок стрима или из чата">
+                            <option value="manual" data-i18n="brain.src.manual">manual — добавил ты</option>
+                            <option value="summary" data-i18n="brain.src.summary">summary — из сводок</option>
+                            <option value="chat" data-i18n="brain.src.chat">chat — из чата</option>
+                        </select></div>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn btn-primary btn-sm" onclick="cpLoreAdd(true)" data-i18n="panel.brain.save_confirm">Сохранить и подтвердить</button>
+                    <button class="btn btn-secondary btn-sm" onclick="cpLoreAdd(false)" data-i18n="panel.brain.suggest">Только предложить</button>
+                    <button class="btn btn-secondary btn-sm" onclick="cpLoreHideAdd()" data-i18n="btn.cancel">Отмена</button>
+                </div>
+            </div>
+            <div id="cpLoreList" class="dashboard-events-scroll" aria-live="polite"><div class="empty-state text-muted text-sm" data-i18n="label.loading">Загрузка...</div></div>
+        </div>
+        <!-- Q09c: live-сводки per-канал — override настроек бота (§2.3) -->
+        <div class="card mb-3">
+            <div class="card-header"><span class="card-title" data-i18n="panel.brain.summaries">📝 Сводки стрима</span></div>
+            <p class="text-sm text-muted mb-3" data-i18n="channels.profile_summary_hint">Live-сводки «как прошёл стрим» у выбранного бота на этом канале: вкл/выкл и язык переопределяют настройки бота, другие каналы не трогают. Ручной прогон за период — в «Мозге».</p>
+            <div class="p-3 flex gap-2 items-center flex-wrap" style="border:1px solid var(--border)">
+                <div class="flex items-center gap-1 text-sm">
+                    <div class="toggle" id="cpSumLiveEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)" data-i18n-aria-label="panel.brain.live_summaries" aria-label="Live-сводки каждые 30 минут"></div>
+                    <span data-i18n="label.enabled">Включено</span>
+                </div>
+                <label class="text-sm">
+                    <span data-i18n="label.language">Язык</span>:
+                    <select id="cpSumLiveLang" class="input" style="max-width:140px">
+                        <option value="ru" data-i18n="panel.brain.lang_ru">RU (как панель)</option>
+                        <option value="en" data-i18n="panel.brain.lang_en">EN (как панель)</option>
+                    </select>
+                </label>
+                <button class="btn btn-secondary btn-sm" onclick="cpSaveSummarySettings()" data-i18n-aria-label="btn.save" aria-label="Сохранить">💾</button>
+                <span id="cpSumLiveScopeStatus" class="text-xs text-muted" aria-live="polite"></span>
+            </div>
+        </div>
+        <!-- Q19: браузер прогонов сводок переехал из «Мозга» (реестр Q19, строка 104) -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <span class="card-title" data-i18n="channels.runs_title">📝 Сводки: прогоны</span>
+                <div class="flex gap-1">
+                    <button class="btn btn-primary btn-sm" onclick="cpRunsShowForm()" data-i18n="panel.brain.run_stream">▶ Прогнать стрим</button>
+                    <button class="btn btn-secondary btn-sm" onclick="cpLoadRuns()" data-i18n-aria-label="btn.refresh" aria-label="Обновить">🔄</button>
+                </div>
+            </div>
+            <div id="cpRunsForm" class="hidden mb-3 p-3 form-panel">
+                <div class="flex gap-2 mb-2 flex-wrap">
+                    <label class="text-sm"><span data-i18n="panel.period_start">Начало</span>: <input type="datetime-local" id="cpRunStart" class="input"></label>
+                    <label class="text-sm"><span data-i18n="panel.period_end">Конец</span>: <input type="datetime-local" id="cpRunEnd" class="input"></label>
+                    <select id="cpRunLang" class="input" style="max-width:100px" data-i18n-aria-label="panel.brain.summary_language" aria-label="Язык сводки">
+                        <option value="ru">RU</option>
+                        <option value="en">EN</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="cpStartRun()" data-i18n="panel.brain.start_run">Запустить прогон</button>
+                <button class="btn btn-secondary btn-sm" onclick="cpRunsHideForm()" data-i18n="btn.cancel">Отмена</button>
+            </div>
+            <div id="cpRunsList" class="dashboard-events-scroll" aria-live="polite"><div class="empty-state text-muted text-sm" data-i18n="label.loading">Загрузка...</div></div>
+            <div id="cpRunView" class="hidden mt-3" aria-live="polite"></div>
+        </div>
+        <!-- Q18b: запретные темы per-канал + базовый пресет Twitch (DEC-OWNER-004) -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <span class="card-title" data-i18n="channels.bans_title">🚫 Запретные темы канала</span>
+                <span id="cpBansSourceBadge" class="badge" aria-live="polite"></span>
+            </div>
+            <p class="text-sm text-muted mb-2" data-i18n="channels.bans_hint">Что ботам нельзя поднимать в чате этого канала. Одна запретка на строку, строки с # — комментарии. Пока своего списка нет, канал наследует базовый пресет Twitch.</p>
+            <textarea id="cpBansText" class="input mb-2" rows="6" data-i18n-placeholder="channels.bans_placeholder" placeholder="Не обсуждать политику&#10;Без спойлеров к сериалам"></textarea>
+            <div class="flex gap-2 flex-wrap items-center">
+                <button class="btn btn-primary btn-sm" onclick="cpSaveBans()" data-i18n="btn.save">💾 Сохранить</button>
+                <button class="btn btn-secondary btn-sm" onclick="cpSeedBansFromPreset()" data-i18n="channels.bans_seed">🌱 Взять пресет Twitch</button>
+            </div>
+            <details class="mt-3">
+                <summary class="text-sm text-muted" data-i18n="channels.bans_preset_title">Базовый пресет Twitch (наследуется каналами без своего списка)</summary>
+                <textarea id="cpBansPresetText" class="input my-2" rows="5"></textarea>
+                <button class="btn btn-secondary btn-sm" onclick="cpSaveBansPreset()" data-i18n="btn.save">💾 Сохранить</button>
+            </details>
+        </div>
+        <!-- Разрешённые темы и поведение ботов per-канал + базовый пресет Twitch -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <span class="card-title" data-i18n="channels.allowed_title">✅ Что ботам можно делать (разрешённые темы)</span>
+                <span id="cpAllowedSourceBadge" class="badge" aria-live="polite"></span>
+            </div>
+            <p class="text-sm text-muted mb-2" data-i18n="channels.allowed_hint">Что ботам разрешено и поощряется делать в чате этого канала. Одно указание на строку, строки с # — комментарии. Пока своего списка нет, канал наследует базовый пресет Twitch.</p>
+            <textarea id="cpAllowedText" class="input mb-2" rows="6" data-i18n-placeholder="channels.allowed_placeholder" placeholder="Обсуждать текущую игру&#10;Поддерживать стримера"></textarea>
+            <div class="flex gap-2 flex-wrap items-center">
+                <button class="btn btn-primary btn-sm" onclick="cpSaveAllowed()" data-i18n="btn.save">💾 Сохранить</button>
+                <button class="btn btn-secondary btn-sm" onclick="cpSeedAllowedFromPreset()" data-i18n="channels.allowed_seed">🌱 Взять пресет Twitch</button>
+            </div>
+            <details class="mt-3">
+                <summary class="text-sm text-muted" data-i18n="channels.allowed_preset_title">Базовый пресет разрешённых тем (наследуется каналами без своего списка)</summary>
+                <textarea id="cpAllowedPresetText" class="input my-2" rows="5"></textarea>
+                <button class="btn btn-secondary btn-sm" onclick="cpSaveAllowedPreset()" data-i18n="btn.save">💾 Сохранить</button>
+            </details>
+        </div>
+    </div>
+  </div>
+</section>
+
+<div id="channelCreateModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('channelCreateModal')">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="channelCreateTitle">
+        <h3 id="channelCreateTitle" data-i18n="channels.add">+ Добавить канал</h3>
+        <p class="text-sm text-muted mb-3" data-i18n="channels.add_hint">Канал привяжется к выбранному боту; тот же канал можно добавить нескольким ботам.</p>
+        <div class="form-group">
+            <label for="channelCreateName" data-i18n="bulk.channels">Каналы</label>
+            <input id="channelCreateName" class="input" placeholder="channel_name">
+        </div>
+        <div class="form-group">
+            <label for="channelCreateBot" data-i18n="channels.add_bot">Бот</label>
+            <select id="channelCreateBot" class="input"></select>
+        </div>
+        <div id="channelCreateError" class="text-error text-sm" aria-live="polite"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('channelCreateModal')" data-i18n="btn.close">Закрыть</button>
+            <button id="channelCreateSubmit" class="btn btn-primary" onclick="submitChannelCreate()" data-i18n="channels.add">+ Добавить канал</button>
+        </div>
+    </div>
+</div>
+
+<div id="channelDepsModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('channelDepsModal')">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="channelDepsTitle">
+        <h3 id="channelDepsTitle" data-i18n="channels.delete">Удалить канал</h3>
+        <div id="channelDepsBody" class="text-sm"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('channelDepsModal')" data-i18n="btn.close">Закрыть</button>
+            <button id="channelDepsConfirm" class="btn btn-danger" onclick="confirmChannelDelete()" data-i18n="channels.delete">Удалить канал</button>
+        </div>
+    </div>
+</div>
+
+<div id="bulkChannelsModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('bulkChannelsModal')">
+    <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="bulkChannelsTitle">
+        <h3 id="bulkChannelsTitle" data-i18n="bulk.title">Добавить и проверить</h3>
+        <p class="text-sm text-muted mb-3" data-i18n="bulk.hint">Каждая новая или существующая связка бот×канал будет сразу проверена.</p>
+        <div id="bulkSelectedBots" class="text-sm mb-3"></div>
+        <div id="bulkBotPicker" class="form-group hidden">
+            <label data-i18n="bulk.bots">Боты</label>
+            <div id="bulkBotChoices" class="flex gap-2 flex-wrap"></div>
+            <small class="form-hint" data-i18n="bulk.bots_hint">Выберите ботов, которых нужно добавить к каналу.</small>
+        </div>
+        <div class="form-group">
+            <label for="bulkChannelsInput" data-i18n="bulk.channels">Каналы</label>
+            <textarea id="bulkChannelsInput" class="input" rows="3" placeholder="channel_one&#10;channel_two"></textarea>
+            <small class="form-hint" data-i18n="bulk.channels_hint">По одному Twitch login на строку или через запятую, без #.</small>
+        </div>
+        <div class="form-group">
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" id="bulkCheckSendEnabled" onchange="bulkCheckSendToggled()" data-i18n-aria-label="check.send_enabled" aria-label="Отправлять контрольное сообщение">
+                <span data-i18n="check.send_enabled">Отправлять контрольное сообщение (по умолчанию выкл.)</span>
+            </label>
+            <label for="bulkCheckMessage" data-i18n="check.message">Контрольное сообщение</label>
+            <input id="bulkCheckMessage" class="input" maxlength="450" disabled>
+            <small class="form-hint" data-i18n="check.message_hint">Маркер [ник] заменяется на имя каждого бота; пишется в чат только при включённом чекбоксе.</small>
+        </div>
+        <div id="bulkChannelsResults" aria-live="polite"></div>
+        <div id="bulkChannelsDownloads" class="flex gap-2 mt-3 hidden">
+            <button class="btn btn-secondary btn-sm" onclick="downloadBulkChannels('csv')" data-i18n="check.download_csv">Скачать CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="downloadBulkChannels('text')" data-i18n="check.download_text">Скачать текст</button>
+        </div>
+        <div class="modal-actions">
+            <button id="bulkChannelsCancel" class="btn btn-danger hidden" onclick="cancelBulkChannels()" data-i18n="bulk.cancel">Остановить операцию</button>
+            <button class="btn btn-secondary" onclick="hideModal('bulkChannelsModal')" data-i18n="btn.close">Закрыть</button>
+            <button id="bulkChannelsStart" class="btn btn-primary" onclick="startBulkChannels()" data-i18n="bulk.start">Добавить и проверить</button>
+        </div>
+    </div>
+</div>
+
+<div id="channelCloneModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('channelCloneModal')">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="channelCloneTitle">
+        <h3 id="channelCloneTitle" data-i18n="channels.clone_title">📋 Скопировать настройки с другого канала</h3>
+        <p class="text-sm text-muted mb-3" data-i18n="channels.clone_hint">Перенести правила модерации, запрещённые и разрешённые темы в текущий канал.</p>
+        <div class="form-group mb-3">
+            <label class="text-sm text-muted mb-1 block" for="channelCloneFromSelect" data-i18n="channels.clone_from">Откуда скопировать</label>
+            <select id="channelCloneFromSelect" class="input w-full"></select>
+        </div>
+        <div class="space-y-2 mb-4">
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" id="channelCloneRules" checked>
+                <span data-i18n="channels.clone_rules">🛡 База правил модерации</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" id="channelCloneBans" checked>
+                <span data-i18n="channels.clone_bans">🚫 Запретные темы канала</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" id="channelCloneAllowed" checked>
+                <span data-i18n="channels.clone_allowed">✅ Разрешённые темы канала</span>
+            </label>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('channelCloneModal')" data-i18n="btn.cancel">Отмена</button>
+            <button class="btn btn-primary" id="channelCloneSubmitBtn" onclick="submitChannelClone()" data-i18n="channels.clone_submit">Скопировать</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно: Автоматизация и управление флотом канала (#1-#8) -->
+<div id="channelFleetModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('channelFleetModal')">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="channelFleetModalTitle" style="max-width:580px">
+        <h3 id="channelFleetModalTitle">⚡ Автоматизация и запуск: <span id="fleetModalChannelName" class="text-accent"></span></h3>
+        <p class="text-xs text-muted mb-3">Автозапуск по онлайну, квоты с приоритетом активных, подгонка под зрителей и задержки против детекта.</p>
+
+        <div class="card p-3 mb-3" style="background:var(--bg-secondary,rgba(0,0,0,0.15)); border:1px solid var(--border);">
+            <div class="font-semibold text-sm mb-2">🔴 Авто-триггер по онлайну стрима (Live Trigger)</div>
+            <div class="flex gap-4 flex-wrap">
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" id="fleetAutoStartLive">
+                    <span>Авто-старт при выходе в эфир</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" id="fleetAutoStopOffline">
+                    <span>Авто-стоп при завершении эфира</span>
+                </label>
+            </div>
+            <div class="text-xs text-muted mt-1">Фоновый мониторинг проверяет Twitch и автоматически активирует привязанных к каналу ботов.</div>
+        </div>
+
+        <div class="card p-3 mb-3" style="background:var(--bg-secondary,rgba(0,0,0,0.15)); border:1px solid var(--border);">
+            <div class="font-semibold text-sm mb-2">🎯 Квота и отбор ботов (Квота)</div>
+            <div class="grid grid-cols-2 gap-3 mb-2">
+                <div>
+                    <label class="text-xs text-muted block mb-1" for="fleetBotLimit">Лимит ботов (0 = все)</label>
+                    <input type="number" id="fleetBotLimit" class="input w-full" min="0" max="1000" value="0">
+                </div>
+                <div>
+                    <label class="text-xs text-muted block mb-1" for="fleetSelectionMode">Приоритет выбора</label>
+                    <select id="fleetSelectionMode" class="input w-full">
+                        <option value="active_first">🌟 Самые активные (Chatter + контакт)</option>
+                        <option value="random">🎲 Случайный выбор</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Q39 Подгонка под зрителей -->
+            <div class="mt-2 pt-2" style="border-top:1px dashed var(--border)">
+                <label class="flex items-center gap-2 text-sm cursor-pointer mb-1">
+                    <input type="checkbox" id="fleetScaleWithViewers">
+                    <span>👥 Подгонять число ботов под зрителей (Q39)</span>
+                </label>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs text-muted">Процент от текущего онлайна:</span>
+                    <input type="number" id="fleetViewerRatioPercent" class="input" style="width:90px" min="1" max="100" step="0.5" value="10">
+                    <span class="text-xs text-muted">% (например, 10% от 50 зрителей = 5 ботов)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-3 mb-3" style="background:var(--bg-secondary,rgba(0,0,0,0.15)); border:1px solid var(--border);">
+            <div class="font-semibold text-sm mb-2">⏳ Антидетект и человечные тайминги (Q36, Stagger)</div>
+            <div class="grid grid-cols-2 gap-3 mb-2">
+                <div>
+                    <label class="text-xs text-muted block mb-1">Плавный вход ботов (сек)</label>
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="fleetStaggerMin" class="input w-full" min="0" step="0.5" value="1.5" title="Мин. пауза перед заходом следующего бота">
+                        <span>—</span>
+                        <input type="number" id="fleetStaggerMax" class="input w-full" min="0" step="0.5" value="4.0" title="Макс. пауза перед заходом следующего бота">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs text-muted block mb-1">Джиттер сообщений Q36 (сек)</label>
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="fleetJitterMin" class="input w-full" min="0" step="0.5" value="1.0" title="Случайная задержка перед отправкой сообщения">
+                        <span>—</span>
+                        <input type="number" id="fleetJitterMax" class="input w-full" min="0" step="0.5" value="5.0" title="Максимальная задержка">
+                    </div>
+                </div>
+            </div>
+            <div class="text-xs text-muted">Случайная задержка делает общение естественным и исключает одновременную отправку сообщений пачкой ботов.</div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('channelFleetModal')">Отмена</button>
+            <button class="btn btn-primary" id="fleetModalSaveBtn" onclick="saveChannelFleetModal()">💾 Сохранить настройки</button>
+        </div>
+    </div>
+</div>

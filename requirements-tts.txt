@@ -1,0 +1,7 @@
+# Optional local voice cloning. The application still works with Piper/Web Speech
+# when this package cannot be installed on the current Python/OS.
+TTS>=0.22.0
+
+# NOTE: Coqui TTS поддерживает только Python 3.9-3.11.
+# На Python 3.12+ этот файл НЕ ставится — start.sh пропустит его автоматически
+# и предложит F5-TTS (./start.sh --f5), который работает на 3.10+.

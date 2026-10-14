@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden;font-family:'Segoe UI',sans-serif;color:#fff}
+.sr-wrap{padding:16px;max-width:380px}
+.sr-title-hdr{font-size:13px;font-weight:700;color:rgba(200,200,220,.6);
+  text-transform:uppercase;letter-spacing:3px;margin-bottom:10px}
+.sr-now{background:rgba(18,18,30,var(--widget-opacity,.9));border:1px solid rgba(0,255,180,.35);
+  border-radius:10px;padding:12px 16px;margin-bottom:8px;
+  box-shadow:0 0 15px rgba(0,255,180,.15)}
+.sr-now .label{font-size:10px;color:rgba(0,255,180,.7);text-transform:uppercase;letter-spacing:2px}
+.sr-now .song{font-size:18px;font-weight:800;margin-top:2px;
+  background:linear-gradient(90deg,#fff,#00ffb4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sr-now .by{font-size:11px;color:rgba(200,200,220,.5);margin-top:2px}
+.sr-queue-item{background:rgba(18,18,30,var(--widget-opacity,.75));border:1px solid rgba(100,100,140,.2);
+  border-radius:8px;padding:8px 14px;margin-bottom:4px;
+  display:flex;align-items:center;gap:10px;
+  animation:srSlideIn .4s ease;opacity:0;animation-fill-mode:forwards}
+@keyframes srSlideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.sr-queue-item .num{font-size:13px;font-weight:700;color:rgba(0,255,180,.5);min-width:18px}
+.sr-queue-item .info{flex:1;overflow:hidden}
+.sr-queue-item .song-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-queue-item .song-by{font-size:10px;color:rgba(200,200,220,.4)}
+.sr-empty{font-size:13px;color:rgba(200,200,220,.3);text-align:center;padding:20px}
+/* theme: purple */
+.theme-purple .sr-now{border-color:rgba(160,100,255,.35);box-shadow:0 0 15px rgba(160,100,255,.15)}
+.theme-purple .sr-now .label{color:rgba(160,100,255,.7)}
+.theme-purple .sr-now .song{background:linear-gradient(90deg,#fff,#a064ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.theme-purple .sr-queue-item .num{color:rgba(160,100,255,.5)}
+/* theme: fire */
+.theme-fire .sr-now{border-color:rgba(255,120,50,.35);box-shadow:0 0 15px rgba(255,120,50,.15)}
+.theme-fire .sr-now .label{color:rgba(255,150,50,.7)}
+.theme-fire .sr-now .song{background:linear-gradient(90deg,#fff,#ff7832);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.theme-fire .sr-queue-item .num{color:rgba(255,150,50,.5)}
+/* theme: minimal */
+.theme-minimal .sr-now{border-color:rgba(200,200,200,.2);box-shadow:none}
+.theme-minimal .sr-now .label{color:rgba(200,200,200,.5)}
+.theme-minimal .sr-now .song{background:none;-webkit-text-fill-color:#fff}
+.theme-minimal .sr-queue-item .num{color:rgba(200,200,200,.4)}
+[data-widget-theme] .sr-now.widget-theme-surface,
+[data-widget-theme] .sr-queue-item.widget-theme-surface{
+  background:color-mix(in srgb,var(--widget-theme-surface) var(--widget-opacity-percent,100%),transparent);
+  border-color:var(--widget-theme-border);color:var(--widget-theme-text)}
+[data-widget-theme] .sr-now .widget-theme-text,
+[data-widget-theme] .sr-queue-item .widget-theme-text{
+  color:var(--widget-theme-text);background:none;-webkit-text-fill-color:currentColor}
+[data-widget-theme] .sr-now .widget-theme-accent,
+[data-widget-theme] .sr-queue-item .widget-theme-accent{color:var(--widget-theme-accent)}
+</style>
+</head><body>
+<div class="sr-wrap" id="wrap">
+  <div class="sr-title-hdr widget-theme-muted" data-widget-i18n="song-request.title"></div>
+  <div id="nowPlaying"></div>
+  <div id="queue" aria-live="polite"></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "song-request.title": "🎵 Заказ музыки",
+    "song-request.now": "Сейчас играет",
+    "song-request.requested": "Запросил: {name}",
+    "song-request.empty": "Очередь пуста",
+    "song-request.demo_track": "Демо-исполнитель — Пример трека",
+    "song-request.demo_second": "Второй трек в очереди",
+    "song-request.demo_third": "Третий трек в очереди"
+  },
+  "en": {
+    "song-request.title": "🎵 Song requests",
+    "song-request.now": "Now playing",
+    "song-request.requested": "Requested by: {name}",
+    "song-request.empty": "Queue is empty",
+    "song-request.demo_track": "Demo artist — Preview track",
+    "song-request.demo_second": "Second track in queue",
+    "song-request.demo_third": "Third track in queue"
+  },
+  "ua": {
+    "song-request.title": "🎵 Замовлення музики",
+    "song-request.now": "Зараз грає",
+    "song-request.requested": "Замовив: {name}",
+    "song-request.empty": "Черга порожня",
+    "song-request.demo_track": "Демо-виконавець — Приклад треку",
+    "song-request.demo_second": "Другий трек у черзі",
+    "song-request.demo_third": "Третій трек у черзі"
+  }
+});
+WidgetI18n.apply();
+document.getElementById('queue').textContent=WidgetI18n.t('common.loading');
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const nowEl=document.getElementById('nowPlaying');
+const queueEl=document.getElementById('queue');
+const wrap=document.getElementById('wrap');
+let lastNpId=null;let lastQueueIds=null;
+
+function esc(s){return String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function renderNow(np){
+  if(!np){nowEl.innerHTML='';return}
+  nowEl.innerHTML=`<div class="sr-now widget-theme-surface">
+    <div class="label widget-theme-accent">${esc(WidgetI18n.t('song-request.now'))}</div>
+    <div class="song widget-theme-text">${esc(np.title)}</div>
+    ${np.requested_by?`<div class="by widget-theme-muted">${esc(WidgetI18n.t('song-request.requested',{name:np.requested_by}))}</div>`:''}
+  </div>`;
+}
+
+function renderQueue(items){
+  if(!items||!items.length){queueEl.innerHTML='<div class="sr-empty widget-theme-muted">'+esc(WidgetI18n.t('song-request.empty'))+'</div>';return}
+  queueEl.innerHTML=items.map((s,i)=>`<div class="sr-queue-item widget-theme-surface" style="animation-delay:${i*0.08}s">
+    <div class="num widget-theme-accent">${i+1}</div>
+    <div class="info">
+      <div class="song-name widget-theme-text">${esc(s.title)}</div>
+      ${s.requested_by?`<div class="song-by widget-theme-muted">${esc(s.requested_by)}</div>`:''}
+    </div>
+  </div>`).join('');
+}
+
+async function poll(){
+  try{
+    const qs=new URLSearchParams(location.search);const scope=new URLSearchParams();
+    if(qs.get('account_id'))scope.set('account_id',qs.get('account_id'));
+    if(qs.get('channel'))scope.set('channel',qs.get('channel'));
+    scope.set('t',String(Date.now()));
+    const r=await fetch(_WIDGET_API_BASE + '/api/widgets/public/song-request?'+scope);
+    if(!r.ok){
+      wrap.style.display='';
+      nowEl.innerHTML='';
+      lastNpId=null;lastQueueIds=null;
+      queueEl.innerHTML='<div class="sr-empty widget-theme-muted">'+esc(WidgetI18n.t('common.unavailable_http',{status:r.status}))+'</div>';
+      return;
+    }
+    const d=await r.json();
+    if(!d.visible){wrap.style.display='none';return}
+    wrap.style.display='';
+    wrap.className='sr-wrap theme-'+(d.theme||'neon');
+    const npId=d.now_playing?d.now_playing.id:0;
+    const qIds=(d.queue||[]).map(s=>s.id).join(',');
+    if(npId!==lastNpId){lastNpId=npId;renderNow(d.now_playing)}
+    if(qIds!==lastQueueIds){lastQueueIds=qIds;renderQueue(d.queue)}
+  }catch(e){
+    wrap.style.display='';
+    nowEl.innerHTML='';
+    lastNpId=null;lastQueueIds=null;
+    queueEl.innerHTML='<div class="sr-empty widget-theme-muted">'+esc(WidgetI18n.t('common.disconnected'))+'</div>';
+  }
+}
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  document.body.style.background='#0f0f1a';
+  wrap.className='sr-wrap theme-neon';
+  renderNow({id:1,title:WidgetI18n.t('song-request.demo_track'),requested_by:'DemoViewer'});
+  renderQueue([
+    {id:2,title:WidgetI18n.t('song-request.demo_second'),requested_by:'Chatter42'},
+    {id:3,title:WidgetI18n.t('song-request.demo_third'),requested_by:'NightOwl'},
+  ]);
+}else{
+  poll();setInterval(poll,2000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

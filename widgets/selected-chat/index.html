@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+<meta charset="UTF-8"><meta name="color-scheme" content="dark"><title data-widget-i18n="selected-chat.title"></title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:transparent;overflow:hidden;padding:12px;font-family:'Segoe UI',system-ui,sans-serif}
+#selectedChat{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;min-width:260px;max-width:720px}
+.chat-message{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:12px;
+  background:rgba(15,15,25,var(--widget-opacity,.88));border:1px solid rgba(255,255,255,.12);
+  color:#f4f4f8;line-height:1.35;overflow-wrap:anywhere;animation:chatIn .25s ease}
+.chat-author{font-weight:750;white-space:nowrap;color:#67e8f9}
+.chat-message-text{min-width:0}
+.chat-emote{display:inline-block;object-fit:contain;vertical-align:middle;margin:0 2px}
+.chat-badge{font-size:10px;line-height:1;padding:3px 4px;border-radius:4px;background:#7c3aed;color:#fff;text-transform:uppercase}
+.chat-message-out{opacity:0;transform:translateY(-8px);transition:opacity .3s ease,transform .3s ease}
+.chat-state{align-self:flex-start;padding:6px 9px;border-radius:7px;background:rgba(15,15,25,.82);color:#a5b4c7;font-size:12px}
+.chat-state[hidden]{display:none}
+@keyframes chatIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+</style></head><body>
+<div id="selectedChat" class="widget-theme-text"><div id="chatState" class="chat-state" aria-live="polite"></div></div>
+<script src="/widget/_shared/chat-message-core.js?v=1"></script>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "selected-chat.title": "Выбранный чат",
+    "selected-chat.empty": "Нет выбранных сообщений",
+    "selected-chat.history_error": "История выбранного чата недоступна",
+    "selected-chat.demo_moderator": "Модератор",
+    "selected-chat.demo_friend": "Друг",
+    "selected-chat.demo_people": "Этот чат показывает только выбранных людей",
+    "selected-chat.demo_emotes": "Kappa: смайлы Twitch отображаются прямо в OBS"
+  },
+  "en": {
+    "selected-chat.title": "Selected chat",
+    "selected-chat.empty": "No selected messages",
+    "selected-chat.history_error": "Selected chat history is unavailable",
+    "selected-chat.demo_moderator": "Moderator",
+    "selected-chat.demo_friend": "Friend",
+    "selected-chat.demo_people": "This chat shows only selected people",
+    "selected-chat.demo_emotes": "Kappa: Twitch emotes appear right in OBS"
+  },
+  "ua": {
+    "selected-chat.title": "Вибраний чат",
+    "selected-chat.empty": "Немає вибраних повідомлень",
+    "selected-chat.history_error": "Історія вибраного чату недоступна",
+    "selected-chat.demo_moderator": "Модератор",
+    "selected-chat.demo_friend": "Друг",
+    "selected-chat.demo_people": "Цей чат показує лише вибраних людей",
+    "selected-chat.demo_emotes": "Kappa: смайли Twitch відображаються просто в OBS"
+  }
+});
+WidgetI18n.apply();
+document.getElementById('chatState').textContent=WidgetI18n.t('selected-chat.empty');
+
+(async function(){
+  const query=new URLSearchParams(location.search);
+  const preview=query.get('preview')==='1';
+  const channel=(query.get('channel')||'').trim().toLowerCase().replace(/^#/, '');
+  const accountId=Number(query.get('account_id'))||0;
+  const settings=await ChatMessageCore.loadSettings('selected-chat',{
+    max_messages:8,lifetime_sec:30,font_size:24,emote_size:32,show_badges:1,
+    history_limit:8,history_minutes:30
+  });
+  const container=document.getElementById('selectedChat');
+  const state=document.getElementById('chatState');
+  const emotes=preview?{Kappa:'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32"%3E%3Crect width="32" height="32" rx="8" fill="%237c3aed"/%3E%3Ctext x="6" y="22" fill="white"%3EK%3C/text%3E%3C/svg%3E'}:await ChatMessageCore.loadEmotes(channel);
+  const list=ChatMessageCore.createList({container,settings,emotes});
+  function add(message){state.hidden=true;list.add(message)}
+  if(preview){
+    document.body.style.background='#0f0f1a';
+    add({author:WidgetI18n.t('selected-chat.demo_moderator'),message:WidgetI18n.t('selected-chat.demo_people'),badges:['MOD']});
+    add({author:WidgetI18n.t('selected-chat.demo_friend'),message:WidgetI18n.t('selected-chat.demo_emotes')});
+    return;
+  }
+  if(settings.history_limit>0){
+    const params=new URLSearchParams({limit:String(settings.history_limit),minutes:String(settings.history_minutes)});
+    if(channel)params.set('channel',channel);if(accountId)params.set('account_id',String(accountId));
+    try{
+      const response=await fetch(ChatMessageCore.apiBase()+'/api/widgets/public/chat/selected-history?'+params);
+      if(response.ok)(await response.json()).messages.forEach(add);
+      else state.textContent=WidgetI18n.t('selected-chat.history_error');
+    }catch(e){state.textContent=WidgetI18n.t('selected-chat.history_error')}
+  }
+  function connect(){
+    const base=ChatMessageCore.apiBase();
+    const host=base?base.replace(/^\w+:\/\//,'').replace(/\/$/,''):location.host;
+    const socket=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+host+'/ws?channel='+encodeURIComponent(channel));
+    socket.onmessage=event=>{
+      let message;try{message=JSON.parse(event.data)}catch(e){return}
+      if(message.type!=='chat'||message.trusted!==true)return;
+      if(accountId&&Number(message.account_id)!==accountId)return;
+      add(message);
+    };
+    socket.onopen=()=>{if(container.children.length===1){state.hidden=false;state.textContent=WidgetI18n.t('selected-chat.empty')}};
+    socket.onclose=()=>{state.hidden=false;state.textContent=WidgetI18n.t('common.disconnected');setTimeout(connect,3000)};
+    socket.onerror=()=>socket.close();
+  }
+  connect();
+})();
+</script></body></html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}
+.roulette-wrap{position:relative;width:340px;height:340px}
+.wheel{width:300px;height:300px;border-radius:50%;position:relative;margin:20px auto;
+  border:4px solid rgba(145,100,255,.5);
+  box-shadow:0 0 30px rgba(100,70,255,.4),inset 0 0 20px rgba(0,0,0,.4);
+  background:conic-gradient(
+    rgba(45,27,105,var(--widget-opacity,1)) 0deg, rgba(27,17,64,var(--widget-opacity,1)) 30deg, rgba(45,27,105,var(--widget-opacity,1)) 60deg, rgba(27,17,64,var(--widget-opacity,1)) 90deg,
+    rgba(45,27,105,var(--widget-opacity,1)) 120deg, rgba(27,17,64,var(--widget-opacity,1)) 150deg, rgba(45,27,105,var(--widget-opacity,1)) 180deg, rgba(27,17,64,var(--widget-opacity,1)) 210deg,
+    rgba(45,27,105,var(--widget-opacity,1)) 240deg, rgba(27,17,64,var(--widget-opacity,1)) 270deg, rgba(45,27,105,var(--widget-opacity,1)) 300deg, rgba(27,17,64,var(--widget-opacity,1)) 330deg, rgba(45,27,105,var(--widget-opacity,1)) 360deg
+  );
+  transition:transform cubic-bezier(.17,.67,.12,.99);
+  display:flex;align-items:center;justify-content:center;
+}
+.wheel.spinning{transition-duration:0s}
+.pointer{position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;
+  border-top:28px solid #ff4466;filter:drop-shadow(0 2px 6px rgba(255,50,80,.6));z-index:10}
+.names{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.name-label{position:absolute;font-size:11px;font-weight:700;color:#e8e8f0;
+  text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap;
+  transform-origin:center center}
+.winner-box{position:absolute;bottom:-60px;left:50%;transform:translateX(-50%);
+  background:rgba(18,18,30,var(--widget-opacity,.92));border:2px solid rgba(255,200,50,.5);
+  border-radius:12px;padding:10px 24px;text-align:center;min-width:200px;
+  box-shadow:0 0 20px rgba(255,200,50,.3);opacity:0;transition:opacity .5s}
+.winner-box.show{opacity:1}
+.winner-box .lbl{font-size:11px;color:rgba(255,200,50,.8);text-transform:uppercase;letter-spacing:2px}
+.winner-box .nick{font-size:22px;font-weight:800;color:#fff;margin-top:2px}
+.idle-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:14px;color:rgba(200,200,220,.5);text-align:center;pointer-events:none}
+[data-widget-theme] .wheel{
+  border-color:var(--widget-theme-border);
+  background:repeating-conic-gradient(var(--widget-theme-surface) 0deg 30deg,color-mix(in srgb,var(--widget-theme-accent) 28%,var(--widget-theme-surface)) 30deg 60deg)}
+</style>
+</head><body>
+<div class="roulette-wrap">
+  <div class="pointer"></div>
+  <div class="wheel" id="wheel">
+    <div class="names" id="names"></div>
+    <div class="idle-msg" id="idle">🎰<br><span data-widget-i18n="common.waiting">Ожидание…</span></div>
+  </div>
+  <div class="winner-box widget-theme-surface" id="winBox">
+    <div class="lbl widget-theme-accent" data-widget-i18n="chat-roulette.winner">Победитель</div>
+    <div class="nick widget-theme-text" id="winNick"></div>
+  </div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "chat-roulette.winner": "Победитель",
+    "chat-roulette.few": "Мало участников (нужно ≥2)"
+  },
+  "en": {
+    "chat-roulette.winner": "Winner",
+    "chat-roulette.few": "Not enough participants (need ≥2)"
+  },
+  "ua": {
+    "chat-roulette.winner": "Переможець",
+    "chat-roulette.few": "Замало учасників (потрібно ≥2)"
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+const query=new URLSearchParams(location.search);
+const scope=new URLSearchParams();
+if(query.get('account_id'))scope.set('account_id',query.get('account_id'));
+if(query.get('channel'))scope.set('channel',query.get('channel'));
+const scopeQuery=scope.toString()?'?'+scope.toString()+'&':'?';
+
+const wheel=document.getElementById('wheel');
+const namesEl=document.getElementById('names');
+const idle=document.getElementById('idle');
+const winBox=document.getElementById('winBox');
+const winNick=document.getElementById('winNick');
+let lastWinner='';let spinning=false;
+
+function renderNames(participants){
+  namesEl.innerHTML='';
+  if(!participants||!participants.length){idle.style.display='';idle.innerHTML='🎰<br>'+wt('common.waiting');return}
+  if(participants.length<2){
+    // Крутить рулетку на одном зрителе нечестно — говорим об этом прямо.
+    idle.style.display='';idle.innerHTML='🎰<br>'+wt('chat-roulette.few');
+    return;
+  }
+  idle.style.display='none';
+  const n=participants.length;
+  const r=120;
+  participants.forEach((name,i)=>{
+    const angle=(360/n)*i - 90;
+    const rad=angle*Math.PI/180;
+    const x=150+r*Math.cos(rad);
+    const y=150+r*Math.sin(rad);
+    const el=document.createElement('div');
+    el.className='name-label widget-theme-text';
+    el.textContent=name.length>12?name.slice(0,11)+'…':name;
+    el.style.left=x+'px';el.style.top=y+'px';
+    el.style.transform=`translate(-50%,-50%) rotate(${angle+90}deg)`;
+    namesEl.appendChild(el);
+  });
+}
+
+function spinWheel(participants,winner,duration){
+  if(spinning)return;spinning=true;
+  const idx=participants.indexOf(winner);
+  const n=participants.length;
+  const sliceAngle=360/n;
+  const targetAngle=360-((idx*sliceAngle)+sliceAngle/2);
+  const totalSpin=360*6+targetAngle;
+  wheel.style.transitionDuration='0s';
+  wheel.style.transform='rotate(0deg)';
+  winBox.classList.remove('show');
+  requestAnimationFrame(()=>{requestAnimationFrame(()=>{
+    wheel.style.transitionDuration=(duration||5)+'s';
+    wheel.style.transform='rotate('+totalSpin+'deg)';
+    setTimeout(()=>{
+      winNick.textContent=winner;
+      winBox.classList.add('show');
+      spinning=false;
+    },(duration||5)*1000+200);
+  })});
+}
+
+async function poll(){
+  try{
+    const r=await fetch(_WIDGET_API_BASE + '/api/widgets/public/chat-roulette'+scopeQuery+'t='+Date.now());
+    if(!r.ok){document.body.style.display='none';return}
+    const d=await r.json();
+    if(!d.visible){document.body.style.display='none';return}
+    document.body.style.display='flex';
+    const parts=d.participants||[];
+    renderNames(parts);
+    if(d.winner&&d.winner!==lastWinner){
+      lastWinner=d.winner;
+      spinWheel(parts,d.winner,d.spin_duration_sec||5);
+    }
+  }catch(e){document.body.style.display='none'}
+}
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  document.body.style.background='#0f0f1a';
+  renderNames(['DemoViewer','Chatter42','NightOwl','PixelFox','SubZero','Lurker']);
+  winNick.textContent='PixelFox';
+  winBox.classList.add('show');
+}else{
+  poll();setInterval(poll,2500);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

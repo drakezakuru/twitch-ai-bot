@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>Moderator TTS</title>
+    <link rel="stylesheet" href="/static/app.css?v=1.0.1">
+    <link rel="stylesheet" href="/static/moderator-console.css?v=1.0.0">
+</head>
+<body class="mc-body">
+    <main class="mc-shell">
+        <header class="mc-header">
+            <div><p class="mc-eyebrow">TWITCH MODERATOR</p><h1 data-mc-i18n="title">Moderator TTS</h1></div>
+            <div class="flex gap-1"><button class="btn btn-sm btn-secondary" data-lang="ru">RU</button><button class="btn btn-sm btn-secondary" data-lang="en">EN</button><button class="btn btn-sm btn-secondary" data-lang="ua">UA</button></div>
+        </header>
+
+        <section id="mcLogin" class="card mc-login">
+            <h2 data-mc-i18n="login_title">Вход через Twitch</h2>
+            <p class="text-muted mt-2" data-mc-i18n="login_hint">Одноразовая ссылка привязывает вход к выданному владельцем доступу.</p>
+            <button id="mcLoginButton" class="btn btn-primary mt-4" data-mc-i18n="login_button">Войти через Twitch</button>
+            <div id="mcDevice" class="mc-device hidden mt-4">
+                <p data-mc-i18n="device_hint">Откройте Twitch и введите код:</p>
+                <strong id="mcUserCode" class="mc-code"></strong>
+                <a id="mcActivate" class="btn btn-secondary" target="_blank" rel="noopener noreferrer" data-mc-i18n="device_open">Открыть Twitch</a>
+            </div>
+            <p id="mcLoginStatus" class="text-sm mt-3"></p>
+        </section>
+
+        <section id="mcConsole" class="hidden">
+            <div class="mc-context card">
+                <div><span class="text-xs text-muted" data-mc-i18n="channel">Канал</span><h2 id="mcChannel"></h2></div>
+                <div><span class="text-xs text-muted" data-mc-i18n="session">Сессия</span><div id="mcSession" class="text-sm"></div></div>
+            </div>
+            <div id="mcPolicyWarning" class="card mc-warning hidden"></div>
+            <nav class="mc-tabs mb-3" aria-label="Moderator console">
+                <button class="btn btn-primary" data-mc-tab="tts" data-mc-i18n="tab_tts">TTS</button>
+                <button class="btn btn-secondary" data-mc-tab="media" data-mc-i18n="tab_media">GIF / медиа</button>
+                <button class="btn btn-secondary" data-mc-tab="sounds" data-mc-i18n="tab_sounds">Звуки</button>
+            </nav>
+            <div id="mcPanelTts" class="mc-grid" data-mc-panel="tts">
+                <section class="card">
+                    <h3 data-mc-i18n="message">Сообщение</h3>
+                    <textarea id="mcText" class="input mc-text" rows="6" data-mc-i18n-placeholder="message_ph" placeholder="Текст для озвучки"></textarea>
+                    <div class="flex justify-between text-xs text-muted mt-1"><span id="mcLimit"></span><span id="mcCount">0</span></div>
+                    <h3 class="mt-4" data-mc-i18n="voice">Голос</h3>
+                    <div id="mcVoices" class="mc-voices mt-2"></div>
+                    <button id="mcSend" class="btn btn-primary mc-send mt-4" data-mc-i18n="send">Отправить в очередь</button>
+                    <p id="mcSendStatus" class="text-sm mt-2"></p>
+                </section>
+                <section class="card">
+                    <div class="flex justify-between items-center"><h3 data-mc-i18n="queue">Моя очередь</h3><button id="mcRefresh" class="btn btn-sm btn-secondary" data-mc-i18n="refresh">Обновить</button></div>
+                    <p class="text-xs text-muted mt-1" data-mc-i18n="queue_hint">Accepted означает приём в audio queue, а не подтверждённое воспроизведение в OBS.</p>
+                    <div id="mcCommands" class="mc-commands mt-3"></div>
+                </section>
+            </div>
+            <section id="mcPanelMedia" class="card hidden" data-mc-panel="media">
+                <div class="flex justify-between items-center gap-2 flex-wrap"><div><h3 data-mc-i18n="media_title">GIF и медиа</h3><p class="text-xs text-muted" data-mc-i18n="media_hint">Только одобренная владельцем библиотека этого канала.</p></div><button class="btn btn-secondary btn-sm" data-mc-reload="media" data-mc-i18n="refresh">Обновить</button></div>
+                <div class="flex gap-2 mt-3 flex-wrap"><input id="mcMediaSearch" class="input flex-1" data-mc-i18n-placeholder="search" placeholder="Поиск"><label id="mcMediaUploadLabel" class="btn btn-secondary btn-sm hidden"><span data-mc-i18n="upload_media">Загрузить на проверку</span><input id="mcMediaUpload" class="hidden" type="file" accept="image/png,image/gif,image/webp,video/mp4,video/webm"></label></div>
+                <p id="mcMediaStatus" class="text-sm mt-2"></p><div id="mcMediaItems" class="mc-library mt-3"></div>
+            </section>
+            <section id="mcPanelSounds" class="card hidden" data-mc-panel="sounds">
+                <div class="flex justify-between items-center gap-2 flex-wrap"><div><h3 data-mc-i18n="sounds_title">Звуки</h3><p class="text-xs text-muted" data-mc-i18n="sounds_hint">Звук запускается в exact-scoped OBS Soundboard, а не в этой консоли.</p></div><div class="flex gap-2"><button class="btn btn-danger btn-sm" data-mc-stop="sounds" data-mc-i18n="stop_sound">Stop</button><button class="btn btn-secondary btn-sm" data-mc-reload="sounds" data-mc-i18n="refresh">Обновить</button></div></div>
+                <input id="mcSoundSearch" class="input mt-3" data-mc-i18n-placeholder="search" placeholder="Поиск">
+                <p id="mcSoundStatus" class="text-sm mt-2"></p><div id="mcSoundItems" class="mc-library mt-3"></div>
+            </section>
+        </section>
+        <dialog id="mcPreviewDialog" class="card mc-preview"><button id="mcPreviewClose" class="btn btn-secondary btn-sm mc-preview-close" data-mc-i18n="close">Закрыть</button><div id="mcPreviewBody"></div></dialog>
+    </main>
+    <script src="/static/moderator-console.js?v=1.0.0"></script>
+</body>
+</html>

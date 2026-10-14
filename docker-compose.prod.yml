@@ -1,0 +1,67 @@
+# OPS_PLAN §5 — production-профиль: healthcheck, restart policy, volume для data/,
+# лимиты памяти. Отдельный файл, чтобы dev-состав (docker-compose.yml) не менять.
+#
+# Запуск:  docker compose -f docker-compose.prod.yml up -d
+# С Ollama (tools-профиль): docker compose --profile tools -f docker-compose.prod.yml up -d
+#
+# Перед запуском: cp .env.example .env && отредактировать ключи.
+
+services:
+  bot:
+    build: .
+    container_name: twitch-ai-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      # Персистентное состояние: БД, per-bot папки, логи, бэкапы
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./widgets:/app/widgets:ro
+    healthcheck:
+      # Дублирует Dockerfile HEALTHCHECK — явная настройка для prod
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          # Whisper/TTS/батчинг держим в разумных рамках; при OOM поднимите
+          memory: 4g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Локальный AI-провайдер: включается профилем tools (--profile tools)
+  ollama:
+    image: ollama/ollama:0.33.3@sha256:32931b46719f673c05fdbaa81ccb26da18ea4a1c57590a754874ab28ba269eb2
+    container_name: ollama
+    profiles: ["tools"]
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # GPU (NVIDIA) — раскомментируйте:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  ollama_data:

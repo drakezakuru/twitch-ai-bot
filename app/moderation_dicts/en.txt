@@ -1,0 +1,74 @@
+# Built-in moderation dictionary: English (MODERATION_PLAN §1).
+# Line format: category|severity|pattern — a word/stem or "re:..." regex.
+# Matching is prefix-based: stem "retard" catches "retarded" too.
+# Categories: insult / hate / threat / sexual / spam. Severity 1-5:
+#   1-2 -> replace (mask), 3 -> block, 4-5 -> block (+ timeout if §3.4 enabled).
+# Lines starting with # are comments.
+
+# --- Insults ---
+insult|2|idiot
+insult|2|moron
+insult|2|loser
+insult|2|dumb
+insult|2|stupid
+insult|2|trash
+insult|2|noob
+insult|2|clown
+insult|2|pathetic
+insult|3|retard
+insult|3|imbecile
+insult|3|scum
+insult|3|trash human
+insult|3|piece of shit
+insult|2|shut up
+
+# --- Hate ---
+hate|4|nigger
+hate|4|nigga
+hate|4|faggot
+hate|4|fag
+hate|4|tranny
+hate|4|kike
+hate|4|spic
+hate|4|chink
+hate|4|wetback
+hate|3|nazi
+hate|4|heil hitler
+hate|4|white power
+hate|3|gas the
+
+# --- Threats (always logged even when action=block) ---
+threat|5|kys
+threat|5|re:\bswat(ting)?\b
+threat|5|i will kill you
+threat|5|kill yourself
+threat|5|ill kill you
+threat|5|i'll kill you
+threat|5|im going to kill
+threat|5|i know where you live
+threat|5|find you
+threat|5|rape you
+threat|5|shoot you
+threat|5|stab you
+threat|5|burn your house
+threat|4|beat you up
+threat|4|hurt you
+threat|5|dox
+threat|5|doxx
+
+# --- Sexual ---
+sexual|4|fuck
+sexual|4|fuk
+sexual|4|phuck
+sexual|3|bitch
+sexual|3|shit
+sexual|3|cunt
+sexual|4|dick
+sexual|4|cock
+sexual|3|asshole
+sexual|3|whore
+sexual|3|slut
+sexual|4|rape
+sexual|4|cum
+sexual|3|wanker
+sexual|3|bollocks

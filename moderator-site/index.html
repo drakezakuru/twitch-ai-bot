@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Moderator Site</title>
+  </head>
+  <body>
+    <style>
+      /* MOD-23: desktop/tablet/mobile structure */
+      .mod-header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .mod-header nav { display: flex; gap: 12px; }
+      @media (max-width: 640px) {
+        .mod-header { flex-direction: column; align-items: stretch; }
+        .mod-header nav { flex-direction: column; gap: 4px; }
+        .mod-library, .mod-tts, .mod-soundboard { padding: 8px; }
+        .mod-stage { max-width: 100%; }
+      }
+      @media (min-width: 641px) and (max-width: 1024px) {
+        .mod-header nav { gap: 8px; }
+      }
+    </style>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

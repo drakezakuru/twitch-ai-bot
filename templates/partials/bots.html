@@ -1,0 +1,1877 @@
+<!-- ========== BOTS (v12 HEADLINE) ========== -->
+<section id="section-bots" class="section">
+    <div id="botsListView">
+        <div class="section-header">
+            <h1 class="section-title">🤖 <span data-i18n="title.bots">Боты</span></h1>
+            <div class="flex gap-2">
+                <input type="text" id="botsSearch" class="input field-200" data-i18n-placeholder="placeholder.bots_search" placeholder="🔍 Поиск..." oninput="filterBots()" data-i18n-aria-label="placeholder.bots_search" aria-label="Поиск ботов">
+                <select id="botsRoleFilter" class="input compact-select" onchange="filterBots()" data-i18n-aria-label="panel.bots.role_filter" aria-label="Фильтр по роли ботов"></select>
+                <select id="botsChannelFilter" class="input compact-select" onchange="filterBots()" data-i18n-aria-label="panel.bots.channel_filter" aria-label="Фильтр по каналу ботов"></select>
+                <select id="botsStatusFilter" class="input compact-select" onchange="filterBots()" data-i18n-aria-label="panel.bot_status_filter" aria-label="Фильтр статуса ботов"><option value="" data-i18n="label.all_statuses">Все статусы</option><option value="online" data-i18n="label.connected">🟢 Подключено</option><option value="offline" data-i18n="label.disconnected">🔴 Отключено</option></select>
+                <select id="botsHealthFilter" class="input compact-select" onchange="filterBots()" title="Фильтр по здоровью (токен / прокси)"><option value="">🚦 Любое здоровье</option><option value="ok">🟢 Здоровые</option><option value="proxy_error">🟡 Ошибка прокси</option><option value="auth_error">🔴 Ошибка токена</option></select>
+                <select id="botsSort" class="input compact-select" onchange="filterBots()" data-i18n-aria-label="panel.bot_sort" aria-label="Сортировка ботов"><option value="name" data-i18n="sort.name">По имени</option><option value="status" data-i18n="sort.status">По статусу</option></select>
+                <button class="btn btn-secondary btn-sm" onclick="toggleSelectAllBots()" title="Выбрать / снять выбор всех видимых ботов">☑️ Выбрать всех</button>
+                <button class="btn btn-secondary btn-sm" onclick="runFleetHealthCheck()" title="Проверить валидность токенов и прокси всей базы">🚦 Светофор базы</button>
+                <button class="btn btn-secondary btn-sm" onclick="openProxyPoolModal()" title="Общий пул прокси для ботов (авто-замена и закрепление)">🌐 Пул прокси</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleBotCardMode()">▦ <span data-i18n="btn.mode">Режим</span></button>
+                <button class="btn btn-secondary" onclick="showBulkLurkersModal()" data-i18n="bots.bulk.open">📥 Массово люркеры</button>
+                <button class="btn btn-secondary" onclick="showBotPackModal()" data-i18n="bots.packs.create">📦 ➕ Создать пачку</button>
+                <button class="btn btn-secondary btn-sm" onclick="startAllBots()" title="Запустить всех активных ботов">⚡ Запустить всех</button>
+                <button class="btn btn-secondary btn-sm" onclick="stopAllBots()" title="Остановить всех работающих ботов">⏹ Остановить всех</button>
+                <button class="btn btn-primary" onclick="showAddBotModal()" data-i18n="btn.add_bot">+ Добавить бота</button>
+            </div>
+        </div>
+
+        <!-- Bulk actions bar (renders when bots are selected) -->
+        <div id="botsBulkBar" class="mb-3"></div>
+
+        <!-- Q34a: пачки ботов (DEC-OWNER-019) -->
+        <details class="card mb-3" id="botPacksCard">
+            <summary class="card-header" data-i18n="bots.packs.list_title">📦 Пачки ботов</summary>
+            <p class="text-xs text-muted mb-2" data-i18n="bots.packs.list_hint">Сохранённые наборы ботов. Кнопки «Начать/Свернуть стрим» появятся на следующем шаге (Q34b).</p>
+            <div id="botPacksList" class="space-y-2" aria-live="polite"></div>
+        </details>
+
+        <!-- Bot list -->
+        <div id="botsList" aria-live="polite">
+            <div class="card text-muted text-sm p-4" data-i18n="label.loading">Загрузка...</div>
+        </div>
+    </div>
+
+    <!-- Per-bot settings panel (hidden by default) -->
+    <div id="botSettingsPanel" class="hidden">
+        <div class="section-header">
+            <div class="flex items-center gap-2">
+                <button class="btn btn-secondary btn-sm" onclick="closeBotSettings()" data-i18n="btn.back">← Назад</button>
+                <h2 class="section-title" id="botSettingsTitle" data-i18n="settings.title">⚙️ Настройки</h2>
+            </div>
+            <div class="flex gap-2">
+                <button id="botDmChatButton" class="btn btn-secondary btn-sm" onclick="openDmChat()" data-i18n="dm.open_btn">💬 Разговор</button>
+                <button id="botHeaderToggle" class="btn btn-primary btn-sm" onclick="toggleBot()" data-i18n="btn.start">▶ Старт</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteBot()" data-i18n="btn.delete">🗑️ Удалить</button>
+            </div>
+        </div>
+
+
+        <!-- Per-bot tabs (вид вкладок зависит от роли — applyBotRoleVisibility) -->
+        <div class="bot-tabs">
+            <button class="tab-btn active" data-bot-group="overview" data-i18n="tab.overview" onclick="showBotGroup('overview')">📌 Обзор</button>
+            <button class="tab-btn" data-bot-group="brain-x" onclick="showBotGroup('brain-x')" data-i18n="brainx.title">🧠 Мозг бота</button>
+            <button class="tab-btn" data-bot-group="identity" data-i18n="tab.identity" onclick="showBotGroup('identity')">🎭 Характер</button>
+            <button class="tab-btn" data-bot-group="flow" data-i18n="tab.flow" onclick="showBotGroup('flow')">📡 Чат и каналы</button>
+            <button class="tab-btn" data-bot-group="moderation" data-i18n="tab.moderation" onclick="showBotGroup('moderation')">🛡 Модерация</button>
+            <button class="tab-btn" data-bot-group="memory" data-i18n="tab.memory_knowledge" onclick="showBotGroup('memory')">🧠 Память и знания</button>
+            <button class="tab-btn" data-bot-group="voice" data-i18n="tab.voice" onclick="showBotGroup('voice')">🔊 Голос</button>
+            <button class="tab-btn" data-bot-group="advanced" data-i18n="tab.advanced" onclick="showBotGroup('advanced')">⚙️ Дополнительно</button>
+            <button class="tab-btn" data-bot-group="sandbox" onclick="showBotGroup('sandbox')" data-i18n="tab.sandbox">🧪 Песочница</button>
+        </div>
+
+        <!-- P3 PLAN_PANEL_REWORK §1.2/§1.3: Мозг бота X — read-only сводка + промпт-инспектор -->
+        <div id="botTab-brain-x" class="bot-tab hidden">
+            <!-- D (REWORK_PLAN): рубильники «Влияния» — выключенное не попадает в промпт, код не удаляется -->
+            <div class="card mb-4">
+                <div class="card-header"><span class="card-title" data-i18n="influences.title">🎛 Влияния на этого бота</span></div>
+                <p class="text-xs text-muted mb-3" data-i18n="influences.hint">Выключенное влияние просто не попадает в промпт — код и данные остаются.</p>
+                <div class="flex gap-4 flex-wrap items-center">
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="infMimicry" role="switch" tabindex="0" onclick="uiToggle(this, () => saveInfluences())"></div> <span data-i18n="influences.mimicry">Копирка / стиль чатера</span></div>
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="infObservations" role="switch" tabindex="0" onclick="uiToggle(this, () => saveInfluences())"></div> <span data-i18n="influences.observations">Vision-наблюдения стрима</span></div>
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="infLore" role="switch" tabindex="0" onclick="uiToggle(this, () => saveInfluences())"></div> <span data-i18n="influences.lore">Знания о стримере (lore)</span></div>
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="infLearning" role="switch" tabindex="0" onclick="uiToggle(this, () => saveInfluences())"></div> <span data-i18n="influences.learning">Обучение по стриму</span></div>
+                </div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span class="card-title">🧠 <span data-i18n="brainx.title">Мозг бота</span> «<span id="brainxNick">…</span>»</span>
+                    <button class="btn btn-secondary btn-sm" onclick="loadBrainPreview(_currentBotId)"><span data-i18n="btn.refresh">Обновить</span></button>
+                </div>
+                <p class="text-sm text-muted mb-3" data-i18n="brainx.hint">Сводка всего, что влияет на этого бота. Кнопки-переходы открывают нужные разделы — редакторы не дублируются.</p>
+                <div id="brainxSections" class="space-y-2"></div>
+                <div class="flex gap-2 mt-3 flex-wrap">
+                    <button class="btn btn-primary btn-sm" onclick="brainxTogglePrompt()" data-i18n="brainx.show_prompt">📄 Показать промпт</button>
+                    <button class="btn btn-secondary btn-sm" onclick="brainxSnapshot()" data-i18n="brainx.snapshot">💾 Снимок в папку</button>
+                    <button class="btn btn-secondary btn-sm" onclick="showBotGroup('identity')" data-i18n="brainx.go_persona">🎭 Характер</button>
+                    <button class="btn btn-secondary btn-sm" onclick="showBotGroup('memory')" data-i18n="brainx.go_memory">🧠 Память и знания</button>
+                    <button class="btn btn-secondary btn-sm" onclick="showBotGroup('ai')" data-i18n="brainx.go_ai">🧠 AI и TTS</button>
+                </div>
+                <div id="brainxPromptWrap" class="hidden mt-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <b class="text-xs text-muted" data-i18n="brainx.static_note">Статическая часть system prompt (динамические блоки памяти подмешиваются на каждое сообщение)</b>
+                        <button class="btn btn-secondary btn-sm" onclick="brainxCopyPrompt()" data-i18n="brainx.copy">📋 Копировать</button>
+                    </div>
+                    <pre id="brainxPrompt" class="p-3 text-xs" style="white-space:pre-wrap;max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,.15)"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- §6 PLAN_FEEDBACK_3008: вкладка роли — контент меняется по роли -->
+        <!-- Tab: General -->
+        <div id="botTab-general" class="bot-tab">
+            <div class="card mb-4">
+                <div class="card-header"><span class="card-title" data-i18n="bot.general">Основные настройки</span></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="bot.nickname" for="botNick">Никнейм</label>
+                        <input type="text" id="botNick" class="input" placeholder="BotNick">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="bot.status">Статус</label>
+                        <div class="flex items-center gap-3 mt-2">
+                            <div id="botStatusDot" class="bot-card-status offline bot-status-dot-static"></div>
+                            <span id="botStatusText" class="text-sm" data-i18n="label.disconnected" aria-live="polite">Offline</span>
+                            <button id="botToggleBtn" class="btn btn-sm btn-primary" onclick="toggleBot()" data-i18n="btn.start">▶ Старт</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="bot.oauth" for="botToken">OAuth-токен</label>
+                        <input type="password" id="botToken" class="input" data-i18n-placeholder="placeholder.oauth_readonly" placeholder="schmoofie... (не изменять)" oninput="updateManualTokenHint('botToken','botTokenManualHint',Boolean(_currentBot && _currentBot.has_refresh_token))">
+                        <p id="botTokenManualHint" class="text-xs text-muted mt-1 hidden" data-i18n="token.manual_hint" aria-live="polite">Этот токен не будет продлеваться автоматически.</p>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-sm text-muted block" data-i18n="bot.proxy" for="botProxy">Прокси</label>
+                            <span id="botProxyPoolStatusBadge" class="text-xs"></span>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="botProxy" class="input flex-1" placeholder="socks5://host:port или авто из пула">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="claimBotProxyFromPool(_currentBotId)" title="Застолбить свободный рабочий прокси из общего пула">🔄 Авто из пула</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="openSelectBotProxyModal(_currentBotId)" title="Выбрать конкретный свободный прокси из пула">📋 Из пула...</button>
+                            <button type="button" class="btn btn-secondary btn-sm text-danger" onclick="releaseBotProxy(_currentBotId)" title="Отвязать прокси (вернуть в свободный пул)">✕</button>
+                        </div>
+                        <p class="text-xs text-muted mt-1">1 бот = 1 прокси. При включённой авто-замене упавший прокси автоматически заменяется на живой из пула.</p>
+                    </div>
+                </div>
+                <button class="btn btn-primary mt-4" onclick="saveBotGeneral()" data-i18n="btn.save">💾 Сохранить</button>
+            </div>
+
+            <!-- §6: важные настройки на главной странице бота -->
+            <div class="card mb-4" id="botQuickBehaviorCard">
+                <div class="card-header"><span class="card-title" data-i18n="bot.quick_title">⚡ Быстрые настройки</span></div>
+                <div class="flex gap-4 flex-wrap items-center">
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="quickAutoChat" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveQuickBehavior())"></div> <span data-i18n="behavior.auto_chat">Бот может сам начинать сообщения</span></div>
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="quickSilent" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveQuickBehavior())"></div> <span data-i18n="behavior.silent">Тихий режим</span></div>
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="quickObservation" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveQuickObservation())"></div> <span data-i18n="label.observation_only">Только наблюдает (не пишет)</span></div>
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="quickEmoteHumanizer" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveQuickBehavior())"></div> <span data-i18n="behavior.emote_humanizer">🎉 Emote Humanizer (смайлики на хайп без LLM)</span></div>
+                </div>
+                <div class="flex gap-4 flex-wrap items-center mt-3">
+                    <label class="flex items-center gap-2 text-sm"><span data-i18n="behavior.cooldown">Минимальный интервал между сообщениями (сек)</span>
+                        <input type="number" id="quickCooldown" class="input" style="width:90px" min="0" max="3600" step="1" onchange="saveQuickBehavior()">
+                    </label>
+                </div>
+                <!-- Smart Anti-Dead-Air (детектор затишья эфира per-bot) -->
+                <div class="border-t border-border mt-3 pt-3">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div class="flex items-center gap-2 text-sm">
+                            <div class="toggle" id="quickAntiDeadAir" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveQuickBehavior())"></div>
+                            <span class="font-medium" data-i18n="behavior.anti_dead_air">⏱️ Smart Anti-Dead-Air (оживлять при затишье в чате)</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <label class="flex items-center gap-1">
+                                <span class="text-muted" data-i18n="behavior.dead_air_threshold">Затишье:</span>
+                                <input type="number" id="quickAntiDeadAirMin" class="input" style="width:70px" min="1" max="60" step="1" value="3" onchange="saveQuickBehavior()">
+                                <span class="text-muted text-xs" data-i18n="common.minutes_short">мин</span>
+                            </label>
+                            <label class="flex items-center gap-1">
+                                <span class="text-muted" data-i18n="behavior.dead_air_cooldown">Пауза:</span>
+                                <input type="number" id="quickAntiDeadAirCooldown" class="input" style="width:70px" min="1" max="120" step="1" value="10" onchange="saveQuickBehavior()">
+                                <span class="text-muted text-xs" data-i18n="common.minutes_short">мин</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mt-2" id="quickAntiDeadAirPromptWrap">
+                        <input type="text" id="quickAntiDeadAirPrompt" class="input text-sm" placeholder="Инструкция для вопроса (оставьте пустым для авто-вопроса по игре/теме стрима)" onchange="saveQuickBehavior()">
+                    </div>
+                    <p class="text-xs text-muted mt-1" data-i18n="behavior.dead_air_hint">Если в чате нет сообщений N минут, бот сам задаёт естественный вопрос стримеру или зрителям, снимая неловкую паузу эфира.</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="behavior.instructions" for="analyzerSystemPrompt">Дополнительные инструкции боту</label>
+                        <textarea id="analyzerSystemPrompt" class="input" rows="2" data-i18n-placeholder="behavior.instructions_placeholder" placeholder="Например: отвечай коротко и не перебивай стримера" onchange="saveQuickBehavior()"></textarea>
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="behavior.response_length" for="analyzerResponseLength">Длина ответа</label>
+                        <select id="analyzerResponseLength" class="input" onchange="saveQuickBehavior()">
+                            <option value="short" data-i18n="behavior.short">Короткий (10–15 слов)</option>
+                            <option value="medium" data-i18n="behavior.medium">Средний</option>
+                            <option value="long" data-i18n="behavior.long">Длинный</option>
+                        </select>
+                        <p class="text-xs text-muted mt-1" data-i18n="behavior.length_hint">Короткий — 1 короткая фраза. Средний — 2–3 предложения. Длинный — развёрнутый ответ.</p>
+                    </div>
+                </div>
+                <!-- PROMPT-BASE PB-3: декор исходящих сообщений (0 токенов) -->
+                <div class="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" for="outEmojiPrefix" data-i18n="pb3.prefix_label">Эмодзи в начало сообщения</label>
+                        <input type="text" id="outEmojiPrefix" class="input" style="max-width:120px" placeholder="🔥" maxlength="8" onchange="saveQuickBehavior()">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" for="outEmojiSuffix" data-i18n="pb3.suffix_label">Эмодзи в конец сообщения</label>
+                        <input type="text" id="outEmojiSuffix" class="input" style="max-width:120px" placeholder="😄" maxlength="8" onchange="saveQuickBehavior()">
+                    </div>
+                </div>
+                <p class="text-xs text-muted mt-2" data-i18n="pb3.hint">Панель сама добавит эмодзи к готовому сообщению перед отправкой в Twitch — без участия AI. Команды (!np, !sr) не декорируются.</p>
+            </div>
+
+            <!-- AI-BUDGET AB-1: переключатели внимания — источники платного AI -->
+            <div class="card mb-4" id="botAttentionSourcesCard">
+                <div class="card-header"><span class="card-title" data-i18n="attention_sources.title">🎯 Источники внимания (платный AI)</span></div>
+                <p class="text-xs text-muted mb-3" data-i18n="attention_sources.hint">Выключенный источник = 0 запросов платной модели по нему, даже в оживлённом чате. Сырой лог чата пишется всегда, независимо от этих переключателей.</p>
+                <div class="flex gap-4 flex-wrap items-center">
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="attnVision" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveAttentionSources())"></div> <span data-i18n="attention_sources.vision">🎥 Стрим Vision (vision-модель, дорого)</span></div>
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="attnHearing" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveAttentionSources())"></div> <span data-i18n="attention_sources.hearing">🔊 Стрим слух (аудио/транскрипт/beep)</span></div>
+                    <div class="flex items-center gap-2 text-sm"><div class="toggle" id="attnChatAi" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveAttentionSources())"></div> <span data-i18n="attention_sources.chat_ai">💬 Чат AI-анализ (платная модель читает чат)</span></div>
+                </div>
+                <p class="text-xs text-muted mt-2" data-i18n="attention_sources.future">Позже здесь появятся другие источники: события, донаты.</p>
+            </div>
+
+            <!-- Роль бота: выбор и её собственные настройки показываются одним блоком -->
+            <div class="card mb-4">
+                <div class="card-header"><span class="card-title" id="roleTabTitle">🎭 <span data-i18n="role.pick">Роль бота:</span> <span id="roleTabRoleName">…</span></span></div>
+                <div class="p-3 mb-3 form-panel">
+                    <div class="flex gap-2 items-center flex-wrap mb-2">
+                        <select id="roleSelect" class="input" style="max-width:260px" onchange="roleChange(this.value)">
+                            <option value="chatter">💬 Болтун</option>
+                            <option value="moderator">🛡 Модератор</option>
+                            <option value="voice_companion">🎙 Голос-компаньон</option>
+                            <option value="lurker">👀 Зритель</option>
+                        </select>
+                    </div>
+                    <p class="text-sm text-muted" id="roleDescription"></p>
+                </div>
+                <div id="roleSlotLurker"></div>
+                <div id="roleSlotOverview">
+                    <div id="roleConfigBox">
+                        <div id="roleConfigForm"></div>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-3 flex-wrap">
+                    <button class="btn btn-primary btn-sm" onclick="saveRoleConfig()" data-i18n="btn.save">💾 Сохранить</button>
+                    <button class="btn btn-secondary btn-sm" onclick="roleResetToDefaults()" data-i18n="role.reset">↩ Сбросить к дефолтам</button>
+                    <button class="btn btn-secondary btn-sm" onclick="roleExport()" data-i18n="role.export">📤 Экспорт JSON</button>
+                    <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+                        📥 <span data-i18n="role.import">Импорт JSON</span>
+                        <input type="file" id="roleImportFile" accept=".json" style="display:none" onchange="roleImport(this)">
+                    </label>
+                    <button class="btn btn-secondary btn-sm" onclick="roleSandbox()" data-i18n="role.sandbox">🧪 Проверить роль</button>
+                </div>
+            </div>
+
+            <!-- §9g: Clip Detector -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="clips.title">🎬 Клипы (всплески чата)</span>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="checkClipSpike()" data-i18n="clips.check">Проверить всплеск</button>
+                        <button class="btn btn-primary btn-sm" onclick="createClipManually()" data-i18n="clips.create">✂ Создать клип</button>
+                    </div>
+                </div>
+                <p class="text-xs text-muted mb-3" data-i18n="clips.hint">Когда чат резко ускоряется (хайп-момент) — бот предложит момент для клипа. Кнопка «Создать» режет клип через Twitch за последние 30 секунд.</p>
+                <div id="clipCheckResult" class="text-sm text-muted mb-2"></div>
+                <div id="clipMomentsList" class="space-y-1"></div>
+                <details class="mt-3">
+                    <summary class="text-sm text-muted cursor-pointer" data-i18n="clips.config">⚙️ Чувствительность детектора</summary>
+                    <div class="flex gap-3 flex-wrap items-center mt-2">
+                        <label class="flex items-center gap-2 text-sm"><span data-i18n="clips.threshold">Порог (× среднего)</span>
+                            <input type="number" id="clipThreshold" class="input" style="width:80px" min="1" max="20" step="0.1">
+                        </label>
+                        <label class="flex items-center gap-2 text-sm"><span data-i18n="clips.window">Окно, сек</span>
+                            <input type="number" id="clipWindow" class="input" style="width:80px" min="10" max="300" step="5">
+                        </label>
+                        <label class="flex items-center gap-2 text-sm"><span data-i18n="clips.cooldown">Пауза, сек</span>
+                            <input type="number" id="clipCooldown" class="input" style="width:80px" min="0" max="600" step="5">
+                        </label>
+                        <button class="btn btn-secondary btn-sm" onclick="saveClipConfig()" data-i18n="btn.save">💾 Сохранить</button>
+                    </div>
+                </details>
+            </div>
+
+            <!-- §9h: Replay Sessions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="replay.title">⏺ Запись сессий</span>
+                    <div class="flex gap-2">
+                        <button class="btn btn-primary btn-sm" onclick="startReplaySession()" data-i18n="replay.start">⏺ Начать запись</button>
+                        <button class="btn btn-danger btn-sm" onclick="endReplaySession()" data-i18n="replay.stop">⏹ Закончить</button>
+                    </div>
+                </div>
+                <p class="text-xs text-muted mb-3" data-i18n="replay.hint">Записывает чат и ответы бота этой сессии в архив — потом можно просмотреть, что происходило.</p>
+                <p class="text-xs text-muted mb-3" data-i18n="replay.auto_hint">При старте бота запись включается автоматически, если включён тумблер ниже, — закончить можно вручную кнопкой «Закончить».</p>
+                <!-- Q16 F5: автозапись — настройка бота (глобальный рубильник убран из Настроек) -->
+                <div class="flex items-center gap-2 mb-3 text-sm">
+                    <div class="toggle" id="botReplayAutoRecord" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveBotReplayAuto())" data-i18n-aria-label="replay.auto_record" aria-label="Автозапись при старте"></div>
+                    <span data-i18n="replay.auto_record">Автозапись при старте бота</span>
+                </div>
+                <div id="replaySessionsList" class="space-y-1"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="bot.ai_override_title">🧠 AI Мозг (переопределение)</span>
+                    <span class="text-xs text-muted" data-i18n="bot.ai_override_hint">Пусто = наследовать глобальные настройки</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.ai_provider" for="botAIProvider">AI Провайдер</label>
+                        <select id="botAIProvider" class="input">
+                            <option value="" data-i18n="provider.inherit">Наследовать глобальный</option>
+                            <option value="openrouter">OpenRouter</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.model" for="botAIModel">Модель</label>
+                        <input type="text" id="botAIModel" class="input" placeholder="google/gemini-2.0-flash-exp:free">
+                        <!-- Q15b (E3): у custom:*-провайдера чат-модель выбирается из его списка, ручной ввод недоступен -->
+                        <select id="botAIModelSelect" class="input hidden" data-i18n-aria-label="label.model" aria-label="Модель"></select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.api_key" for="botAIKey">API Ключ</label>
+                        <input type="password" id="botAIKey" class="input" placeholder="sk-...">
+                    </div>
+                    <div>
+                        <!-- Q15a (DEC-OWNER-016): выбор «общая/своя» — пустой
+                             ai_vision_model_override = общая база из Настроек -->
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.vision_mode" for="botAIVisionMode">Vision-модель</label>
+                        <select id="botAIVisionMode" class="input mb-1" onchange="onBotVisionModeChange()">
+                            <option value="shared" data-i18n="bot.vision_shared">Общая (по умолчанию)</option>
+                            <option value="own" data-i18n="bot.vision_own">Своя</option>
+                        </select>
+                        <input type="text" id="botAIVisionModel" class="input hidden" data-i18n-placeholder="bot.vision_own_ph" placeholder="модель vision для «своя»">
+                        <!-- Q15b (E3): у custom:*-провайдера vision-модель — дропдаун из vision-моделей провайдера -->
+                        <select id="botAIVisionModelSelect" class="input hidden" data-i18n-aria-label="label.vision_mode" aria-label="Vision-модель"></select>
+                    </div>
+                </div>
+                <!-- Q15d (E5): smart-routing чат-моделей per-бот; пустой конфиг =
+                     наследовать глобальные ai_smart_routing_* (legacy) -->
+                <details class="mt-4">
+                    <summary class="text-sm text-muted cursor-pointer" data-i18n="bot.smart_routing_title">🧭 Smart-routing (чат-модели)</summary>
+                    <div class="flex items-center gap-2 mt-2">
+                        <div class="toggle" id="botAISmartRouting" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)" aria-label="Smart-routing"></div>
+                        <span class="text-sm" data-i18n="bot.smart_routing_enable">Переключать модель по сложности промпта</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mt-2">
+                        <div>
+                            <label class="text-sm text-muted mb-2 block" data-i18n="bot.smart_routing_threshold" for="botAISRThreshold">Порог длины (символы)</label>
+                            <input type="number" id="botAISRThreshold" class="input" min="50" value="600">
+                        </div>
+                        <div>
+                            <label class="text-sm text-muted mb-2 block" data-i18n="bot.smart_routing_simple_p" for="botAISimpleProvider">Простой → провайдер</label>
+                            <input type="text" id="botAISimpleProvider" class="input" placeholder="ollama / anthropic / custom:имя">
+                        </div>
+                        <div>
+                            <label class="text-sm text-muted mb-2 block" data-i18n="bot.smart_routing_simple_m" for="botAISimpleModel">Простой → модель</label>
+                            <input type="text" id="botAISimpleModel" class="input" placeholder="llama3:8b">
+                        </div>
+                        <div>
+                            <label class="text-sm text-muted mb-2 block" data-i18n="bot.smart_routing_complex_p" for="botAIComplexProvider">Сложный → провайдер</label>
+                            <input type="text" id="botAIComplexProvider" class="input" placeholder="anthropic / openrouter">
+                        </div>
+                        <div>
+                            <label class="text-sm text-muted mb-2 block" data-i18n="bot.smart_routing_complex_m" for="botAIComplexModel">Сложный → модель</label>
+                            <input type="text" id="botAIComplexModel" class="input" placeholder="claude-3-5-sonnet-latest">
+                        </div>
+                    </div>
+                    <p class="text-xs text-muted mt-1" data-i18n="bot.smart_routing_hint">Короткие реплики уходят на дешёвую модель, длинные и контекстные — на сильную. Пустые поля = не менять.</p>
+                </details>
+                <!-- Q15c (E4): резерв «локальная Ollama» — ручной opt-in per-бот,
+                     по умолчанию выключен; circuit breaker остаётся -->
+                <div class="flex items-center gap-2 mt-4">
+                    <div class="toggle" id="botAILocalFallback" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)" aria-label="Резерв: локальная Ollama"></div>
+                    <span class="text-sm" data-i18n="bot.fallback_ollama">Резерв: локальная Ollama</span>
+                </div>
+                <p class="text-xs text-muted mt-1" data-i18n="bot.fallback_ollama_hint">Если облачный провайдер упал (лимит, ошибка сервера), бот временно отвечает через локальную Ollama. По умолчанию выключен — включается отдельно для этого бота.</p>
+                <button class="btn btn-primary mt-4" onclick="saveBotAIOverride()" data-i18n="btn.save_ai">💾 Сохранить AI</button>
+                <p class="text-xs text-muted mt-2">🧩 <span data-i18n="provider.custom_hint">Свои провайдеры (навсегда) добавляются в Настройках → AI-провайдеры и появляются в списке выше.</span></p>
+            </div>
+        </div>
+
+        <!-- Tab: Persona -->
+        <div id="botTab-persona" class="bot-tab hidden">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="persona.title">🎭 Биография</span>
+                    <div class="flex gap-2 items-center">
+                        <span class="text-xs text-muted" data-i18n="behavior.use_persona">Использовать характер бота</span>
+                        <div class="toggle" id="personaUsePersona" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => savePersonaUse())"></div>
+                        <button class="btn btn-secondary btn-sm" onclick="generatePersonaAI()" data-i18n="persona.ai_generate">🤖 AI-генерация</button>
+                        <button class="btn btn-secondary btn-sm" onclick="exportCharacter()" data-i18n="btn.export">📤 Экспорт</button>
+                        <label class="btn btn-secondary btn-sm"><span data-i18n="btn.import">📥 Импорт</span><input type="file" accept="application/json" hidden onchange="importCharacterFile(event)"></label>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.first_name" for="personaName">Имя</label>
+                        <input type="text" id="personaName" class="input" placeholder="Димон">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.age" for="personaAge">Возраст</label>
+                        <input type="number" id="personaAge" class="input" placeholder="22" min="0" max="99">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.gender" for="personaGender">Пол</label>
+                        <select id="personaGender" class="input" onchange="toggleCustomGender()">
+                            <option value="">—</option>
+                            <option value="м" data-i18n="gender.male">муж</option>
+                            <option value="ж" data-i18n="gender.female">жен</option>
+                            <option value="трансгендер" data-i18n="gender.trans">трансгендер</option>
+                            <option value="бі" data-i18n="gender.bi">би</option>
+                            <option value="інше" data-i18n="gender.other">другое</option>
+                        </select>
+                        <input type="text" id="personaGenderCustom" class="input mt-2 hidden" data-i18n-placeholder="placeholder.custom_gender" placeholder="Свой вариант пола">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.city" for="personaLocation">Город</label>
+                        <input type="text" id="personaLocation" class="input" placeholder="Москва">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.occupation" for="personaOccupation">Занятие</label>
+                        <input type="text" id="personaOccupation" class="input" placeholder="студент">
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label class="text-sm text-muted mb-2 block" data-i18n="label.personality_traits" for="personaPersonality">Черты характера (через запятую)</label>
+                    <input type="text" id="personaPersonality" class="input" placeholder="энергичный, немного токсичный, преданный">
+                </div>
+                <div class="mt-4">
+                    <label class="text-sm text-muted mb-2 block" data-i18n="label.favorite_games" for="personaGames">Любимые игры (через запятую)</label>
+                    <input type="text" id="personaGames" class="input" placeholder="CS2, Minecraft, Elden Ring">
+                </div>
+                <div class="mt-4">
+                    <label class="text-sm text-muted mb-2 block" data-i18n="label.favorite_phrases" for="personaCatchphrases">Любимые фразы (через запятую)</label>
+                    <input type="text" id="personaCatchphrases" class="input" placeholder="барабека, ну ты даёшь">
+                </div>
+                <div class="mt-4">
+                    <label class="text-sm text-muted mb-2 block" data-i18n="label.biography_freetext" for="personaBackground">Биография (свободный текст)</label>
+                    <textarea id="personaBackground" class="input" rows="3" placeholder="Смотрит стримера уже 2 года..."></textarea>
+                </div>
+                <div class="mt-4">
+                    <label class="text-sm text-muted mb-2 block" data-i18n="label.mimic_chatter">Копировать поведение чатера</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input id="mimicNickname" class="input" data-i18n-placeholder="placeholder.chatter_nick" placeholder="Ник чатера">
+                        <input id="mimicStreamer" class="input" data-i18n-placeholder="placeholder.streamer_nick_channel" placeholder="Ник стримера / канал">
+                    </div>
+                    <div class="flex gap-2 mt-2 flex-wrap items-center">
+                        <button class="btn btn-secondary btn-sm" onclick="importPersonaFromChat()" data-i18n="btn.analyze_style">🧬 Проанализировать стиль</button>
+                        <!-- H (REWORK_PLAN): импорт истории чата ФАЙЛОМ -->
+                        <label class="btn btn-secondary btn-sm" style="cursor:pointer">📄 <span data-i18n="btn.import_history">Из файла (txt/json)</span>
+                            <input type="file" id="historyImportFile" accept=".txt,.json,.log" hidden onchange="importChatHistory(event, 'profile')">
+                        </label>
+                        <button class="btn btn-secondary btn-sm" onclick="importHistoryDescribeCharacter()" data-i18n="btn.describe_from_history">🧬 Описать характер по истории</button>
+                    </div>
+                    <p class="text-xs text-muted mt-1" data-i18n="history.import_hint">TXT — строки «автор: текст», JSON — [{author,text}]. Файл используется для стиля/характера, в чат ничего не отправляется.</p>
+                </div>
+            </div>
+
+            <details class="card mb-4">
+                <summary class="card-title" data-i18n="affinity.title">🔁 Привязанность</summary>
+                <div class="grid grid-cols-2 gap-4 mt-3">
+                        <label class="text-sm text-muted"><span data-i18n="affinity.to_streamer">К стримеру</span> <input type="range" id="affinityContact" min="0" max="100" class="w-full"></label>
+                    <label class="text-sm text-muted"><span data-i18n="affinity.to_chat">К чату</span> <input type="range" id="affinityChat" min="0" max="100" class="w-full"></label>
+                </div>
+                <div class="flex items-center gap-2 text-sm mt-3"><div class="toggle" id="affinityAuto" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)"></div> <span data-i18n="affinity.auto_update">Автообновление ботом</span></div>
+                <button class="btn btn-primary btn-sm mt-3" onclick="saveAffinity()" data-i18n="btn.save_affinity">💾 Сохранить привязанность</button>
+            </details>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="persona.character_title">🎚️ Характер (0–100)</span>
+                    <div class="flex gap-2">
+                            <select id="personaPreset" class="input field-180" onchange="applyPersonaPreset()">
+                            <option value="" data-i18n="persona.preset_placeholder">Пресет характера...</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="text-sm text-muted mb-3" data-i18n="persona.character_hint">Характер — это личность бота: стиль, юмор и эмоции. Когда и как бот отвечает — настраивается во вкладке «Поведение».</p>
+                <div class="grid grid-cols-2 gap-4" id="personaSliders">
+                    <!-- Filled by JS -->
+                </div>
+                <div class="mt-4" id="personaToggles">
+                    <!-- Filled by JS -->
+                </div>
+                <button class="btn btn-primary mt-4" onclick="saveBotPersona()" data-i18n="persona.save">💾 Сохранить персонажа</button>
+
+                <!-- §4.1: свой пресет характера — сохранить/применить/удалить -->
+                <div class="flex gap-2 mt-3 flex-wrap items-center">
+                    <button class="btn btn-secondary btn-sm" onclick="savePersonaAsPreset()" data-i18n="persona.save_as_preset">💾 Сохранить как пресет</button>
+                    <select id="personaCustomPreset" class="input field-180" onchange="applyCustomPresetToPersona(this.value)">
+                        <option value="" data-i18n="persona.custom_preset_placeholder">Свои пресеты...</option>
+                    </select>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSelectedCustomPreset()" data-i18n="btn.delete" data-i18n-aria-label="btn.delete" aria-label="Удалить">🗑</button>
+                </div>
+
+                <!-- §1.6: провокации в спорах — часть карточки «Характер» (по умолчанию выключено) -->
+                <div class="mt-4 pt-4" style="border-top:1px solid var(--border-light)">
+                    <div class="text-sm font-semibold mb-1" data-i18n="conflict.title">🔥 Провокации в спорах</div>
+                    <p class="text-sm text-muted mb-3" data-i18n="conflict.hint">Бот может задать ехидный вопрос-подначку конфликтному чатеру, а после его ответа — остроумно «добить» спор. Интенсивность задаёт ехидность и шанс срабатывания; тон ограничен персоной, насмешка идёт над аргументом, а не над человеком. Пока выключено — фича не работает.</p>
+                    <div class="flex gap-4 flex-wrap items-center">
+                        <div class="flex items-center gap-2 text-sm"><div class="toggle" id="conflictEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveConflictSettings())"></div> <span data-i18n="conflict.enable">Разрешить подначки в спорах</span></div>
+                        <label class="flex items-center gap-2 text-sm"><span data-i18n="conflict.intensity">Интенсивность</span>
+                            <input type="range" id="conflictIntensity" min="0" max="100" step="5" value="40" oninput="const v=document.getElementById('conflictIntensityVal'); if(v)v.textContent=this.value" onchange="saveConflictSettings()" class="w-32">
+                            <span id="conflictIntensityVal" class="text-xs text-muted">40</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- P8-C3: отношение к стримеру (перенесено из вкладки Роль) -->
+            <div class="p-3 form-panel mb-4">
+                <b class="text-sm" data-i18n="streamer.attitude_title">💞 Отношение к стримеру</b>
+                <p class="text-xs text-muted mt-1" data-i18n="streamer.attitude_hint">Отношение задаётся отдельно для каждого подключённого канала. Нейтральное = ничего не меняет в поведении.</p>
+                <div id="botAttitudeBox" class="mt-2"><div class="text-muted text-sm">…</div></div>
+            </div>
+
+            <!-- role-форма болтуна (копирка/пресеты) переезжает сюда из Обзора: applyBotRoleVisibility -->
+            <div id="roleSlotChatter"></div>
+        </div>
+
+        <!-- Tab: Channels -->
+        <div id="botTab-channels" class="bot-tab hidden">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="channels.title">📺 Каналы</span>
+                </div>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="newChannel" class="input field-220" placeholder="#channel_name" onkeypress="if(event.key==='Enter')addChannel()">
+                    <button class="btn btn-primary btn-sm" onclick="addChannel()" data-i18n="btn.add_channel">+ Канал</button>
+                </div>
+                <div id="channelsList" class="space-y-2"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="channels.per_channel_overrides">🎛️ Per-channel overrides</span>
+                </div>
+                <p class="text-sm text-muted mb-3" data-i18n="channels.overrides_desc">
+                    Настройте характер бота отдельно для каждого канала: значения переопределяют персону только в этом канале.
+                </p>
+                <div class="flex gap-2 mb-4">
+                    <select id="overrideChannelSelect" class="input field-220">
+                        <option value="" data-i18n="select.channel">Выберите канал...</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" onclick="addOverrideRow()" data-i18n="btn.add_override">+ Override</button>
+                </div>
+                <div id="channelOverridesList"></div>
+            </div>
+        </div>
+
+        <!-- Tab: TTS -->
+        <div id="botTab-tts" class="bot-tab hidden">
+            <!-- role-форма голос-компаньона переезжает сюда из Обзора -->
+            <div id="roleSlotVoice"></div>
+            <div class="card mb-4">
+                <div class="card-header"><span class="card-title" data-i18n="tts.title">🔊 Настройки TTS</span></div>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="toggle" id="botTTSToggle" onclick="this.classList.toggle('active')"></div>
+                    <span class="text-sm" data-i18n="tts.enabled">TTS включён для этого бота</span>
+                </div>
+                <p class="text-xs text-muted mb-3" data-i18n="tts.per_bot_hint">Эти настройки сильнее глобальных TTS из Настроек: если провайдер задан — бот озвучивает только им. Пустой провайдер = наследовать глобальные настройки.</p>
+                <div class="text-xs text-muted mb-3" id="botTTSLastStatus"></div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.provider" for="botTTSProvider">Провайдер</label>
+                        <select id="botTTSProvider" class="input" onchange="fillBotTTSVoiceOptions(this.value, '')">
+                            <option value="" data-i18n="provider.inherit">Наследовать глобальный</option>
+                            <option value="web_speech">🌐 Web Speech</option>
+                            <option value="piper">🔈 Piper</option>
+                            <option value="elevenlabs">🎙 ElevenLabs</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-sm text-muted" data-i18n="label.voice" for="botTTSVoice">Голос</label>
+                            <button type="button" class="btn btn-secondary btn-xs" onclick="previewBotTTS()" title="Прослушать выбранный голос (HTML5 Audio)">🔊 Прослушать голос</button>
+                        </div>
+                        <select id="botTTSVoice" class="input" onchange="const m=$('botTTSVoiceManual'); if(m) m.classList.toggle('hidden', this.value!=='__manual__')"><option value="" data-i18n="option.voice_default">Голос по умолчанию</option></select>
+                        <input type="text" id="botTTSVoiceManual" class="input hidden mt-1" data-i18n-placeholder="option.voice_id_or_name" placeholder="ID или название">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.emotion" for="botTTSEmotion">Эмоция</label>
+                        <select id="botTTSEmotion" class="input">
+                            <option value="neutral" data-i18n="emotion.neutral">😐 Нейтральная</option>
+                            <option value="happy" data-i18n="emotion.happy">😊 Радостная</option>
+                            <option value="angry" data-i18n="emotion.angry">😠 Злая</option>
+                            <option value="sad" data-i18n="emotion.sad">😢 Грустная</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.volume">Громкость</label>
+                        <div class="flex items-center gap-2">
+                            <input type="range" id="botTTSVolume" min="0" max="1" step="0.1" value="1.0" class="w-full"
+                                   oninput="document.getElementById('botTTSVolumeVal').textContent=Math.round(this.value*100)+'%'">
+                            <span id="botTTSVolumeVal" class="text-sm w-12 text-right">100%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="label.speed" for="botTTSSpeed">Скорость</label>
+                        <input type="range" id="botTTSSpeed" min="0.5" max="2" step="0.1" value="1" class="w-full"
+                               oninput="$('botTTSSpeedVal').textContent=parseFloat(this.value).toFixed(1)+'x'">
+                        <span id="botTTSSpeedVal" class="text-xs text-muted">1.0x</span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="text-xs text-muted block mb-1" data-i18n="tts.test_text">Фраза для проверки голоса:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="botTTSTestText" class="input flex-1" value="Привет, чат! Как стрим?" placeholder="Введите текст для проверки голоса">
+                        <button type="button" class="btn btn-primary" onclick="previewBotTTS()" title="Озвучить прямо в браузере (HTML5 Audio)">🔊 Прослушать голос</button>
+                        <button type="button" class="btn btn-secondary" onclick="testBotTTSObs()" title="Отправить звук в подключённый OBS оверлей">📡 Тест в OBS</button>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-4 items-center">
+                    <button class="btn btn-primary" onclick="saveBotTTS()" data-i18n="btn.save">💾 Сохранить</button>
+                    <button class="btn btn-secondary" onclick="previewBotTTS()" title="Прослушать голос бота (HTML5 Audio)">🔊 Прослушать голос</button>
+                    <button type="button" class="btn btn-ghost text-xs text-muted" onclick="openBotTTSWidget()" title="Открыть OBS виджет">📺 OBS виджет</button>
+                </div>
+                <div class="mt-4"><button class="btn btn-secondary btn-sm" onclick="showBotTab('voice-clones')" data-i18n="tts.clone_manage">🎤 Управление голосовыми клонами</button></div>
+                <!-- Q16 F3: карта «кто что озвучивает» переехала из Настроек (read-only, resolved) -->
+                <div class="p-3 mt-4" style="border-top:1px solid var(--border)">
+                    <b class="text-sm" data-i18n="settings.tts_map_title">🗺 Кто что озвучивает</b>
+                    <p class="text-xs text-muted mt-1" data-i18n="settings.tts_map_hint">Read-only: resolved policy and voice for every account/channel.</p>
+                    <div id="ttsRoutingMap" class="mt-2 text-sm"><span class="text-muted" data-i18n="settings.tts_map_loading">Loading routing map…</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Voice clones -->
+        <div id="botTab-voice-clones" class="bot-tab hidden">
+            <div class="card">
+                <div class="card-header"><span class="card-title" data-i18n="tts.clone_manage">🎤 Управление голосовыми клонами</span></div>
+                <p class="text-sm text-muted mb-3" data-i18n="voiceclone.piper_note">Piper работает локально и не отправляет записи голоса в облако. Для XTTS/Coqui/F5-TTS и ElevenLabs используйте провайдеров, настроенных в TTS.</p>
+                <div class="flex gap-2 items-center mb-4">
+                    <label class="btn btn-primary btn-sm"><span data-i18n="tts.upload_model">Загрузить Piper-модель</span><input type="file" accept=".onnx" class="hidden" onchange="uploadVoiceModel(event)"></label>
+                    <button class="btn btn-secondary btn-sm" onclick="openVoiceCloneGuide()" data-i18n="tts.setup_guide">Гайд по настройке</button>
+                </div>
+                <div class="clone-create-form grid grid-cols-3 gap-2 mb-4">
+                    <input id="voiceCloneName" class="input" data-i18n-placeholder="placeholder.clone_name" placeholder="Название клона">
+                    <select id="voiceCloneProvider" class="input"><option value="xtts">XTTS / Coqui / F5-TTS</option><option value="elevenlabs">ElevenLabs</option></select>
+                    <label class="btn btn-secondary btn-sm"><span data-i18n="voiceclone.upload_sample">Загрузить sample.wav</span><input id="voiceCloneSample" type="file" accept="audio/*" class="hidden"></label>
+                    <button class="btn btn-primary btn-sm" onclick="createVoiceClone()" data-i18n="btn.create_clone">Создать клон</button>
+                </div>
+                <div id="voiceClonesList" class="space-y-2"></div>
+                <pre id="voiceCloneGuide" class="voice-guide hidden"></pre>
+                <!-- §12.2 WIDGETS_PLAN: consent-предупреждение для чужого голоса -->
+                <p class="text-xs text-muted mt-3">⚠️ Клонируйте только свой голос или голос с явным разрешением владельца. Запись чужого голоса без согласия может нарушать закон и правила Twitch.</p>
+            </div>
+        </div>
+
+        <!-- Tab: Attention -->
+        <div id="botTab-attention" class="bot-tab hidden">
+            <div class="card mb-4">
+                <div class="card-header"><span class="card-title" data-i18n="attention.title">🎯 Когда бот отвечает</span></div>
+                <p class="text-sm text-muted mb-3" data-i18n="attention.description">Настройте, на что бот реагирует и как группировать сообщения.</p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="attention.mode" for="botAttentionMode">На что реагировать</label>
+                        <select id="botAttentionMode" class="input">
+                            <option value="everyone" data-i18n="attention.everyone">👥 Все</option>
+                            <option value="streamer_only" data-i18n="attention.streamer_only">👑 Только стример</option>
+                            <option value="chat_only" data-i18n="attention.chat_only">💬 Только чат</option>
+                            <option value="streamer_and_chat" data-i18n="attention.streamer_and_chat">👑💬 Стример + чат</option>
+                            <option value="custom" data-i18n="attention.custom">🎯 Выборочный</option>
+                        </select>
+                    </div>
+                    <div class="toggle-row borderless">
+                        <span class="toggle-label" data-i18n="attention.noise">Игнорировать шум (+1, KEKW)</span>
+                        <div class="toggle active" id="botIgnoreNoise" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="attention.window" data-i18n-title="attention.window_title" title="Сколько секунд бот ждёт и собирает сообщения, прежде чем ответить один раз" for="botBatchWindow">Сколько секунд собирать сообщения</label>
+                        <input type="number" id="botBatchWindow" class="input" value="5" min="1" max="30" step="0.5">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="attention.max_batch" data-i18n-title="attention.max_batch_title" title="Максимум сообщений в одном групповом ответе" for="botBatchMax">Сколько сообщений собрать перед ответом</label>
+                        <input type="number" id="botBatchMax" class="input" value="5" min="2" max="20">
+                    </div>
+                </div>
+                <p class="text-xs text-muted mt-2" data-i18n="attention.delay_hint">Почему не сразу: бот ждёт указанное количество секунд, собирает сообщения в один батч и отвечает одним ответом на всё сразу — так меньше спама и осмысленнее ответы.</p>
+                <div class="grid grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="attention.min_messages" for="botMinToReply">Мин. сообщений для ответа</label>
+                        <input type="number" id="botMinToReply" class="input" value="2" min="1" max="10">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="attention.cooldown" for="botCooldownReply">Кулдаун после ответа (сек)</label>
+                        <input type="number" id="botCooldownReply" class="input" value="30" min="0" max="600">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="attention.max_minute" for="botMaxPerMin">Макс. ответов/мин</label>
+                        <input type="number" id="botMaxPerMin" class="input" value="3" min="1" max="30">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4 mt-4">
+                    <div class="toggle-row borderless">
+                        <span class="toggle-label" data-i18n="attention.reply_mentions">Отвечать на @упоминания</span>
+                        <div class="toggle active" id="botReplyMentions" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="attention.interrupt_guard" for="botInterruptGuard">Не перебивать стримера (сек, 0 = выкл)</label>
+                        <input type="number" id="botInterruptGuard" class="input" value="0" min="0" max="3600">
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="attention.tts_percent" for="botTTSPercent">Озвучивать ответы, % (0 = только текст)</label>
+                        <input type="number" id="botTTSPercent" class="input" value="100" min="0" max="100">
+                    </div>
+                </div>
+                <!-- О6 PLAN.md: отдельный тумблер + список ключевых слов -->
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div class="toggle-row borderless">
+                        <span class="toggle-label" data-i18n="attention.reply_keywords">Отвечать на ключевые слова</span>
+                        <div class="toggle" id="botReplyKeywords" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                    <div>
+                        <label class="text-sm text-muted mb-2 block" data-i18n="attention.keywords" for="botReplyKeywordsList">Ключевые слова (через запятую)</label>
+                        <input type="text" id="botReplyKeywordsList" class="input" placeholder="вопрос, помоги, розыгрыш">
+                    </div>
+                </div>
+                <button class="btn btn-primary mt-4" onclick="saveBotAttention()" data-i18n="btn.save">💾 Сохранить</button>
+            </div>
+        </div>
+
+        <!-- Tab: Logs -->
+        <div id="botTab-logs" class="bot-tab hidden">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="logs.title">📋 Логи этого бота</span>
+                    <div class="flex gap-2">
+                        <select id="botLogsLevel" class="input field-130" onchange="loadBotLogs()">
+                            <option value="" data-i18n="label.all_levels">Все уровни</option>
+                            <option value="debug">Debug</option>
+                            <option value="info">Info</option>
+                            <option value="warning">Warning</option>
+                            <option value="error">Error</option>
+                        </select>
+                        <select id="botLogsCategory" class="input field-130" onchange="loadBotLogs()">
+                            <option value="" data-i18n="label.all_categories">Все категории</option>
+                            <option value="chat">💬 Chat</option>
+                            <option value="ai">🧠 AI</option>
+                            <option value="tts">🔊 TTS</option>
+                            <option value="trigger">⚡ Trigger</option>
+                            <option value="event">🔔 Event</option>
+                            <option value="system">⚙️ System</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="loadBotLogs()" data-i18n-aria-label="btn.refresh" aria-label="Обновить">🔄</button>
+                        <button class="btn btn-secondary btn-sm" onclick="downloadBotLogs()" data-i18n-aria-label="btn.download" aria-label="Скачать">📥</button>
+                        <button class="btn btn-danger btn-sm" onclick="clearBotLogs()" data-i18n-aria-label="btn.clear" aria-label="Очистить">🗑️</button>
+                    </div>
+                </div>
+                <div id="botLogsContent" class="font-mono max-log-height">
+                    <div class="text-muted text-sm p-3" data-i18n="logs.load">Нажмите «🔄» для загрузки</div>
+                </div>
+            </div>
+        </div>
+
+<!-- ========== FILES TAB (OPS_PLAN §1) ========== -->
+<div id="botTab-files" class="bot-tab hidden">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title" data-i18n="botfiles.title">📁 Файлы бота</span>
+            <div class="flex gap-2">
+                <span id="botFilesDir" class="text-muted text-sm"></span>
+                <button class="btn btn-secondary btn-sm" onclick="loadBotFiles()" data-i18n-aria-label="btn.refresh" aria-label="Обновить">🔄</button>
+            </div>
+        </div>
+        <div class="flex gap-4 bot-files-layout">
+            <div id="botFilesList" class="bot-files-list text-sm"></div>
+            <div class="bot-files-editor flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                    <span id="botFilesEditorPath" class="text-muted text-sm font-mono"></span>
+                    <span class="flex-1"></span>
+                    <button id="botFilesSaveBtn" class="btn btn-primary btn-sm hidden" onclick="saveBotFile()" data-i18n="btn.save">💾 Сохранить</button>
+                    <button id="botFilesDeleteBtn" class="btn btn-danger btn-sm hidden" onclick="deleteBotFile()" data-i18n="btn.delete" data-i18n-aria-label="btn.delete" aria-label="Удалить">🗑️</button>
+                </div>
+                <textarea id="botFilesEditor" class="input font-mono bot-files-textarea" spellcheck="false" disabled></textarea>
+            </div>
+        </div>
+        <div class="text-muted text-sm mt-2" data-i18n="botfiles.hint">Текстовые файлы (json/md/txt) до 256 КБ. Промпты и память бота можно править прямо здесь.</div>
+    </div>
+</div>
+<div id="botTab-triggers" class="bot-tab hidden">
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="triggers.title">⚡ Triggers (триггеры)</span>
+            <button class="btn btn-primary btn-sm" onclick="showAddTriggerModal()" data-i18n="btn.add_trigger">+ Добавить trigger</button>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="triggers.description">Триггер — это ключевое слово, которое активирует ответ (AI или фиксированный).</p>
+        <div id="triggersList" class="space-y-2"></div>
+    </div>
+</div>
+
+<!-- ========== EVENTS TAB ========== -->
+<div id="botTab-events" class="bot-tab hidden">
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="events.title">🔔 Events (события Twitch)</span>
+            <button class="btn btn-primary btn-sm" onclick="showAddEventModal()" data-i18n="btn.add_event">+ Добавить event</button>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="events.description">Event — это событие Twitch (follow, sub, raid, cheer, points). Бот может ответить AI или шаблоном.</p>
+        <div id="eventsList" class="space-y-2"></div>
+    </div>
+</div>
+
+<!-- ========== FILTERS TAB (Banlist + Wordfilter) ========== -->
+<div id="botTab-filters" class="bot-tab hidden">
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="filters.title">🛡️ Фильтры</span>
+        </div>
+        
+        <!-- Banlist -->
+        <div class="mb-4">
+            <h4 class="text-sm font-semibold mb-2" data-i18n="filters.banlist_title">🚫 Banlist (чёрный список)</h4>
+            <p class="text-xs text-muted mb-2" data-i18n="filters.banlist_desc">Пользователи, которых бот игнорирует.</p>
+            <div id="banlistList" class="space-y-2"></div>
+            <div class="mt-2">
+                <input type="text" id="newBannedUser" class="input field-220" data-i18n-placeholder="placeholder.username" placeholder="ник пользователя" onkeypress="if(event.key==='Enter')addBannedUser()">
+                <button class="btn btn-primary btn-sm" onclick="addBannedUser()" data-i18n="btn.ban">+ Забанить</button>
+            </div>
+        </div>
+        
+        <!-- Wordfilter -->
+        <div>
+            <h4 class="text-sm font-semibold mb-2" data-i18n="filters.wordfilter_title">📝 Wordfilter (фильтр слов)</h4>
+            <p class="text-xs text-muted mb-2" data-i18n="filters.wordfilter_desc">Слова, которые нужно избегать или заменять.</p>
+            <div id="wordfilterList" class="space-y-2"></div>
+            <div class="mt-2">
+                <input type="text" id="newBadWord" class="input field-220" data-i18n-placeholder="placeholder.word" placeholder="слово" onkeypress="if(event.key==='Enter')addBadWord()">
+                            <select id="badWordAction" class="input select-120">
+                    <option value="block" data-i18n="wordfilter.block">Блокировать</option>
+                    <option value="replace" data-i18n="wordfilter.replace">Заменить</option>
+                    <option value="warn" data-i18n="wordfilter.warn">Предупреждение</option>
+                </select>
+                <select id="badWordChannel" class="input select-140" title="Все каналы или конкретный канал">
+                    <option value="" data-i18n="wordfilter.all_channels">Все каналы</option>
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="addBadWord()" data-i18n="btn.add">+ Добавить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== v14 MODERATION_PLAN §4: MODERATION TAB ========== -->
+<div id="botTab-moderation" class="bot-tab hidden">
+    <!-- role-форма модератора (лестница наказаний и пр.) переезжает сюда из Обзора -->
+    <div id="roleSlotModeration"></div>
+    <!-- P8-C11: «Пакет модератора» — все модераторские инструменты одним списком -->
+    <div class="card mb-4" id="moderatorPackCard">
+        <div class="card-header">
+            <span class="card-title" data-i18n="mod.pack_title">🧰 Пакет модератора</span>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="mod.pack_hint">Всё, что нужно боту-модератору: автомодерация и стрим-инструменты — здесь; запикивание мата — вкладка «Чат»; blur-guard для OBS — карточка в «Виджетах».</p>
+        <div class="flex gap-2 flex-wrap text-sm">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('moderationToggle').scrollIntoView({behavior:'smooth',block:'center'})">🛡 <span data-i18n="mod.pack_automod">Автомодерация — ниже</span></button>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('streamToolsCard').scrollIntoView({behavior:'smooth',block:'center'})">🛠 <span data-i18n="mod.pack_stream_tools">Стрим-инструменты — ниже</span></button>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('beepPipelineCard').scrollIntoView({behavior:'smooth',block:'center'})">🔇 <span data-i18n="mod.pack_beep">Запикивание — ниже</span></button>
+            <button class="btn btn-secondary btn-sm" onclick="showSection('widgets')">🫥 <span data-i18n="mod.pack_blur">Blur-guard — в «Виджетах»</span></button>
+        </div>
+    </div>
+
+    <!-- Q25 (DEC-OWNER-005): настройка beep-конвейера живёт у бота-модератора;
+         состояние честно показывает работу или pass-through -->
+    <!-- §7 фаза 3: конвейер запикивания (beep_pipeline) -->
+    <div class="card mb-4" id="beepPipelineCard">
+        <div class="card-header">
+            <span class="card-title" data-i18n="bp.title">🔇 Запикивание матов (фаза 3)</span>
+            <div class="toggle" id="bpEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => toggleBeepPipeline())" data-i18n-aria-label="bp.title" aria-label="Запикивание матов"></div>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="bp.hint">Слушает источник звука, ищет мат через Whisper и словари — заменяет пипом и выводит в виртуальный sink для OBS.</p>
+        <p class="text-xs text-muted mb-3" id="bpWhisperWarn" aria-live="polite"></p>
+        <div class="flex gap-3 flex-wrap items-end mb-3">
+            <div class="form-group" style="min-width:220px">
+                <label class="text-xs" data-i18n="bp.source" for="bpSource">Источник звука (pactl name)</label>
+                <input type="text" id="bpSource" class="input" data-i18n-placeholder="panel.beep.source_hint" placeholder="alsa_input.pci-... или default">
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="bp.sink" for="bpSink">Виртуальный sink</label>
+                <input type="text" id="bpSink" class="input" style="max-width:180px" value="bot_beep_out">
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="bp.hz" for="bpHz">Частота пипа, Гц</label>
+                <input type="number" id="bpHz" class="input select-120" min="300" max="4000" value="1000">
+            </div>
+            <div class="form-group">
+                <label class="text-xs" data-i18n="bp.seg" for="bpSeg">Сегмент, сек</label>
+                <input type="number" id="bpSeg" class="input select-80" min="2" max="15" value="5">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="saveBeepPipeline()" data-i18n="btn.save">💾 Сохранить</button>
+        </div>
+        <div class="text-xs text-muted" id="bpStatus" aria-live="polite">—</div>
+    </div>
+
+
+    <!-- Общий режим + настройки -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="panel.mod.title">🛡 Автомодерация</span>
+            <div id="modModeBadge" class="badge off" data-i18n="panel.mod.off">Выключена</div>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="panel.mod.hint">Бот отслеживает токсичность и спам в чате: оскорбления маскируются, серьёзные нарушения блокируются, угрозы всегда пишутся в журнал. Таймауты — только если включены явно.</p>
+        <p class="text-sm text-muted mb-3"><span data-i18n="panel.mod.dictionary_intro">ℹ️ Автомодерация работает на словарях</span> (<code>moderation_dicts/</code>) <span data-i18n="panel.mod.dictionary_rules">и ваших правилах</span>: <strong data-i18n="panel.mod.no_ai">без ИИ</strong>. <span data-i18n="panel.mod.ai_hint">ИИ-анализ сообщений — это соседняя вкладка «Анализатор»; Vision-модель (вкладка AI) — отдельная опция для картинок/названий. Оба не требуются для работы автомодерации.</span></p>
+        <div class="flex gap-2 items-center flex-wrap mb-3">
+            <div id="moderationToggle" class="toggle" onclick="toggleModeration()" data-i18n-aria-label="panel.mod.enable" aria-label="Включить автомодерацию (режим full)"></div>
+            <span class="text-sm" data-i18n="panel.mod.enable">Включить автомодерацию (режим full)</span>
+            <select id="moderationMode" class="input select-140" onchange="saveModerationSettings()" data-i18n-aria-label="panel.mod.mode" aria-label="Режим автомодерации">
+                <option value="off" data-i18n="panel.mod.off">Выключена</option>
+                <option value="log_only" data-i18n="panel.mod.log">Только лог</option>
+                <option value="shadow" data-i18n="panel.mod.shadow">👻 Теневой (Shadow)</option>
+                <option value="replace" data-i18n="panel.mod.replace_mode">Замена</option>
+                <option value="full" data-i18n="panel.mod.full">Полная</option>
+            </select>
+        </div>
+        <div class="flex gap-2 items-center flex-wrap mb-3">
+            <div id="moderationCanTimeoutToggle" class="toggle" onclick="toggleModerationCanTimeout()" data-i18n-aria-label="panel.mod.timeout_hint" aria-label="Модерация может таймаутить через Twitch (600с, severity 4-5)"></div>
+            <span class="text-sm" data-i18n="panel.mod.timeout_hint">Модерация может таймаутить через Twitch (600с, severity 4-5)</span>
+            <select id="moderationTimeoutPolicy" class="input select-140" onchange="saveModerationTimeoutPolicy(_currentBotId)" title="Кто решает о таймауте" data-i18n-aria-label="panel.mod.timeout_policy" aria-label="Кто решает о таймауте" data-i18n-title="panel.mod.timeout_policy">
+                <option value="auto" data-i18n="panel.mod.auto">Бот таймаутит сам</option>
+                <option value="ask" data-i18n="panel.mod.ask">Спрашивать меня (всплывашка)</option>
+                <option value="learn" data-i18n="panel.mod.learn">Спрашивать и учиться</option>
+            </select>
+        </div>
+        <div class="flex gap-2 items-center flex-wrap">
+            <div id="moderationEventSubToggle" class="toggle" onclick="toggleModerationEventSub()" data-i18n-aria-label="panel.mod.eventsub" aria-label="Слушать сообщения через EventSub (нужны права модератора)"></div>
+            <span class="text-sm" data-i18n="panel.mod.eventsub">Слушать сообщения через EventSub (нужны права модератора)</span>
+        </div>
+    </div>
+
+    <!-- ========== PLAN_REMAINING P1: §R3 СТРИМ-ИНСТРУМЕНТЫ (propose + история) ========== -->
+    <div class="card mb-4" id="streamToolsCard">
+        <div class="card-header">
+            <span class="card-title" data-i18n="stream_tools.title">🛠 Стрим-инструменты</span>
+            <button class="btn btn-secondary btn-sm" onclick="loadStreamTools(_currentBotId)" data-i18n="btn.refresh">🔄 Обновить</button>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="stream_tools.hint">Бот-модератор может предлагать действия для стрима: сменить категорию и название, переключить slow/фоллоу/эмодзи/уникальный чат. off — выключено, suggest — предложение в mod-feed с кнопкой «Одобрить», auto — исполнять сразу.</p>
+        <div id="streamToolsModes" class="space-y-2 mb-3"></div>
+        <div id="streamToolsManual" class="p-3 form-panel mb-3">
+            <b class="text-sm" data-i18n="stream_tools.manual_title">✋ Предложить вручную</b>
+            <div class="flex gap-2 flex-wrap items-end mt-2">
+                <div class="form-group" style="min-width:220px">
+                    <label class="text-xs" data-i18n="stream_tools.title_label" for="stTitleInput">Название стрима</label>
+                    <input type="text" id="stTitleInput" class="input" style="max-width:260px" onkeypress="if(event.key==='Enter')proposeStreamTitle()">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="proposeStreamTitle()" data-i18n-title="stream_tools.suggest_btn" title="Отправить предложение" data-i18n-aria-label="stream_tools.suggest_btn" aria-label="Отправить предложение">→</button>
+                <div class="form-group" style="min-width:220px">
+                    <label class="text-xs" data-i18n="stream_tools.category_label" for="stCategoryInput">Категория (игра)</label>
+                    <input type="text" id="stCategoryInput" class="input" style="max-width:260px" onkeypress="if(event.key==='Enter')proposeStreamCategory()">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="proposeStreamCategory()" data-i18n-title="stream_tools.suggest_btn" title="Отправить предложение" data-i18n-aria-label="stream_tools.suggest_btn" aria-label="Отправить предложение">→</button>
+            </div>
+        </div>
+        <div id="streamToolsHistoryHead" class="flex gap-2 items-center mb-2">
+            <b class="text-sm" data-i18n="stream_tools.history_title">🕘 История действий</b>
+        </div>
+        <div id="streamToolsHistory" class="space-y-2 logs-scroll" style="max-height:300px;overflow-y:auto"></div>
+    </div>
+
+    <div class="card mb-4" id="voiceControlCard">
+        <div class="card-header">
+            <span class="card-title" data-i18n="voice_control.title">🎙 Голосовое управление</span>
+            <button class="btn btn-secondary btn-sm" onclick="loadVoiceControl(_currentBotId)" data-i18n="btn.refresh">🔄 Обновить</button>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="voice_control.hint">Команды берутся из локального stream audio → Whisper и исполняются только после совпадения фразы активации и голоса владельца.</p>
+        <div class="grid grid-cols-2 gap-4 mb-3">
+            <div class="form-group">
+                <label data-i18n="voice_control.channel" for="voiceControlChannel">Канал</label>
+                <select id="voiceControlChannel" class="input" onchange="loadVoiceControl(_currentBotId)"></select>
+                <small class="text-muted" data-i18n="voice_control.channel_hint">Профиль и команды изолированы по выбранному боту и каналу.</small>
+            </div>
+            <div class="form-group">
+                <label data-i18n="voice_control.phrase" for="voiceControlPhrase">Фраза активации</label>
+                <input id="voiceControlPhrase" class="input" type="text" autocomplete="off">
+                <small class="text-muted" data-i18n="voice_control.phrase_hint">Команда без этой фразы всегда игнорируется.</small>
+            </div>
+            <div class="form-group">
+                <label data-i18n="voice_control.threshold" for="voiceControlThreshold">Порог совпадения голоса</label>
+                <input id="voiceControlThreshold" class="input" type="number" min="0.5" max="0.99" step="0.01" value="0.65">
+                <small class="text-muted" data-i18n="voice_control.threshold_hint">Низкая уверенность создаёт предложение модератору, но ничего не меняет сама.</small>
+            </div>
+            <div class="form-group">
+                <label data-i18n="voice_control.enabled">Автоисполнение подтверждённого голоса</label>
+                <div class="flex gap-2 items-center">
+                    <div id="voiceControlEnabled" class="toggle" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)"></div>
+                    <span id="voiceControlProfileStatus" class="text-sm text-muted"></span>
+                </div>
+                <small class="text-muted" data-i18n="voice_control.enabled_hint">Необратимые TTS, Soundboard, clip и moderation не входят в голосовой whitelist.</small>
+            </div>
+        </div>
+        <button class="btn btn-primary btn-sm mb-4" onclick="saveVoiceControl()" data-i18n="btn.save">💾 Сохранить</button>
+
+        <div class="p-3 form-panel mb-3">
+            <b class="text-sm" data-i18n="voice_control.enroll_title">Регистрация голоса владельца</b>
+            <p class="text-sm text-muted mt-2" data-i18n="voice_control.enroll_text">Прочитайте вслух: «Я подтверждаю локальное голосовое управление этим каналом. Таймер старт, таймер пауза, цель плюс пять. Мой голос используется только для проверки владельца».</p>
+            <p class="text-xs text-muted" data-i18n="voice_control.storage_hint">Запись хранится локально в data/voice-control и не отправляется AI-провайдеру. Модель проверки загружается отдельно, аудио остаётся на этом компьютере.</p>
+            <div class="flex gap-2 items-center flex-wrap mt-3">
+                <button id="voiceControlRecord" class="btn btn-secondary btn-sm" onclick="startVoiceEnrollment()" data-i18n="voice_control.record">● Записать 30–60 сек</button>
+                <button id="voiceControlStop" class="btn btn-secondary btn-sm hidden" onclick="stopVoiceEnrollment()" data-i18n="voice_control.stop">■ Остановить</button>
+                <button id="voiceControlEnroll" class="btn btn-primary btn-sm" onclick="uploadVoiceEnrollment()" disabled data-i18n="voice_control.enroll">Сохранить профиль</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteVoiceEnrollment()" data-i18n="voice_control.delete">Удалить запись</button>
+                <span id="voiceControlTimer" class="text-sm text-muted"></span>
+            </div>
+            <audio id="voiceControlPlayback" class="mt-3 hidden" controls></audio>
+        </div>
+
+        <div>
+            <div class="flex gap-2 items-center mb-2">
+                <b class="text-sm" data-i18n="voice_control.pending_title">Предложения с низкой уверенностью</b>
+                <button class="btn btn-secondary btn-sm" onclick="loadVoiceSuggestions()" data-i18n="btn.refresh">🔄 Обновить</button>
+            </div>
+            <div id="voiceControlSuggestions" class="space-y-2"></div>
+            <p class="text-xs text-muted mt-3" data-i18n="voice_control.hotkey_review">Хоткеи панели работают только при открытой вкладке. OBS не умеет вызывать API этих биндингов напрямую; его hotkeys управляют сценой/source, поэтому отдельная фиктивная интеграция не добавлена.</p>
+        </div>
+    </div>
+
+    <!-- Антиспам -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="panel.mod.antispam">🚫 Антиспам зрителей</span>
+        </div>
+        <div class="flex gap-2 items-center flex-wrap mb-3">
+            <div id="antispamViewerToggle" class="toggle" onclick="toggleAntispamViewer()" data-i18n-aria-label="panel.mod.detect" aria-label="Детектить спам (caps / ссылки / повторы / эмодзи / copypasta)"></div>
+            <span class="text-sm" data-i18n="panel.mod.detect">Детектить спам (caps / ссылки / повторы / эмодзи / copypasta)</span>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-sm text-muted mb-2 block" for="modAntispamCaps" data-i18n="panel.mod.caps">CAPS, % (0 = выкл)</label>
+                <input type="number" id="modAntispamCaps" class="input" min="0" max="100" value="70">
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-2 block" for="modAntispamRepeat" data-i18n="panel.mod.repeats">Повторов за минуту (2+ = детект)</label>
+                <input type="number" id="modAntispamRepeat" class="input" min="0" max="50" value="3">
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-2 block" for="modAntispamEmote" data-i18n="panel.mod.emoji">Эмодзи-спам, % (0 = выкл)</label>
+                <input type="number" id="modAntispamEmote" class="input" min="0" max="100" value="80">
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-2 block" for="modAntispamExempt" data-i18n="panel.mod.exempt">Белый список ролей (через запятую)</label>
+                <input type="text" id="modAntispamExempt" class="input" value="streamer,mod,vip">
+            </div>
+        </div>
+        <div class="flex gap-2 items-center mt-3">
+            <div id="modAntispamLinksToggle" class="toggle" onclick="toggleAntispamLinks()" data-i18n-aria-label="panel.mod.links" aria-label="Детектить ссылки"></div>
+            <span class="text-sm" data-i18n="panel.mod.links">Детектить ссылки</span>
+            <button class="btn btn-primary btn-sm ml-auto" onclick="saveModerationSettings()" data-i18n="btn.save">💾 Сохранить настройки</button>
+        </div>
+    </div>
+
+    <!-- Per-channel override -->
+    <div class="card mb-4">
+        <div class="card-header"><span class="card-title" data-i18n="panel.mod.channels">📡 Режим по каналам</span></div>
+        <p class="text-sm text-muted mb-3" data-i18n="panel.mod.channels_hint">Переопределяет общий режим для конкретного канала.</p>
+        <div id="modChannelOverrides" class="space-y-2"></div>
+    </div>
+
+    <!-- Правила -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="panel.mod.rules">📜 Правила модерации</span>
+            <div class="flex gap-2 flex-wrap">
+                <button class="btn btn-secondary btn-sm" onclick="bulkToggleModerationRules(true)" title="Включить все правила модерации этого бота">⚡ Включить все</button>
+                <button class="btn btn-secondary btn-sm" onclick="bulkToggleModerationRules(false)" title="Выключить все правила модерации этого бота">⏸ Выключить все</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadModerationRules(_currentBotId)" data-i18n="btn.refresh">🔄 Обновить</button>
+            </div>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="panel.mod.rules_hint">Кастомные правила имеют приоритет над встроенными словарями. Слово ловит все формы (стем), «re:шаблон» — произвольный regex.</p>
+
+        <!-- Песочница проверки правил бота -->
+        <div class="card p-3 mb-3" style="background:var(--bg-secondary, rgba(0,0,0,0.15)); border:1px solid var(--border);">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-semibold">🧪 Песочница модерации</span>
+                <span class="text-xs text-muted">Проверьте реакцию правил этого бота на фразу</span>
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="modRuleTestInput" class="input flex-1" placeholder="Введите фразу для теста..." onkeydown="if(event.key==='Enter')testBotModerationPhrase()">
+                <button class="btn btn-secondary btn-sm" onclick="testBotModerationPhrase()">🔍 Проверить</button>
+            </div>
+            <div id="modRuleTestResult" class="mt-2 text-sm hidden"></div>
+        </div>
+
+        <div id="moderationRulesList" class="space-y-2 mb-3"></div>
+        <div class="flex gap-2 flex-wrap items-end mb-3">
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="modRulePattern" data-i18n="panel.mod.pattern">Слово / re:regex</label>
+                <input type="text" id="modRulePattern" class="input field-200" placeholder="слово или re:паттерн" data-i18n-placeholder="panel.mod.pattern_ph">
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="modRuleCategory" data-i18n="panel.mod.category">Категория</label>
+                <select id="modRuleCategory" class="input select-120">
+                    <option value="custom" data-i18n="panel.mod.cat_custom">Своя</option>
+                    <option value="insult" data-i18n="panel.mod.cat_insult">Оскорбление</option>
+                    <option value="hate" data-i18n="panel.mod.cat_hate">Ненависть</option>
+                    <option value="threat" data-i18n="panel.mod.cat_threat">Угроза</option>
+                    <option value="sexual" data-i18n="panel.mod.cat_sexual">Сексуальный контент</option>
+                    <option value="spam" data-i18n="panel.mod.cat_spam">Спам</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="modRuleAction" data-i18n="panel.mod.action">Действие</label>
+                <select id="modRuleAction" class="input select-120">
+                    <option value="replace" data-i18n="panel.mod.action_replace">Заменить</option>
+                    <option value="block" data-i18n="panel.mod.action_block">Блок</option>
+                    <option value="timeout" data-i18n="panel.mod.action_timeout">Таймаут</option>
+                    <option value="log" data-i18n="panel.mod.log">Только лог</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="modRuleActionExt" data-i18n="panel.mod.action_ext">Наказание (явное)</label>
+                <select id="modRuleActionExt" class="input select-160" data-i18n-aria-label="panel.mod.action_ext" aria-label="Наказание (явное)">
+                    <option value="" data-i18n="panel.mod.ext_auto">По тяжести</option>
+                    <option value="mask" data-i18n="panel.mod.ext_mask">Маскировать</option>
+                    <option value="block" data-i18n="panel.mod.ext_block">Блокировать</option>
+                    <option value="timeout_600" data-i18n="panel.mod.ext_timeout_600">Таймаут 10 мин</option>
+                    <option value="timeout_3600" data-i18n="panel.mod.ext_timeout_3600">Таймаут 1 час</option>
+                    <option value="timeout_86400" data-i18n="panel.mod.ext_timeout_86400">Таймаут 1 день</option>
+                    <option value="timeout_604800" data-i18n="panel.mod.ext_timeout_604800">Таймаут 1 неделя</option>
+                    <option value="timeout_1209600" data-i18n="panel.mod.ext_timeout_1209600">Таймаут 2 недели</option>
+                    <option value="ban" data-i18n="panel.mod.ext_ban">Бан навсегда</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="modRuleSeverity" data-i18n="panel.mod.severity">Уровень нарушения 1–5</label>
+                <input type="number" id="modRuleSeverity" class="input select-80" min="1" max="5" value="3">
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="modRuleChannel" data-i18n="panel.mod.rule_channel">Канал (пусто = все)</label>
+                <input type="text" id="modRuleChannel" class="input field-140" placeholder="все каналы" data-i18n-placeholder="panel.mod.channel_ph">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="addModerationRule(_currentBotId)" data-i18n="btn.add">+ Добавить</button>
+        </div>
+        <details>
+            <summary class="text-sm text-muted mb-2" style="cursor:pointer" data-i18n="panel.mod.import_title">📥 Импорт списка слов (по одному в строке)</summary>
+            <textarea id="modRuleImportText" class="input" rows="5" placeholder="слово1&#10;слово2&#10;# комментарий" data-i18n-aria-label="panel.mod.import_words" aria-label="Список слов для импорта" data-i18n-placeholder="panel.mod.import_ph"></textarea>
+            <button class="btn btn-secondary btn-sm mt-2" onclick="importModerationRules(_currentBotId)" data-i18n="panel.mod.import">Импортировать</button>
+        </details>
+    </div>
+
+    <!-- Статистика + Журнал -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="panel.mod.events">📊 Журнал нарушений</span>
+            <div class="flex gap-2">
+                <button class="btn btn-secondary btn-sm" onclick="loadModerationEvents(_currentBotId)" data-i18n="btn.refresh">🔄 Обновить</button>
+                <button class="btn btn-secondary btn-sm" onclick="exportModerationCSV(_currentBotId)">📥 CSV</button>
+                <button class="btn btn-secondary btn-sm" onclick="clearModerationEvents(_currentBotId)" data-i18n="btn.clear">🗑 Очистить</button>
+            </div>
+        </div>
+        <div id="moderationStats" class="text-sm text-muted mb-3"></div>
+        <div class="flex gap-2 mb-3 flex-wrap">
+            <input type="text" id="modEventsUser" class="input field-160" placeholder="🔍 Юзер" oninput="loadModerationEvents(_currentBotId)" data-i18n-aria-label="panel.mod.user_filter" aria-label="Пользователь для фильтра нарушений" data-i18n-placeholder="panel.mod.user_ph">
+            <select id="modEventsCategory" class="input compact-select" onchange="loadModerationEvents(_currentBotId)" data-i18n-aria-label="panel.mod.category_filter" aria-label="Категория для фильтра нарушений">
+                <option value="" data-i18n="panel.mod.all_categories">Все категории</option>
+                <option value="insult" data-i18n="panel.mod.cat_insult">Оскорбление</option>
+                <option value="hate" data-i18n="panel.mod.cat_hate">Ненависть</option>
+                <option value="threat" data-i18n="panel.mod.cat_threat">Угроза</option>
+                <option value="sexual" data-i18n="panel.mod.cat_sexual">Сексуальный контент</option>
+                <option value="spam" data-i18n="panel.mod.cat_spam">Спам</option>
+                <option value="custom" data-i18n="panel.mod.cat_custom">Своя</option>
+            </select>
+            <input type="text" id="modEventsChannel" class="input field-160" placeholder="Канал" oninput="loadModerationEvents(_currentBotId)" data-i18n-aria-label="panel.mod.channel_filter" aria-label="Канал для фильтра нарушений" data-i18n-placeholder="panel.mod.event_channel_ph">
+        </div>
+        <div id="moderationEventsList" class="space-y-2 logs-scroll" style="max-height:400px;overflow-y:auto"></div>
+    </div>
+
+    <!-- Тест сообщения -->
+    <div class="card mb-4">
+        <div class="card-header"><span class="card-title" data-i18n="panel.mod.test">🧪 Проверить сообщение</span></div>
+        <p class="text-sm text-muted mb-3" data-i18n="panel.mod.test_hint">Показывает, какой вердикт вынесет движок и почему. В журнал не пишется.</p>
+        <div class="flex gap-2 items-end mb-3">
+            <input type="text" id="modTestText" class="input" placeholder="введите сообщение..." onkeypress="if(event.key==='Enter')testModeration(_currentBotId)" data-i18n-aria-label="panel.mod.test_message" aria-label="Сообщение для проверки" data-i18n-placeholder="panel.mod.test_ph">
+            <button class="btn btn-primary btn-sm" onclick="testModeration(_currentBotId)" data-i18n="panel.mod.check">Проверить</button>
+        </div>
+        <div id="modTestResult" class="text-sm"></div>
+    </div>
+
+    <!-- Q16 F4 (DEC-OWNER-016): «Модератор TTS консоль» живёт только у бота-модератора
+         (переехала из Настроек); скоуп бот×канал выбирается ниже, по умолчанию — этот бот -->
+    <div class="card mb-4" id="moderatorTTSAdminCard">
+        <div class="card-header">
+            <span class="card-title" data-i18n="settings.mod_tts_title">🎙 Moderator TTS console</span>
+            <button class="btn btn-secondary btn-sm" onclick="loadModeratorTTSAdmin()" data-i18n="btn.refresh">🔄 Обновить</button>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="settings.mod_tts_hint">Настройте голоса, правила и доступ Twitch-пользователей отдельно для выбранных бота и канала.</p>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div><label class="text-xs text-muted" data-i18n="settings.mod_tts_scope" for="modTTSAdminScope">Бот / канал</label><select id="modTTSAdminScope" class="input" onchange="loadModeratorTTSScope()"></select></div>
+            <div><label class="text-xs text-muted" data-i18n="settings.mod_tts_source" for="modTTSSource">Источник TTS</label><select id="modTTSSource" class="input" onchange="renderModeratorTTSPolicy()"></select></div>
+        </div>
+        <div id="modTTSAdminStatus" class="text-xs text-muted mb-3"></div>
+
+        <details open class="mb-3"><summary class="font-semibold cursor-pointer" data-i18n="settings.mod_tts_voices">Approved voices</summary>
+            <div id="modTTSVoiceList" class="mt-2 text-sm"></div>
+            <div class="grid grid-cols-3 gap-2 mt-2">
+                <input id="modTTSAlias" class="input" maxlength="40" data-i18n-placeholder="settings.mod_tts_alias_ph" placeholder="alias">
+                <input id="modTTSProvider" class="input" maxlength="60" data-i18n-placeholder="settings.mod_tts_provider_ph" placeholder="provider">
+                <input id="modTTSVoiceId" class="input" maxlength="300" data-i18n-placeholder="settings.mod_tts_voice_id_ph" placeholder="registered voice ID">
+            </div>
+            <button class="btn btn-primary btn-sm mt-2" onclick="saveModeratorTTSVoice()" data-i18n="settings.mod_tts_add_voice">Добавить голос</button>
+        </details>
+
+        <details open class="mb-3"><summary class="font-semibold cursor-pointer" data-i18n="settings.mod_tts_policy">Source policy</summary>
+            <div class="grid grid-cols-3 gap-2 mt-2">
+                <select id="modTTSRole" class="input" data-i18n-aria-label="panel.tts.role" aria-label="Роль источника TTS"><option value="owner" data-i18n="panel.tts.owner">Владелец</option><option value="moderator" data-i18n="panel.tts.moderator">Модератор</option><option value="viewer" data-i18n="panel.tts.viewer">Зритель</option><option value="bot" data-i18n="panel.tts.bot">Бот</option></select>
+                <select id="modTTSDefaultAlias" class="input" data-i18n-aria-label="panel.tts.default_alias" aria-label="Голос по умолчанию"></select>
+                <label class="flex items-center gap-2 text-sm"><input id="modTTSPolicyEnabled" type="checkbox"><span data-i18n="settings.mod_tts_enabled">Включено</span></label>
+                <label class="flex items-center gap-2 text-sm"><input id="modTTSVoiceChoice" type="checkbox"><span data-i18n="settings.mod_tts_voice_choice">Разрешить выбор голоса</span></label>
+                <input id="modTTSCooldown" class="input" type="number" min="0" max="600" data-i18n-placeholder="settings.mod_tts_cooldown" placeholder="Cooldown, sec">
+                <input id="modTTSRate" class="input" type="number" min="1" max="60" data-i18n-placeholder="settings.mod_tts_rate" placeholder="Max per minute">
+                <input id="modTTSMaxLength" class="input" type="number" min="1" max="500" data-i18n-placeholder="settings.mod_tts_length" placeholder="Max text length">
+                <input id="modTTSBlacklist" class="input" maxlength="2000" data-i18n-placeholder="settings.mod_tts_blacklist" placeholder="Blacklist">
+            </div>
+            <button class="btn btn-primary btn-sm mt-2" onclick="saveModeratorTTSPolicy()" data-i18n="settings.mod_tts_save_policy">Сохранить policy</button>
+        </details>
+
+        <details open><summary class="font-semibold cursor-pointer" data-i18n="settings.mod_tts_access">Twitch access</summary>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+                <input id="modTTSUserId" class="input" inputmode="numeric" maxlength="32" data-i18n-placeholder="settings.mod_tts_user_id" placeholder="Stable Twitch user ID">
+                <input id="modTTSLogin" class="input" maxlength="100" data-i18n-placeholder="settings.mod_tts_login" placeholder="Twitch login (label)">
+            </div>
+            <div class="flex gap-3 flex-wrap text-sm mt-2" id="modTTSPermissions">
+                <label><input type="checkbox" value="send_tts" checked> <span data-i18n="panel.permission.send_tts">Отправлять текст на озвучку</span></label><label><input type="checkbox" value="play_media"> <span data-i18n="panel.permission.play_media">Воспроизводить медиа</span></label><label><input type="checkbox" value="play_sound"> <span data-i18n="panel.permission.play_sound">Воспроизводить звуки</span></label><label><input type="checkbox" value="upload_media"> <span data-i18n="panel.permission.upload_media">Загружать медиа</span></label>
+            </div>
+            <div class="flex gap-2 mt-2 flex-wrap">
+                <button class="btn btn-primary btn-sm" onclick="saveModeratorTTSGrant(true)" data-i18n="settings.mod_tts_save_grant">Сохранить доступ</button>
+                <button class="btn btn-secondary btn-sm" onclick="saveModeratorTTSGrant(false)" data-i18n="settings.mod_tts_revoke">Отозвать</button>
+            </div>
+            <div class="flex gap-2 mt-3 items-center flex-wrap">
+                <label class="text-sm"><input id="modTTSChatEnabled" type="checkbox"> <span data-i18n="settings.mod_tts_chat_enabled">Команда в Twitch-чате</span></label>
+                <input id="modTTSChatAlias" class="input field-200" maxlength="31" value="!tts">
+                <button class="btn btn-secondary btn-sm" onclick="saveModeratorTTSChat()" data-i18n="settings.mod_tts_save_chat">Сохранить команду</button>
+            </div>
+            <div id="modTTSGrantList" class="mt-3 text-sm"></div>
+            <div id="modTTSInviteResult" class="mt-2 text-sm"></div>
+        </details>
+        <details class="mt-3"><summary class="font-semibold cursor-pointer" data-i18n="settings.mod_media_title">GIF / медиа для модераторов</summary>
+            <p class="text-xs text-muted mt-1" data-i18n="settings.mod_media_hint">Owner-approved библиотека и отдельный token-limited OBS Browser Source для выбранного scope.</p>
+            <div class="flex gap-3 mt-2 flex-wrap items-start">
+                <div class="flex-1 min-w-0">
+                    <div class="flex gap-2 flex-wrap"><input id="modMediaFile" class="input flex-1" type="file" accept="image/png,image/gif,image/webp,video/mp4,video/webm" data-i18n-aria-label="panel.tts.media_file" aria-label="Файл медиа для одобрения"><button class="btn btn-secondary btn-sm" onclick="uploadModeratorMedia()" data-i18n="settings.mod_media_upload">Загрузить и одобрить</button></div>
+                    <div id="modMediaLibrary" class="mt-2 text-sm"></div>
+                    <label class="text-xs text-muted mt-2 block" for="modMediaObsUrl" data-i18n="settings.mod_media_obs_url">OBS Browser Source URL</label>
+                    <div class="flex gap-2 mt-1 flex-wrap"><input id="modMediaObsUrl" class="input flex-1" type="password" readonly autocomplete="off"><button id="modMediaReveal" class="btn btn-secondary btn-sm" onclick="revealModeratorMediaToken()" data-i18n="settings.mod_media_reveal">Показать на 30 секунд</button><button id="modMediaCopy" class="btn btn-secondary btn-sm hidden" onclick="copyModeratorMediaToken()" data-i18n="widgets.copy_url">Копировать URL</button><button class="btn btn-secondary btn-sm" onclick="rotateModeratorMediaToken()" data-i18n="settings.mod_media_obs">Новый OBS URL</button></div>
+                    <p id="modMediaTokenStatus" class="text-xs text-muted mt-1" aria-live="polite"></p>
+                    <p class="text-xs text-muted mt-1" data-i18n="settings.mod_media_rotate_hint">Ротация сразу отключает старый OBS URL.</p>
+                </div>
+                <iframe class="widget-preview" src="/api/moderator-media/admin/preview" loading="lazy" title="" data-i18n-title="settings.mod_media_preview"></iframe>
+            </div>
+            <div class="flex gap-2 mt-2 flex-wrap"><select id="modMediaQueuePolicy" class="input field-200"><option value="queue" data-i18n="ui.media.queue">В очередь</option><option value="replace" data-i18n="ui.media.replace">Заменить текущее</option></select><select id="modMediaPosition" class="input field-200"><option value="center" data-i18n="ui.media.center">По центру</option><option value="top" data-i18n="ui.media.top">Сверху</option><option value="bottom" data-i18n="ui.media.bottom">Снизу</option><option value="top-left" data-i18n="ui.media.top-left">Слева сверху</option><option value="top-right" data-i18n="ui.media.top-right">Справа сверху</option><option value="bottom-left" data-i18n="ui.media.bottom-left">Слева снизу</option><option value="bottom-right" data-i18n="ui.media.bottom-right">Справа снизу</option></select><input id="modMediaWidth" class="input field-100" type="number" min="5" max="100" value="35"><input id="modMediaDuration" class="input field-150" type="number" min="500" max="15000" value="5000"><input id="modMediaFade" class="input field-150" type="number" min="0" max="2000" value="250"><button class="btn btn-primary btn-sm" onclick="saveModeratorMediaConfig()" data-i18n="btn.save">Сохранить</button></div>
+            <div class="flex gap-2 mt-2"><button class="btn btn-secondary btn-sm" onclick="controlModeratorMedia('stop')" data-i18n="settings.mod_media_stop">Stop</button><button class="btn btn-secondary btn-sm" onclick="controlModeratorMedia('clear')" data-i18n="settings.mod_media_clear">Clear queue</button><label class="flex items-center gap-2 text-sm"><input id="modMediaKill" type="checkbox" onchange="controlModeratorMedia('kill_switch',this.checked)"><span data-i18n="settings.mod_media_kill">Kill switch</span></label></div>
+        </details>
+        <details class="mt-3"><summary class="font-semibold cursor-pointer" data-i18n="settings.mod_sound_title">Звуки для модераторов</summary>
+            <p class="text-xs text-muted mt-1" data-i18n="settings.mod_sound_hint">Одобренные треки играют через существующий Soundboard; добавьте exact-scoped URL ниже в OBS.</p>
+            <div class="flex gap-2 mt-2"><label class="flex items-center gap-2 text-sm"><input id="modSoundEnabled" type="checkbox" checked><span data-i18n="settings.mod_tts_enabled">Включено</span></label><input id="modSoundCooldown" class="input field-150" type="number" min="0" max="600" value="5"><input id="modSoundRate" class="input field-150" type="number" min="1" max="60" value="5"><button class="btn btn-primary btn-sm" onclick="saveModeratorSoundPolicy()" data-i18n="btn.save">Сохранить</button></div>
+            <div id="modSoundLibrary" class="mt-2 text-sm"></div><div class="flex gap-2 items-center mt-2"><button class="btn btn-secondary btn-sm" onclick="rotateModeratorSoundObsToken()" data-i18n="settings.mod_sound_obs">Новый OBS URL</button><span id="modSoundObsStatus" class="text-xs text-muted"></span></div><div id="modSoundObsUrl" class="mt-2"></div>
+        </details>
+        <details class="mt-3"><summary class="font-semibold cursor-pointer" data-i18n="settings.tts_output_title">Единственный TTS audio output</summary>
+            <p id="modTTSOutputWarning" class="text-xs text-muted mt-1" data-i18n="settings.tts_output_hint">Выберите один exact-scoped Browser Source. Старые URL остаются legacy и не имеют active-source telemetry.</p>
+            <div class="flex gap-2 mt-2"><select id="modTTSOutput" class="input"><option value="tts-bot">tts-bot</option><option value="chat-reader">chat-reader</option><option value="tts-raw">tts-raw</option></select><button class="btn btn-primary btn-sm" onclick="saveModeratorTTSOutput()" data-i18n="btn.save">Сохранить</button><button class="btn btn-secondary btn-sm" onclick="testModeratorTTSOutput()" data-i18n="settings.tts_output_test">Тест output</button></div>
+        </details>
+    </div>
+</div>
+
+<!-- ========== CHAT USERS TAB (§9c) ========== -->
+<div id="botTab-chat-users" class="bot-tab hidden">
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="chat_users.title">👥 Пользователи чата</span>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="chat_users.description">Список пользователей, которых бот видел в чате. Отключите конкретного пользователя, чтобы бот перестал ему отвечать — без глобального Twitch-бана.</p>
+        <div class="flex gap-2 mb-3">
+            <input type="text" id="chatUsersSearch" class="input field-220" data-i18n-placeholder="chat_users.search_placeholder" placeholder="🔍 Поиск по нику..." oninput="loadBotChatUsers(_currentBotId)">
+            <select id="chatUsersRoleFilter" class="input compact-select" onchange="loadBotChatUsers(_currentBotId)">
+                <option value="" data-i18n="chat_users.all_roles">Все роли</option>
+                <option value="streamer" data-i18n="label.role_streamer">Стример</option>
+                <option value="mod" data-i18n="label.role_mod">Модератор</option>
+                <option value="vip" data-i18n="label.role_vip">VIP</option>
+                <option value="subscriber" data-i18n="label.role_subscriber">Подписчик</option>
+                <option value="viewer" data-i18n="label.role_viewer">Зритель</option>
+            </select>
+        </div>
+        <div id="chatUsersList" class="space-y-2"></div>
+    </div>
+</div>
+
+<!-- ========== MEMORY TAB ========== -->
+<div id="botTab-memory" class="bot-tab hidden">
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="memory.title">🧠 Memory (память per-user)</span>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="memory.description">Факты о пользователях, которые запоминает бот.</p>
+        <div id="memoryList" class="space-y-2"></div>
+    </div>
+
+    <!-- P8-C2: карточка «🌐 Общие факты (все боты)» удалена — общая память
+         убрана, факты мигрировали в per-bot user_memory (вкладка «Память» бота) -->
+
+    <!-- Q17: «💾 Факты о зрителях» переехали из «Мозга» — видны только если у бота
+         включена долгосрочная память (use_long_term_memory в настройках анализатора) -->
+    <div class="card mb-4" id="botViewerMemoryCard">
+        <div class="card-header">
+            <span class="card-title" data-i18n="panel.brain.viewer_facts">💾 Факты о зрителях (подтверждение)</span>
+            <div class="flex gap-1">
+                <button class="btn btn-secondary btn-sm" data-i18n-title="panel.brain.extract_hint" title="Предложить факты из истории чата активных зрителей с помощью AI" onclick="brainAutoExtract()" data-i18n="panel.brain.extract">🤖 Извлечь факты</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadBotViewerMemory()" data-i18n-aria-label="btn.refresh" aria-label="Обновить">🔄</button>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 text-sm mb-2">
+            <div class="toggle" id="botLongTermMemory" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this, () => saveBotLongTermMemory())" data-i18n-aria-label="bot.memory.long_term" aria-label="Долгосрочная память о зрителях"></div>
+            <span data-i18n="bot.memory.long_term">Долгосрочная память о зрителях</span>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="brain.memory_hint">Что бот запомнил о зрителях. Подтверждённый факт (✓✓) живёт дольше и чаще используется; ✎ правит приоритет и срок. Прогонов не было — факты появятся, когда Summarizer/чат-анализ найдут что запомнить.</p>
+        <div id="botMemoryDisabled" class="text-muted text-sm hidden" aria-live="polite"></div>
+        <div id="botViewerMemoryList" class="dashboard-events-scroll" aria-live="polite"></div>
+    </div>
+
+    <!-- Q17: «🎓 Обучение (предложения)» переехало из «Мозга» -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="panel.brain.learning">🎓 Обучение (предложения)</span>
+            <div class="flex gap-1">
+                <button class="btn btn-secondary btn-sm" data-i18n-title="panel.brain.undo_hint" title="Откатить последнее применённое изменение стиля или базы знаний" onclick="learningRevertLast()" data-i18n="panel.brain.undo">↩ Отменить последнее</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadLearning()" data-i18n-aria-label="btn.refresh" aria-label="Обновить">🔄</button>
+            </div>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="brain.learning_hint">Предложения бота по улучшению стиля и базы знаний — из фидбека 👍/👎 и анализа чата. «Применить» меняет поведение бота, «Отменить» откатывает последнее применённое.</p>
+        <div id="botLearningList" class="dashboard-events-scroll" aria-live="polite"></div>
+    </div>
+</div>
+
+<div id="botTab-streamer" class="bot-tab hidden">
+    <!-- §9a: карточка «О стримере» — backend готов, теперь есть UI -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="streamer.title">👤 О стримере</span>
+            <label class="flex items-center gap-2 text-sm">
+                <div class="toggle" id="streamerAutoUpdated" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)"></div>
+                <span data-i18n="streamer.auto_updated">Автообновление профиля через AI</span>
+            </label>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="streamer.description">Помогает боту знать, кто ведёт стрим: имя, стиль, интересы. Бот использует это в ответах.</p>
+        <div class="text-xs text-muted mb-3" id="streamerChannelHint"></div>
+
+        <div id="streamerEmptyState" class="empty-state hidden">
+            <div class="empty-icon">👤</div>
+            <p class="text-sm text-muted mb-2" data-i18n="streamer.empty">Профиль стримера ещё не заполнен</p>
+            <button class="btn btn-primary btn-sm" onclick="fillStreamerProfile()" data-i18n="streamer.fill_now">Заполнить сейчас</button>
+        </div>
+
+        <div id="streamerForm" class="hidden">
+            <div class="flex gap-2 flex-wrap mb-3">
+                <div class="form-group flex-1" style="min-width:140px">
+                    <label data-i18n="streamer.age" for="streamerAge">Возраст</label>
+                    <input type="number" id="streamerAge" class="input" min="0" max="120" placeholder="25">
+                </div>
+                <div class="form-group flex-1" style="min-width:140px">
+                    <label data-i18n="streamer.gender" for="streamerGender">Пол</label>
+                    <input type="text" id="streamerGender" class="input" data-i18n-placeholder="streamer.gender_placeholder" placeholder="мужской / женский">
+                </div>
+                <div class="form-group flex-1" style="min-width:140px">
+                    <label data-i18n="streamer.location" for="streamerLocation">Локация</label>
+                    <input type="text" id="streamerLocation" class="input" placeholder="Kyiv">
+                </div>
+            </div>
+            <div class="flex gap-2 flex-wrap mb-3">
+                <div class="form-group flex-1" style="min-width:180px">
+                    <label data-i18n="streamer.occupation" for="streamerOccupation">Род занятий</label>
+                    <input type="text" id="streamerOccupation" class="input" placeholder="strimmer / designer">
+                </div>
+                <div class="form-group flex-1" style="min-width:180px">
+                    <label data-i18n="streamer.style" for="streamerStyle">Стиль стрима</label>
+                    <select id="streamerStyle" class="input">
+                        <option value="" data-i18n="streamer.style_none">Не указан</option>
+                        <option value="educational" data-i18n="streamer.style_edu">Обучающий</option>
+                        <option value="entertaining" data-i18n="streamer.style_fun">Развлекательный</option>
+                        <option value="competitive" data-i18n="streamer.style_comp">Соревновательный</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group mb-3">
+                <label data-i18n="streamer.bio" for="streamerBio">Био стримера</label>
+                <textarea id="streamerBio" class="input" rows="3" data-i18n-placeholder="streamer.bio_placeholder" placeholder="Короткое описание: кто он, чем занимается, чем известен"></textarea>
+            </div>
+            <div class="flex gap-2 flex-wrap mb-3">
+                <div class="form-group flex-1" style="min-width:200px">
+                    <label data-i18n="streamer.interests" for="streamerInterests">Интересы (через запятую)</label>
+                    <input type="text" id="streamerInterests" class="input" placeholder="anime, chess, synthwave">
+                </div>
+                <div class="form-group flex-1" style="min-width:200px">
+                    <label data-i18n="streamer.games" for="streamerGames">Любимые игры (через запятую)</label>
+                    <input type="text" id="streamerGames" class="input" placeholder="Dota 2, Stardew Valley">
+                </div>
+            </div>
+            <div class="flex gap-2 flex-wrap mb-3">
+                <div class="form-group flex-1" style="min-width:200px">
+                    <label data-i18n="streamer.likes" for="streamerLikes">Нравится (через запятую)</label>
+                    <input type="text" id="streamerLikes" class="input" placeholder="speedrun, lore">
+                </div>
+                <div class="form-group flex-1" style="min-width:200px">
+                    <label data-i18n="streamer.dislikes" for="streamerDislikes">Не нравится (через запятую)</label>
+                    <input type="text" id="streamerDislikes" class="input" placeholder="спойлеры, токсичность">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveStreamerProfile()" data-i18n="streamer.save">💾 Сохранить профиль</button>
+        </div>
+    </div>
+
+    <!-- §9a.2: фото стримера для vision -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="streamer.face_title">📷 Фото стримера</span>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="streamer.face_desc">Фото помогает AI с vision узнавать стримера в кадре и не путать его со зрителями. Используется только локально и передаётся лишь настроенному AI-провайдеру.</p>
+        <div class="flex gap-4 items-center flex-wrap">
+            <div id="streamerFacePreview" class="streamer-face-preview">
+                <span class="text-xs text-muted" data-i18n="streamer.face_none">Нет фото</span>
+            </div>
+            <div class="flex flex-col gap-2">
+                <input type="file" id="streamerFaceFile" class="input" accept="image/jpeg,image/png" onchange="uploadStreamerFace(this)">
+                <button class="btn btn-danger btn-sm hidden" id="streamerFaceDelete" onclick="deleteStreamerFace()" data-i18n="streamer.face_delete">🗑 Удалить фото</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="botTab-knowledge" class="bot-tab hidden">
+    <div class="card mb-4">
+        <div class="card-header"><span class="card-title" data-i18n="knowledge.title">📚 База знаний стримера</span><button class="btn btn-primary btn-sm" onclick="addKnowledgeItem()" data-i18n="btn.add">+ Добавить</button></div>
+        <div class="flex gap-2 mb-3 items-center flex-wrap">
+            <select id="kbChannel" class="input" style="max-width:220px" onchange="loadKnowledge(_currentBotId)" title="Скоуп записи: все каналы или конкретный канал">
+                <option value="">🌐 все каналы</option>
+            </select>
+            <span class="text-xs text-muted" data-i18n="kb.channel_hint">Запись «все каналы» видна боту везде; для отдельного канала — только там. Выбор фильтрует список.</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-3"><input id="kbTopic" class="input" data-i18n-placeholder="placeholder.topic" placeholder="Тема"><input id="kbTags" class="input" data-i18n-placeholder="placeholder.tags" placeholder="Теги"></div>
+        <textarea id="kbContent" class="input mb-3" rows="3" data-i18n-placeholder="placeholder.fact_or_description" placeholder="Факт или описание"></textarea>
+        <div id="knowledgeList" class="space-y-2"></div>
+    </div>
+    <div class="card">
+        <div class="card-header"><span class="card-title" data-i18n="mimicry.title">🎭 Mimicry стримера</span><button class="btn btn-primary btn-sm" onclick="addStyleExample()" data-i18n="btn.add_example">+ Пример</button></div>
+        <p class="text-sm text-muted mb-3" data-i18n="mimicry.description">Добавляйте реальные реплики стримера, чтобы бот подстраивал лексику и манеру ответа.</p>
+        <textarea id="styleExampleText" class="input mb-2" rows="2" data-i18n-placeholder="placeholder.streamer_line" placeholder="Реплика стримера"></textarea>
+        <div id="styleExamplesList" class="space-y-2"></div>
+    </div>
+
+    <!-- Владелец 27.09 (вечер): backend был готов давно (v8 Feature 3), экрана не было -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="abtest.title">🧪 A/B тест промптов</span>
+            <div class="flex items-center gap-2 text-sm">
+                <div class="toggle" id="abTestEnabled" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this); toggleAbTestEnabled()" data-i18n-aria-label="abtest.enable" aria-label="Включить A/B тест"></div>
+                <span data-i18n="abtest.enable">Включить A/B тест</span>
+            </div>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="abtest.hint">Несколько вариантов системного промпта конкурируют по весу; бот подставляет случайный включённый вариант и считает лайки/дизлайки ответов на него. Выключено — бот использует обычный системный промпт из вкладки «Характер».</p>
+        <div id="abTestSummary" class="flex gap-3 flex-wrap text-sm mb-3"></div>
+        <div id="abTestVariantsList" class="space-y-2 mb-3"></div>
+        <div class="flex gap-2 flex-wrap items-end">
+            <div>
+                <label class="text-xs text-muted mb-1 block" for="abTestNewLabel" data-i18n="abtest.label">Ярлык</label>
+                <input type="text" id="abTestNewLabel" class="input field-120" maxlength="32" placeholder="A">
+            </div>
+            <div>
+                <label class="text-xs text-muted mb-1 block" for="abTestNewWeight" data-i18n="abtest.weight">Вес</label>
+                <input type="number" id="abTestNewWeight" class="input select-80" min="0" max="100" value="50">
+            </div>
+            <div class="flex-1" style="min-width:220px">
+                <label class="text-xs text-muted mb-1 block" for="abTestNewPrompt" data-i18n="abtest.system_prompt">Системный промпт варианта</label>
+                <textarea id="abTestNewPrompt" class="input" rows="2" data-i18n-placeholder="abtest.system_prompt_ph" placeholder="Ты — саркастичный комментатор..."></textarea>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="addAbTestVariant()" data-i18n="abtest.add">+ Добавить вариант</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SNIPPETS TAB (заготовки) ========== -->
+<div id="botTab-snippets" class="bot-tab hidden">
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="snippets.title">💬 Заготовки (фразы)</span>
+            <div class="flex gap-2">
+                <button class="btn btn-primary btn-sm" onclick="showAddSnippetModal()" data-i18n="btn.add">+ Добавить</button>
+                <button class="btn btn-secondary btn-sm" onclick="generateRandomSnippets()" data-i18n="snippets.generate">🎲 Сгенерировать 5</button>
+            </div>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="snippets.description">Готовые фразы для быстрых ответов. Отправка с КД 1-2 сек между сообщениями.</p>
+        <div id="snippetsList" class="space-y-2"></div>
+    </div>
+</div>
+
+        <!-- Tab: Sandbox (Песочница теста ответа) -->
+        <div id="botTab-sandbox" class="bot-tab hidden">
+            <div class="card">
+                <div class="card-header flex justify-between items-center">
+                    <div>
+                        <span class="card-title">🧪 Песочница ответа бота</span>
+                        <p class="text-xs text-muted mt-1">Безопасное тестирование генерации ответов и характера без отправки сообщений в Twitch.</p>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span id="sandboxMemoryBadge" class="badge badge-sm text-muted" style="font-size:11px;" title="Количество сообщений диалога в оперативной памяти бота">🧠 Память: 0/50</span>
+                        <button class="btn btn-secondary btn-sm" onclick="resetBotContext()" title="Очистить недавний буфер сообщений и контекст диалога бота">🧹 Сбросить память</button>
+                        <button class="btn btn-secondary btn-sm" onclick="clearSandboxChat()">Очистить чат</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs text-muted block mb-1">Канал контекста и правил:</label>
+                        <select id="sandboxChannel" class="input" onchange="updateSandboxMemoryBadge()"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-muted block mb-1">Имя зрителя (тестовый автор):</label>
+                        <input type="text" id="sandboxAuthor" class="input" value="ТестовыйЗритель" placeholder="Никнейм зрителя">
+                    </div>
+                </div>
+
+                <!-- Chat history box -->
+                <div id="sandboxChatLog" class="p-3 mb-3 rounded" style="background:var(--bg-secondary, rgba(0,0,0,0.2)); border:1px solid var(--border); min-height:220px; max-height:400px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+                    <div class="text-center text-muted text-xs py-4" id="sandboxEmptyHint">Здесь появятся ответы бота. Введите вопрос или реплику в поле ниже.</div>
+                </div>
+
+                <!-- Input area -->
+                <div class="flex gap-2 items-center">
+                    <button type="button" class="btn btn-secondary" onclick="pickRandomSandboxPrompt()" title="Подставить случайный вопрос зрителя из чата">🎲</button>
+                    <input type="text" id="sandboxInput" class="input flex-1" placeholder="Введите сообщение зрителя (например: «Привет, как настроение?»)..." onkeydown="if(event.key==='Enter') sendSandboxMessage()">
+                    <button class="btn btn-primary" id="sandboxSendBtn" onclick="sendSandboxMessage()">🚀 Проверить ответ</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- Add bot modal -->
+<!-- W2: публичный разговор через подключённый Twitch-чат -->
+<div id="dmChatModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('dmChatModal')">
+    <div class="modal" style="width:min(96vw,560px)">
+        <h3 data-i18n="dm.title">💬 Разговор в Twitch-чате</h3>
+        <p class="text-sm text-muted mb-3" data-i18n="dm.public_hint">Сообщение и ответ бота увидят все зрители выбранного канала.</p>
+        <div class="flex gap-4 flex-wrap items-center mb-3">
+            <label class="text-sm" for="dmChannel" data-i18n="dm.channel">Канал Twitch</label>
+            <select id="dmChannel" class="input" style="max-width:240px"></select>
+            <div class="flex items-center gap-2 text-sm"><div class="toggle" id="dmSpeakReply" role="switch" aria-checked="false" tabindex="0" onclick="uiToggle(this)"></div> <span data-i18n="dm.speak_reply">🔊 Озвучивать ответы</span></div>
+        </div>
+        <div id="dmLog" class="mb-3 p-3 text-sm" style="max-height:300px;overflow:auto;background:var(--bg-input);border-radius:8px;border:1px solid var(--border-light)"></div>
+        <div class="flex gap-2 items-center">
+            <input type="text" id="dmInput" class="input flex-1" data-i18n-placeholder="dm.placeholder" placeholder="Напиши в Twitch-чат…" onkeydown="if(event.key==='Enter')dmSendText()">
+            <button class="btn btn-primary btn-sm" onclick="dmSendText()" data-i18n="btn.send">Отправить</button>
+        </div>
+        <div class="flex justify-between mt-3">
+            <button class="btn btn-secondary btn-sm" onclick="dmReset()" data-i18n="dm.reset">🗑 Очистить разговор</button>
+            <button class="btn btn-secondary btn-sm" onclick="hideModal('dmChatModal')" data-i18n="btn.cancel">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<div id="botCheckModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('botCheckModal')">
+    <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="botCheckTitle">
+        <h3 id="botCheckTitle" data-i18n="check.title">Проверка ботов</h3>
+        <p class="text-sm text-muted mb-3" data-i18n="check.hint">Тестовый канал используется только для этой проверки. Боты ждут сообщение из чата и отправляют по одному контрольному сообщению.</p>
+        <div id="botCheckSelected" class="text-sm mb-3"></div>
+        <div class="form-group">
+            <label for="botCheckChannel" data-i18n="check.channel">Тестовый канал</label>
+            <input id="botCheckChannel" class="input" list="botCheckChannels" autocomplete="off" placeholder="channel_name">
+            <datalist id="botCheckChannels"></datalist>
+            <small class="form-hint" data-i18n="check.channel_hint">Выберите используемый канал или введите Twitch login без #.</small>
+        </div>
+        <div class="form-group">
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" id="botCheckSendEnabled" onchange="botCheckSendToggled()" data-i18n-aria-label="check.send_enabled" aria-label="Отправлять контрольное сообщение">
+                <span data-i18n="check.send_enabled">Отправлять контрольное сообщение (по умолчанию выкл.)</span>
+            </label>
+            <label for="botCheckMessage" data-i18n="check.message">Контрольное сообщение</label>
+            <input id="botCheckMessage" class="input" maxlength="450" disabled>
+            <small class="form-hint" data-i18n="check.message_hint">Маркер [ник] заменяется на имя каждого бота; пишется в чат только при включённом чекбоксе.</small>
+        </div>
+        <div id="botCheckResults" aria-live="polite"></div>
+        <div id="botCheckDownloads" class="flex gap-2 mt-3 hidden">
+            <button class="btn btn-secondary btn-sm" onclick="downloadBotCheck('csv')" data-i18n="check.download_csv">Скачать CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="downloadBotCheck('text')" data-i18n="check.download_text">Скачать текст</button>
+        </div>
+        <div class="modal-actions">
+            <button id="botCheckCancel" class="btn btn-danger hidden" onclick="cancelBotCheck()" data-i18n="check.cancel_running">Остановить проверку</button>
+            <button class="btn btn-secondary" onclick="hideModal('botCheckModal')" data-i18n="btn.close">Закрыть</button>
+            <button id="botCheckStart" class="btn btn-primary" onclick="startBotCheck()" data-i18n="check.start">Запустить проверку</button>
+        </div>
+    </div>
+</div>
+
+<div id="addBotModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideAddBotModal()">
+    <div class="modal">
+        <h3 data-i18n="modal.new_bot">🤖 Новый бот</h3>
+        <!-- §9i: Device Code Flow — вход через Twitch вместо ручного токена -->
+        <div class="card mb-3 p-3" style="background:var(--bg-active)">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+                <button class="btn btn-primary btn-sm" id="oauthStartBtn" onclick="oauthFlowStart()">🟣 <span data-i18n="oauth.login_btn">Войти через Twitch</span></button>
+                <span class="text-xs text-muted" data-i18n="oauth.or_manual">или введите токен вручную ниже</span>
+            </div>
+            <div id="oauthFlowBox" class="hidden mt-3">
+                <div class="text-sm mb-1">
+                    <span data-i18n="oauth.enter_code">Откройте ссылку и введите код:</span>
+                    <a href="https://www.twitch.tv/activate" target="_blank" rel="noopener" class="font-semibold">twitch.tv/activate</a>
+                </div>
+                <div class="flex items-center gap-2">
+                    <code id="oauthUserCode" class="font-mono text-lg font-bold" style="letter-spacing:3px"></code>
+                    <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('oauthUserCode').textContent)" data-i18n="widgets.copy_url">📋 Копировать</button>
+                </div>
+                <div id="oauthStatus" class="text-xs text-muted mt-2" data-i18n="oauth.waiting">Ожидание подтверждения...</div>
+                <button class="btn btn-secondary btn-sm mt-2" onclick="oauthFlowCancel()" data-i18n="oauth.cancel">Отменить вход</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.twitch_nickname_required" for="newBotNick">Никнейм Twitch *</label>
+            <input type="text" id="newBotNick" class="input" placeholder="bot_nickname">
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.oauth_token_required" for="newBotToken">OAuth токен / Куки / Строка магазина *</label>
+            <input type="password" id="newBotToken" class="input font-mono" placeholder="oauth:... или login:pass:cookie или auth-token=..." oninput="onNewBotTokenInput(this); updateManualTokenHint('newBotToken','newBotTokenManualHint')">
+            <p id="newBotTokenManualHint" class="text-xs text-muted mt-1 hidden" data-i18n="token.manual_hint">Этот токен не будет продлеваться автоматически.</p>
+            <p id="newBotParsedHint" class="text-xs text-success mt-1 hidden"></p>
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.proxy_optional" for="newBotProxy">Прокси (опционально)</label>
+            <input type="text" id="newBotProxy" class="input" placeholder="socks5://host:port">
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.channel_optional_add" for="newBotChannel">Канал (опционально, добавить сразу)</label>
+            <input type="text" id="newBotChannel" class="input" placeholder="channel_name">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideAddBotModal()" data-i18n="btn.cancel">Отмена</button>
+            <button class="btn btn-primary" onclick="createBot()" data-i18n="btn.create">Создать</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== Bulk Lurkers Modal (DEC-OWNER-018) ========== -->
+<div id="botPackModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('botPackModal')">
+    <div class="modal">
+        <h3 id="botPackTitle" data-i18n="bots.packs.title_create">📦 Создать пачку</h3>
+        <p class="text-xs text-muted mb-2" data-i18n="bots.packs.hint">Отметьте ботов чекбоксами — это и есть пачка. Канал захода выбирается у каждого бота; «без канала» — оставить как есть сейчас.</p>
+        <div class="form-group">
+            <label data-i18n="bots.packs.name" for="botPackName">Название пачки *</label>
+            <input type="text" id="botPackName" class="input" maxlength="64">
+        </div>
+        <div class="form-group">
+            <label data-i18n="bots.packs.window" for="botPackWindow">Окно захода, минут (0 — сразу)</label>
+            <input type="number" id="botPackWindow" class="input" min="0" max="180" step="1" value="5">
+            <small class="form-hint" data-i18n="bots.packs.window_hint">Боты пачки зайдут не залпом, а с разбросом в течение этого окна (появится на шаге Q34c).</small>
+        </div>
+        <div class="form-group">
+            <label data-i18n="bots.packs.bots_label" for="botPackBots">Боты пачки</label>
+            <div class="flex gap-2 mb-2 flex-wrap">
+                <input type="text" id="botPackSearch" class="input field-200" data-i18n-placeholder="bots.packs.search" placeholder="🔍 Поиск по нику" oninput="botPackFilterChanged()">
+                <select id="botPackRoleFilter" class="input compact-select" onchange="botPackFilterChanged()" data-i18n-aria-label="bots.packs.role_all" aria-label="Фильтр по роли"></select>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="botPackSelectAll(true)" data-i18n="bots.packs.select_all">Выбрать всех</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="botPackSelectAll(false)" data-i18n="bots.packs.clear_all">Снять всех</button>
+                <span class="text-muted text-xs" id="botPackCount" aria-live="polite"></span>
+            </div>
+            <div id="botPackBots" style="max-height:300px;overflow-y:auto"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('botPackModal')" data-i18n="btn.cancel">Отмена</button>
+            <button class="btn btn-primary" id="botPackSaveBtn" onclick="submitBotPack()" data-i18n="bots.packs.save">Сохранить пачку</button>
+        </div>
+    </div>
+</div>
+
+<div id="bulkLurkersModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('bulkLurkersModal')">
+    <div class="modal modal-lg">
+        <h3 data-i18n="bots.bulk.title">📥 Массовое добавление ботов</h3>
+        <p class="text-xs text-muted mb-2" data-i18n="bots.bulk.hint">Поддерживаются любые форматы: магазинные строки <code>login:pass:token</code>, чистые куки <code>auth-token=...</code>, JSON из браузера (Cookie-Editor), строки с прокси и чистые токены. Панель сама определит ники в Twitch, создаст ботов с выбранной ролью и прокси; дубли и битые токены отфильтрует с отчётом.</p>
+
+        <div class="flex items-center gap-1 mb-2 flex-wrap text-xs">
+            <span class="text-muted">Форматы:</span>
+            <button type="button" class="btn btn-xs btn-secondary" onclick="setBulkTokensExample('store')">📋 Логин:Пароль:Куки</button>
+            <button type="button" class="btn btn-xs btn-secondary" onclick="setBulkTokensExample('cookie')">🍪 Чистые куки</button>
+            <button type="button" class="btn btn-xs btn-secondary" onclick="setBulkTokensExample('json')">📦 JSON (Cookie-Editor)</button>
+            <button type="button" class="btn btn-xs btn-secondary" onclick="setBulkTokensExample('proxy')">🌐 Строки с прокси</button>
+            <button type="button" class="btn btn-xs btn-secondary" onclick="setBulkTokensExample('token')">🔑 Токены</button>
+        </div>
+
+        <div class="form-group">
+            <div class="flex items-center justify-between mb-1">
+                <label data-i18n="bots.bulk.tokens" for="bulkLurkerTokens">Данные ботов (строки или JSON) *</label>
+                <span id="bulkLurkersParseCount" class="text-xs text-muted">0 ботов</span>
+            </div>
+            <textarea id="bulkLurkerTokens" class="input font-mono" rows="8" placeholder="bot_login:password:auth-token=abc123...&#10;auth-token=def456...; unique_id=789...&#10;bot3:pass:oauth:ghi789...:socks5://proxy:1080&#10;или вставьте JSON-массив из Cookie-Editor" oninput="onBulkTokensInput()"></textarea>
+        </div>
+        <div class="form-group">
+            <label data-i18n="bots.bulk.role" for="bulkLurkerRole">Роль новых ботов</label>
+            <select id="bulkLurkerRole" class="input">
+                <option value="lurker" data-i18n="bots.bulk.role_lurker">Люркер</option>
+                <option value="chatter" data-i18n="bots.bulk.role_chatter">Болтун</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label data-i18n="bots.bulk.channel" for="bulkLurkerChannel">Канал для всех (опционально)</label>
+            <input type="text" id="bulkLurkerChannel" class="input" list="bulkLurkerChannelOptions" placeholder="channel_name">
+            <datalist id="bulkLurkerChannelOptions"></datalist>
+        </div>
+        <div class="form-group">
+            <label data-i18n="bots.bulk.proxy" for="bulkLurkerProxy">Прокси по умолчанию (если не указан в строке бота)</label>
+            <input type="text" id="bulkLurkerProxy" class="input" placeholder="socks5://host:port">
+        </div>
+        <div id="bulkLurkersReport" class="hidden"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('bulkLurkersModal')" data-i18n="btn.cancel">Отмена</button>
+            <button class="btn btn-primary" id="bulkLurkersSubmitBtn" onclick="submitBulkLurkers()" data-i18n="bots.bulk.submit">Добавить ботов</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== Add Trigger Modal ========== -->
+<div id="addTriggerModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('addTriggerModal')">
+    <div class="modal">
+        <h3 data-i18n="modal.new_trigger">⚡ Новый trigger</h3>
+        <div class="form-group">
+            <label data-i18n="label.keyword_required" for="triggerKeyword">Ключевое слово *</label>
+            <input type="text" id="triggerKeyword" class="input" placeholder="привет">
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.response_empty_for_ai" for="triggerResponse">Ответ (оставьте пустым для AI)</label>
+            <textarea id="triggerResponse" class="input" rows="3" placeholder="Привет! Я тут, чтобы помочь."></textarea>
+        </div>
+        <div class="form-group">
+            <label data-i18n="triggers.channel_label" for="triggerChannel">Канал</label>
+            <select id="triggerChannel" class="input">
+                <option value="" data-i18n="triggers.channel_all">Все каналы</option>
+            </select>
+            <p class="text-xs text-muted mt-1" data-i18n="triggers.channel_hint">Пусто — триггер работает во всех каналах бота</p>
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.use_ai">Использовать AI</label>
+            <div class="toggle active" id="triggerUseAI" onclick="this.classList.toggle('active')"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('addTriggerModal')" data-i18n="btn.cancel">Отмена</button>
+            <button class="btn btn-primary" onclick="createTrigger()" data-i18n="btn.create">Создать</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== Add Event Modal ========== -->
+<div id="addEventModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('addEventModal')">
+    <div class="modal">
+        <h3 data-i18n="modal.new_event">🔔 Новое событие</h3>
+        <div class="form-group">
+            <label data-i18n="label.event_required" for="eventType">Событие *</label>
+            <select id="eventType" class="input">
+                <option value="follow">Follow</option>
+                <option value="sub">Subscription</option>
+                <option value="raid">Raid</option>
+                <option value="cheer">Cheer</option>
+                <option value="channel_points">Channel points</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.response_empty_for_ai_short" for="eventResponse">Ответ (пусто для AI)</label>
+            <textarea id="eventResponse" class="input" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.reply_chance_percent" for="eventChance">Шанс ответа, %</label>
+            <input type="number" id="eventChance" class="input" value="100" min="0" max="100">
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.use_ai">Использовать AI</label>
+            <div class="toggle" id="eventUseAI" onclick="this.classList.toggle('active')"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('addEventModal')" data-i18n="btn.cancel">Отмена</button>
+            <button class="btn btn-primary" onclick="createEvent()" data-i18n="btn.create">Создать</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== Add Snippet Modal ========== -->
+<div id="addSnippetModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('addSnippetModal')">
+    <div class="modal">
+        <h3 data-i18n="snippet.new">💬 Новая заготовка</h3>
+        <div class="form-group">
+            <label data-i18n="label.name_required" for="snippetName">Название *</label>
+            <input type="text" id="snippetName" class="input" placeholder="Завал">
+        </div>
+        <div class="form-group">
+            <label data-i18n="label.text_required" for="snippetText">Текст *</label>
+            <textarea id="snippetText" class="input" rows="3" placeholder="www завал навоз гавнавоз хахах"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('addSnippetModal')" data-i18n="btn.cancel">Отмена</button>
+            <button class="btn btn-primary" onclick="createSnippet()" data-i18n="btn.create">Создать</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== Общий пул прокси (Модальное окно для раздела Боты) ========== -->
+<div id="proxyPoolModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('proxyPoolModal')">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:760px;width:95%">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-base">🌐 Общий пул прокси для ботов</h3>
+            <button class="btn btn-secondary btn-sm" onclick="hideModal('proxyPoolModal')">✕</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Централизованный пул: боты автоматически столбит себе уникальные прокси и переключаются при сбоях.</p>
+
+        <div class="flex gap-2 flex-wrap items-center justify-between mb-3">
+            <div class="flex gap-2 flex-wrap text-xs">
+                <span class="badge">Всего: <b id="ppModalStatTotal">0</b></span>
+                <span class="badge" style="color:var(--color-success,#22c55e)">🟢 Свободно: <b id="ppModalStatAvail">0</b></span>
+                <span class="badge" style="color:var(--color-primary,#6366f1)">📌 Занято: <b id="ppModalStatAssigned">0</b></span>
+                <span class="badge" style="color:var(--color-error,#ef4444)">🔴 Ошибки: <b id="ppModalStatDead">0</b></span>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <button class="btn btn-secondary btn-sm" onclick="loadProxyPool()" title="Обновить список">🔄 Обновить</button>
+                <button class="btn btn-secondary btn-sm" onclick="checkAllProxyPool()" title="Проверить все прокси">⚡ Проверить все</button>
+                <button class="btn btn-secondary btn-sm text-danger" onclick="cleanDeadProxyPool()" title="Удалить нерабочие">🧹 Удалить мёртвые</button>
+                <button class="btn btn-secondary btn-sm" style="color:var(--color-warning,#f59e0b)" onclick="cleanSlowProxyPool(2000)" title="Удалить прокси с пингом 2000мс+ и ошибки">⚡ Удалить >2к пинг</button>
+                <button class="btn btn-secondary btn-sm" onclick="cleanDuplicateProxyPool()" title="Удалить повторяющиеся прокси">🗑 Удалить повторки</button>
+                <button class="btn btn-secondary btn-sm" onclick="claimProxiesForActiveBots()" title="Раздать свободные прокси только включенным активным ботам">🟢 Раздать активным</button>
+                <button class="btn btn-primary btn-sm" onclick="toggleProxyAddForm()">＋ Добавить прокси</button>
+            </div>
+        </div>
+
+        <!-- Форма добавления прокси в модалке -->
+        <div id="proxyModalAddForm" class="card p-3 mb-3 hidden" style="background:var(--bg-secondary,rgba(0,0,0,0.15));border:1px solid var(--border)">
+            <div class="text-xs font-semibold mb-2">📥 Добавить прокси в пул</div>
+            <textarea id="ppModalInputText" class="input font-mono w-full mb-2" rows="3" placeholder="ip:port:user:password&#10;socks5://user:pass@host:port&#10;host:port"></textarea>
+            <div class="flex gap-2 flex-wrap items-center">
+                <select id="ppModalDefaultProto" class="input compact-select">
+                    <option value="http">HTTP</option>
+                    <option value="socks5">SOCKS5</option>
+                </select>
+                <input type="text" id="ppModalLabel" class="input field-200" placeholder="Метка (опционально)">
+                <button class="btn btn-primary btn-sm" onclick="submitModalAddProxies()">💾 Сохранить</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleProxyAddForm(false)">Отмена</button>
+            </div>
+        </div>
+
+        <div id="proxyPoolModalList" class="space-y-2 logs-scroll mb-3" style="max-height:360px;overflow-y:auto">
+            <div class="text-xs text-muted p-3">Загрузка пула...</div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('proxyPoolModal')">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== Выбор прокси из свободных для конкретного бота ========== -->
+<div id="selectBotProxyModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('selectBotProxyModal')">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:540px">
+        <h3 class="font-bold text-base mb-2">📋 Выбрать прокси для бота «<span id="selectProxyBotNick"></span>»</h3>
+        <p class="text-xs text-muted mb-3">Выберите один из свободных прокси в пуле. Прокси будет застолблен за этим ботом.</p>
+        <div id="selectBotProxyList" class="space-y-2 logs-scroll mb-3" style="max-height:320px;overflow-y:auto">
+            <div class="text-xs text-muted p-2">Загрузка свободных прокси...</div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('selectBotProxyModal')">Отмена</button>
+            <button class="btn btn-primary" id="confirmSelectProxyBtn" onclick="confirmSelectBotProxy()" disabled>📌 Застолбить выбранный</button>
+        </div>
+    </div>
+</div>

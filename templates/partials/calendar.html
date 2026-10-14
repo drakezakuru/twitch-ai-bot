@@ -1,0 +1,68 @@
+<!-- ========== CALENDAR (владелец 27.09 вечером): каналы/пачки/TTS-моменты недели одной сеткой ========== -->
+<section id="section-calendar" class="section">
+    <div class="section-header">
+        <div>
+            <h1 class="section-title">📅 <span data-i18n="calendar.title">Календарь недели</span></h1>
+            <p class="text-sm text-muted" data-i18n="calendar.hint">Расписание каналов, пачек ботов и TTS-моментов на одной сетке, без переходов по разделам настроек.</p>
+        </div>
+        <button class="btn btn-secondary" onclick="loadCalendarSection()" data-i18n="btn.refresh">Обновить</button>
+        <button class="btn btn-primary" onclick="openCalendarEventModal()" data-i18n="calendar.add">+ Добавить событие</button>
+    </div>
+    <div id="calendarGrid" class="calendar-grid" aria-live="polite">
+        <div class="card text-muted p-4" data-i18n="label.loading">Загрузка...</div>
+    </div>
+</section>
+
+<div id="calendarEventModal" class="modal-backdrop hidden" onclick="if(event.target===this)hideModal('calendarEventModal')">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="calendarEventTitle">
+        <h3 id="calendarEventTitle" data-i18n="calendar.add">+ Добавить событие</h3>
+        <input type="hidden" id="calendarEventId" value="">
+        <div class="flex gap-2 flex-wrap items-end mb-3">
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="calendarEventDay" data-i18n="calendar.day">День недели</label>
+                <select id="calendarEventDay" class="input select-160">
+                    <option value="0" data-i18n="calendar.mon">Понедельник</option>
+                    <option value="1" data-i18n="calendar.tue">Вторник</option>
+                    <option value="2" data-i18n="calendar.wed">Среда</option>
+                    <option value="3" data-i18n="calendar.thu">Четверг</option>
+                    <option value="4" data-i18n="calendar.fri">Пятница</option>
+                    <option value="5" data-i18n="calendar.sat">Суббота</option>
+                    <option value="6" data-i18n="calendar.sun">Воскресенье</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="calendarEventTime" data-i18n="calendar.time">Время</label>
+                <input type="time" id="calendarEventTime" class="input field-120" value="19:00">
+            </div>
+            <div>
+                <label class="text-sm text-muted mb-1 block" for="calendarEventKind" data-i18n="calendar.kind">Тип</label>
+                <select id="calendarEventKind" class="input select-160" onchange="calendarEventKindChanged()">
+                    <option value="channel" data-i18n="calendar.kind_channel">Канал</option>
+                    <option value="pack" data-i18n="calendar.kind_pack">Пачка ботов</option>
+                    <option value="tts" data-i18n="calendar.kind_tts">TTS-момент</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="calendarEventTitleInput" data-i18n="calendar.event_title">Название</label>
+            <input type="text" id="calendarEventTitleInput" class="input" maxlength="120" data-i18n-placeholder="calendar.event_title_ph" placeholder="Например: Эфир на test_channel">
+        </div>
+        <div class="form-group" id="calendarEventChannelGroup">
+            <label for="calendarEventChannel" data-i18n="calendar.channel">Канал</label>
+            <input type="text" id="calendarEventChannel" class="input" placeholder="channel_name">
+        </div>
+        <div class="form-group hidden" id="calendarEventPackGroup">
+            <label for="calendarEventPack" data-i18n="calendar.pack">Пачка ботов</label>
+            <select id="calendarEventPack" class="input"></select>
+        </div>
+        <div class="form-group">
+            <label for="calendarEventNote" data-i18n="calendar.note">Заметка</label>
+            <input type="text" id="calendarEventNote" class="input" maxlength="300">
+        </div>
+        <div id="calendarEventError" class="text-error text-sm" aria-live="polite"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideModal('calendarEventModal')" data-i18n="btn.close">Закрыть</button>
+            <button id="calendarEventSubmit" class="btn btn-primary" onclick="submitCalendarEvent()" data-i18n="calendar.save">💾 Сохранить</button>
+        </div>
+    </div>
+</div>

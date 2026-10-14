@@ -1,0 +1,21 @@
+# FastAPI 0.130+ заворачивает include_router в объекты `_IncludedRouter`,
+# и `app.routes` перестаёт содержать APIRoute напрямую — панельные
+# аудит-тесты (test_p7_panel_audit) видят «ни одного роута» и падают.
+# Снимать верхнюю границу только вместе с обновлением этих обходов.
+fastapi>=0.115.0,<0.130
+uvicorn[standard]>=0.32.0
+jinja2>=3.1.0
+python-dotenv>=1.0.0
+httpx>=0.27.0
+twitchio>=2.9.0,<3.0
+aiosqlite>=0.20.0
+Pillow>=10.0.0
+python-multipart>=0.0.9
+streamlink>=6.0.0
+certifi
+# Optional add-ons (auto-detected at runtime):
+cryptography>=42.0.0   # Feature 1: token encryption
+websockets>=12.0       # Feature 3: EventSub WebSocket
+httpx-socks>=0.9.0     # Feature 6: SOCKS5 proxy support
+
+

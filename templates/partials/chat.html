@@ -1,0 +1,39 @@
+<!-- ========== CHAT ========== -->
+<section id="section-chat" class="section">
+    <div class="section-header">
+        <h1 class="section-title">💬 <span data-i18n="title.chat">Чат</span></h1>
+    </div>
+
+    <!-- Q20: бот и канал — прямо у кнопки «Отправить»; канал — с поиском и группировкой по ботам -->
+    <div class="card mb-4 chat-composer-card">
+        <div class="flex gap-2 chat-composer flex-wrap items-center">
+            <select id="chatBot" class="input compact-select" onchange="refreshChatChannels();loadRecentChat()" data-i18n-aria-label="panel.chat_bot" aria-label="Бот для чата"></select>
+            <div id="chatChannelPicker" style="position:relative">
+                <button type="button" id="chatChannelPick" class="input compact-select" style="text-align:left;min-width:150px" onclick="toggleChatChannelPanel()" aria-haspopup="listbox" aria-expanded="false" data-i18n-aria-label="panel.chat_channel" aria-label="Канал чата">—</button>
+                <div id="chatChannelPanel" class="hidden card" style="position:absolute;top:calc(100% + 4px);left:0;z-index:60;min-width:300px;max-height:340px;overflow:auto">
+                    <input type="text" id="chatChannelSearch" class="input mb-1" data-i18n-placeholder="chat.pick_search" placeholder="Поиск канала или бота..." oninput="renderChatChannelPanel()" data-i18n-aria-label="chat.pick_search" aria-label="Поиск канала или бота">
+                    <div id="chatChannelPanelList"></div>
+                </div>
+            </div>
+            <input type="hidden" id="chatChannel">
+            <input type="text" id="chatMessage" class="input" data-i18n-placeholder="label.message_from_bot" placeholder="Сообщение от имени бота..." onkeypress="if(event.key==='Enter')sendChatMessage()" data-i18n-aria-label="label.message_from_bot" aria-label="Сообщение от имени бота">
+            <button id="chatSendButton" class="btn btn-primary" data-i18n="btn.send" onclick="sendChatMessage()">Отправить</button>
+        </div>
+    </div>
+
+    <!-- Live chat -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title" data-i18n="label.live_chat">Живой чат</span>
+            <div class="flex gap-2">
+                <button class="btn btn-secondary btn-sm" data-i18n="btn.history" onclick="loadRecentChat()">📜 История</button>
+                <button class="btn btn-secondary btn-sm" data-i18n="btn.clear" onclick="clearLiveChat()">Очистить</button>
+            </div>
+        </div>
+        <div id="liveChatContainer" class="live-chat-scroll">
+            <div class="empty-state"><div class="empty-icon">💬</div><span data-i18n="label.loading">Загрузка...</span></div>
+        </div>
+    </div>
+
+    <!-- Q25 (DEC-OWNER-005): настройка beep-конвейера переехала в настройки бота-модератора (botTab-moderation) -->
+</section>

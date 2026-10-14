@@ -1,0 +1,26 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="color-scheme" content="dark"><style>*{box-sizing:border-box}body{margin:0;padding:12px;background:color-mix(in srgb,#0f0f1a var(--widget-opacity-percent,100%),transparent);color:#f8fafc;font:16px system-ui}.event{padding:8px 12px;margin:6px 0;background:color-mix(in srgb,#1e293b var(--widget-opacity-percent,100%),transparent);border-left:3px solid #8b5cf6;border-radius:7px}.kind{color:#c4b5fd;font-weight:700}</style></head><body><main id="events"></main><script>
+WidgetI18n.add({
+  "ru": {
+    "recent-events.follow": "Новый фолловер",
+    "recent-events.subscribe": "Новый подписчик",
+    "recent-events.cheer": "Поддержка Bits",
+    "recent-events.raid": "Рейд",
+    "recent-events.manual": "Событие"
+  },
+  "en": {
+    "recent-events.follow": "New follower",
+    "recent-events.subscribe": "New subscriber",
+    "recent-events.cheer": "Bits cheer",
+    "recent-events.raid": "Raid",
+    "recent-events.manual": "Event"
+  },
+  "ua": {
+    "recent-events.follow": "Новий фолловер",
+    "recent-events.subscribe": "Новий підписник",
+    "recent-events.cheer": "Підтримка Bits",
+    "recent-events.raid": "Рейд",
+    "recent-events.manual": "Подія"
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+const params=new URLSearchParams(location.search);const _WIDGET_API_BASE=params.get('api')||'';const scope=['account_id','channel'].filter(k=>params.get(k)).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params.get(k))).join('&');const box=document.getElementById('events');const preview=params.get('preview')==='1';function esc(value){return String(value).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}function eventLabel(kind){return wt('recent-events.'+(['follow','subscribe','cheer','raid','manual'].includes(kind)?kind:'manual'));}function draw(items){box.innerHTML=(items||[]).map(x=>`<div class="event widget-theme-surface"><span class="kind widget-theme-accent">${esc(eventLabel(x.kind))}</span> · ${esc(x.username||wt('common.viewer'))}${x.amount?` · ${Number(x.amount)}`:''}</div>`).join('')||(preview?'<div class="event widget-theme-surface"><span class="kind widget-theme-accent">'+esc(eventLabel('follow'))+'</span> · DemoViewer</div>':'')}async function load(){try{draw(await(await fetch(_WIDGET_API_BASE+'/api/widgets/public/recent-events?'+(scope?scope+'&':'')+'limit=5&t='+Date.now())).json())}catch(e){draw([])}}load();setInterval(load,preview?15000:5000);</script></body></html>

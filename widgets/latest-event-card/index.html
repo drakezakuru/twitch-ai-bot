@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title data-widget-i18n="latest-event-card.title">Последнее событие</title>
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden;font-family:'Segoe UI',sans-serif}
+#card{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);
+  opacity:0;padding:24px 36px;border-radius:16px;text-align:center;
+  min-width:280px;transition:none;
+}
+#card.show{
+  animation:cardIn .6s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+#card.hide{
+  animation:cardOut .4s ease-in forwards;
+}
+@keyframes cardIn{
+  0%{transform:translate(-50%,-50%) scale(0) rotate(-5deg);opacity:0}
+  60%{transform:translate(-50%,-50%) scale(1.1) rotate(2deg);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(1) rotate(0deg);opacity:1}
+}
+@keyframes cardOut{
+  0%{transform:translate(-50%,-50%) scale(1);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(0.8);opacity:0}
+}
+#icon{font-size:48px;margin-bottom:8px;animation:iconPulse 1.5s ease infinite}
+@keyframes iconPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+#username{font-size:24px;font-weight:bold;margin-bottom:4px}
+#kindLabel{font-size:14px;text-transform:uppercase;letter-spacing:2px;opacity:.8}
+.glow{animation:glowPulse 2s ease-in-out infinite}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 20px rgba(255,255,255,.2)}50%{box-shadow:0 0 40px rgba(255,255,255,.5)}}
+
+/* Themes */
+.theme-neon{background:linear-gradient(135deg,rgba(15,12,41,var(--widget-opacity,1)),rgba(48,43,99,var(--widget-opacity,1)),rgba(36,36,62,var(--widget-opacity,1)));color:#fff;border:2px solid #a855f7;box-shadow:0 0 30px rgba(168,85,247,.4)}
+.theme-neon #username{color:#e879f9;text-shadow:0 0 10px rgba(232,121,249,.6)}
+.theme-glass{background:rgba(255,255,255,var(--widget-opacity,.1));backdrop-filter:blur(12px);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.theme-rainbow{background:linear-gradient(135deg,rgba(255,0,128,var(--widget-opacity,1)),rgba(255,140,0,var(--widget-opacity,1)),rgba(64,224,208,var(--widget-opacity,1)),rgba(123,47,247,var(--widget-opacity,1)));color:#fff;border:none;box-shadow:0 0 30px rgba(255,0,128,.3)}
+.theme-rainbow #username{text-shadow:0 0 8px rgba(255,255,255,.8)}
+.theme-minimal{background:rgba(26,26,46,var(--widget-opacity,1));color:#eee;border:1px solid #333;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.theme-minimal #username{color:#fff}
+
+/* Particles */
+.particle{position:fixed;width:6px;height:6px;border-radius:50%;pointer-events:none;animation:particleFly 1.5s ease-out forwards}
+@keyframes particleFly{
+  0%{opacity:1;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0)}
+}
+</style>
+</head><body>
+<div id="card" class="widget-theme-surface theme-neon glow">
+  <div id="icon"></div>
+  <div id="username" class="widget-theme-accent"></div>
+  <div id="kindLabel"></div>
+</div>
+
+<script>
+WidgetI18n.add({
+  "ru": {
+    "latest-event-card.title": "Последнее событие",
+    "latest-event-card.follow": "Новый фолловер",
+    "latest-event-card.subscribe": "Новый подписчик",
+    "latest-event-card.cheer": "Поддержка Bits",
+    "latest-event-card.raid": "Рейд",
+    "latest-event-card.manual": "Событие",
+    "latest-event-card.viewers": "{count} зрителей"
+  },
+  "en": {
+    "latest-event-card.title": "Latest event",
+    "latest-event-card.follow": "New follower",
+    "latest-event-card.subscribe": "New subscriber",
+    "latest-event-card.cheer": "Bits cheer",
+    "latest-event-card.raid": "Raid",
+    "latest-event-card.manual": "Event",
+    "latest-event-card.viewers": "{count} viewers"
+  },
+  "ua": {
+    "latest-event-card.title": "Остання подія",
+    "latest-event-card.follow": "Новий фолловер",
+    "latest-event-card.subscribe": "Новий підписник",
+    "latest-event-card.cheer": "Підтримка Bits",
+    "latest-event-card.raid": "Рейд",
+    "latest-event-card.manual": "Подія",
+    "latest-event-card.viewers": "{count} глядачів"
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+const params=new URLSearchParams(location.search);
+const scope=['account_id','channel'].filter(k=>params.get(k)).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params.get(k))).join('&');
+const requestedTheme=params.get('theme');
+const themes=new Set(['dark','light','neon','fire','glass','mono','rainbow','minimal']);
+const theme=themes.has(requestedTheme)?requestedTheme:'neon';
+const card=document.getElementById('card');
+card.className='widget-theme-surface theme-'+theme+' glow';
+
+const ICON_MAP={follow:'\u2764\uFE0F',subscribe:'\u2B50',cheer:'\uD83D\uDC8E',raid:'\uD83D\uDE80',manual:'\uD83C\uDF89'};
+const KIND_LABELS={follow:wt('latest-event-card.follow'),subscribe:wt('latest-event-card.subscribe'),cheer:wt('latest-event-card.cheer'),raid:wt('latest-event-card.raid'),manual:wt('latest-event-card.manual')};
+
+let lastEventId=null;
+let hideTimer=null;
+
+function spawnParticles(){
+  const colors=['#ff0080','#ff8c00','#40e0d0','#7b2ff7','#ffdd00','#00ff88'];
+  for(let i=0;i<12;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.left='50%';
+    p.style.top='50%';
+    p.style.setProperty('--dx',(Math.random()*200-100)+'px');
+    p.style.setProperty('--dy',(Math.random()*200-100)+'px');
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),1500);
+  }
+}
+
+function showCard(ev){
+  card.classList.remove('show','hide');
+  void card.offsetWidth;
+  document.getElementById('icon').textContent=Object.hasOwn(ICON_MAP,ev.kind)?ICON_MAP[ev.kind]:ICON_MAP.manual;
+  document.getElementById('username').textContent=ev.username||wt('common.viewer');
+  let label=Object.hasOwn(KIND_LABELS,ev.kind)?KIND_LABELS[ev.kind]:KIND_LABELS.manual;
+  if(ev.kind==='cheer'&&ev.amount)label+=' x'+ev.amount;
+  if(ev.kind==='raid'&&ev.amount)label+=' ('+wt('latest-event-card.viewers',{count:ev.amount})+')';
+  document.getElementById('kindLabel').textContent=label;
+  card.classList.add('show');
+  spawnParticles();
+  if(hideTimer)clearTimeout(hideTimer);
+  hideTimer=setTimeout(()=>{
+    card.classList.remove('show');
+    card.classList.add('hide');
+  },10000);
+}
+
+async function poll(){
+  try{
+    const r=await fetch(_WIDGET_API_BASE + '/api/widgets/public/latest-event?'+(scope?scope+'&':'')+'t='+Date.now());
+    if(!r.ok)return;
+    const d=await r.json();
+    if(d.event&&d.event.id!==lastEventId){
+      lastEventId=d.event.id;
+      showCard(d.event);
+    }
+  }catch(e){/* панель недоступна: карточка просто не появляется */}
+}
+if(params.get('preview')==='1'){
+  // Карточка события живёт 10 секунд; в превью зацикливаем показ,
+  // иначе панель через 10 секунд покажет пустой прямоугольник.
+  document.body.style.background='#0f0f1a';
+  const demo={id:0,kind:'subscribe',username:'DemoViewer'};
+  showCard(demo);
+  setInterval(()=>showCard(demo),9000);
+}else{
+  poll();setInterval(poll,3000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>

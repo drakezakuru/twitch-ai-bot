@@ -1,0 +1,57 @@
+<!-- ========== BRAIN (v16 BRAIN_PLAN): Lore / Обучение / Summarizer / Shift ========== -->
+<section id="section-brain" class="section">
+    <div class="section-header">
+        <h1 class="section-title">🧠 <span data-i18n="title.brain">Мозг</span></h1>
+        <div class="flex gap-1 items-center">
+            <select id="brainBotSelect" class="input" style="max-width:220px" onchange="onBrainBotChange()" data-i18n-aria-label="panel.brain.bot" aria-label="Бот для памяти и обучения"></select>
+            <select id="brainChannel" class="input" style="max-width:180px" onchange="loadBrainAll()"
+                    data-i18n-title="panel.channel_scope" title="Все каналы или конкретный канал" data-i18n-aria-label="panel.channel_scope" aria-label="Все каналы или конкретный канал"><option value="*" data-i18n="label.all_channels">🌐 все каналы</option></select>
+            <button class="btn btn-secondary btn-sm" onclick="loadBrainAll()" data-i18n-aria-label="btn.refresh" aria-label="Обновить">🔄</button>
+        </div>
+    </div>
+    <p class="text-sm text-muted mb-4" data-i18n="brain.intro">Память стримера (Lore), обучение, сводки стрима и временные сдвиги настроения. Всё применяется только после подтверждения.</p>
+
+    <!-- Q18b: глобальный редактор запреток убран (DEC-OWNER-004/DEC-OWNER-016):
+         запретные темы — per-канал в модалке «Профиль канала», пресет Twitch
+         редактируется там же (details) -->
+
+    <!-- Q09d: карточки «Lore» и «Профиль стримера» переехали в модалку
+         «Профиль канала» (channels.html, кнопка на карточке канала) —
+         редакторы данных per-channel живут теперь только там -->
+
+    <!-- Q17: «🎓 Обучение (предложения)» переехало во вкладку бота (botTab-memory) -->
+
+    <!-- ===== SUMMARIZER ===== -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title" data-i18n="panel.brain.summaries">📝 Сводки стрима</span>
+            <div class="flex gap-1">
+                <button class="btn btn-primary btn-sm" onclick="summarizerShowRun()" data-i18n="panel.brain.run_stream">▶ Прогнать стрим</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadSummarizerRuns()" data-i18n-aria-label="btn.refresh" aria-label="Обновить">🔄</button>
+            </div>
+        </div>
+        <p class="text-sm text-muted mb-3" data-i18n="brain.summary_hint">Отчёты «как прошёл стрим» по истории чата: ручной прогон за выбранный период и live-сводки каждые 30 минут (ниже — включение и per-канальные настройки). Сводки питают Lore фактами.</p>
+        <div id="summarizerRunForm" class="hidden mb-3 p-3 form-panel">
+            <div class="flex gap-2 mb-2 flex-wrap">
+                <label class="text-sm"><span data-i18n="panel.period_start">Начало</span>: <input type="datetime-local" id="sumRunStart" class="input"></label>
+                <label class="text-sm"><span data-i18n="panel.period_end">Конец</span>: <input type="datetime-local" id="sumRunEnd" class="input"></label>
+                <select id="sumRunLang" class="input" style="max-width:100px" data-i18n-aria-label="panel.brain.summary_language" aria-label="Язык сводки">
+                    <option value="ru">RU</option>
+                    <option value="en">EN</option>
+                </select>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="summarizerStartRun()" data-i18n="panel.brain.start_run">Запустить прогон</button>
+            <button class="btn btn-secondary btn-sm" onclick="hideSummarizerRun()" data-i18n="btn.cancel">Отмена</button>
+        </div>
+        <div id="summarizerRunsList" class="dashboard-events-scroll" aria-live="polite"><div class="empty-state text-muted text-sm" data-i18n="label.loading">Загрузка...</div></div>
+        <div id="summarizerRunView" class="hidden mt-3" aria-live="polite"></div>
+        <!-- Q09d: live-настройки сводок (вкл/выкл/язык) переехали в модалку
+             «Профиль канала»; ручной прогон за период и список прогонов остаются здесь -->
+    </div>
+
+    <!-- Q17: импорт/экспорт KB удалён из «Мозга» (DEC-OWNER-003); per-бот вкладка KB остаётся -->
+
+    <!-- P8-C4: карточка «🎭 Personality Shift (временный mood)» удалена —
+         ручной Shift убран по вердикту владельца; авто-эволюция характера
+         живёт в «🎓 Обучение (предложения)» (learning) -->
+</section>

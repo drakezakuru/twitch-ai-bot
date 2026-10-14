@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="color-scheme" content="dark">
+<script src="/widget/_shared/i18n.js"></script>
+<script>
+WidgetI18n.add({
+    ru: {'moderator_media.title': 'Медиа модератора для OBS'},
+    en: {'moderator_media.title': 'Moderator media for OBS'},
+    ua: {'moderator_media.title': 'Медіа модератора для OBS'}
+});
+</script>
+<title data-widget-i18n="moderator_media.title">Медиа модератора для OBS</title>
+<style>
+html,body{margin:0;background:transparent;overflow:hidden}#cue{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:90vw;max-height:90vh;opacity:0;transition:opacity .25s}#cue.show{opacity:1}img,video{max-width:100%;max-height:100%;display:block}
+.safe-preview{width:100vw;height:100vh;background:#0f0f1a;display:grid;place-items:center}.safe-preview-card{width:48%;aspect-ratio:16/9;border:2px solid #8b5cf6;border-radius:14px;background:linear-gradient(135deg,#241443,#10253d);box-shadow:0 0 32px #8b5cf655;display:grid;place-items:center}.safe-preview-play{width:0;height:0;border-top:18px solid transparent;border-bottom:18px solid transparent;border-left:28px solid #e9d5ff;filter:drop-shadow(0 0 8px #a78bfa)}
+</style></head><body>{% if preview %}<div class="safe-preview" data-safe-preview="true" aria-hidden="true"><div class="safe-preview-card"><span class="safe-preview-play"></span></div></div>{% else %}<div id="cue"></div><script>
+const q=new URLSearchParams(location.search),base='/api/moderator-media/public',args=`account_id=${encodeURIComponent(q.get('account_id'))}&channel=${encodeURIComponent(q.get('channel'))}&token=${encodeURIComponent(q.get('token'))}`;let shown=0;
+async function poll(){try{const s=await fetch(`${base}/state?${args}`,{cache:'no-store'}).then(r=>r.ok?r.json():null);if(!s||s.kill_switch){cue.replaceChildren();shown=0;return}const p=s.position||{},places={center:['50%','50%'],top:['50%','8%'],bottom:['50%','92%'],'top-left':['8%','8%'],'top-right':['92%','8%'],'bottom-left':['8%','92%'],'bottom-right':['92%','92%']}[p.position]||['50%','50%'];Object.assign(cue.style,{left:places[0],top:places[1],maxWidth:`${p.width_pct||35}vw`,transitionDuration:`${p.fade_ms||250}ms`});if(s.cue&&s.cue.command_id!==shown){shown=s.cue.command_id;const e=document.createElement(s.cue.media_kind==='video'?'video':'img');e.src=`${base}/file/${s.cue.media_id}?${args}`;e.autoplay=true;e.muted=true;e.playsInline=true;cue.replaceChildren(e);cue.classList.add('show');let completed=false;const done=()=>{if(completed)return;completed=true;cue.classList.remove('show');fetch(`${base}/complete`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account_id:+q.get('account_id'),channel:q.get('channel'),token:q.get('token'),command_id:shown})})};e.onended=done;setTimeout(done,Math.max(500,p.duration_ms||s.cue.duration_ms||5000))}}catch(_){}}setInterval(poll,700);poll();
+</script>{% endif %}</body></html>

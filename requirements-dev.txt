@@ -1,0 +1,8 @@
+# Dev / test dependencies (для pytest + CI).
+# Install: pip install -r requirements-dev.txt
+-r requirements.lock
+pytest>=8.0
+pytest-asyncio>=0.23
+# Optional: для тестів diarization та vision (необов'язкові)
+numpy>=1.24
+scipy>=1.10

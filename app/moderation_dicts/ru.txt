@@ -1,0 +1,93 @@
+# Встроенный словарь модерации: русский (MODERATION_PLAN §1).
+# Формат строки: category|severity|pattern — слово (стем) или regex "re:..."
+# Сопоставление идёт по началу слова: стем "уебищ" ловит "уебище/уебища/уебищный".
+# Неоднозначные слова оборачивайте в "re:\bслово\b" (точная граница).
+# Категории: insult / hate / threat / sexual / spam. Severity 1-5:
+#   1-2 → replace (маскировка), 3 → block, 4-5 → block (+ timeout при включённом §3.4).
+# Комментарии начинаются с #.
+
+# --- Оскорбления (insult) ---
+insult|2|лох
+insult|2|лузер
+insult|2|дебил
+insult|2|дура
+insult|2|тупиц
+insult|2|кретин
+insult|2|идиот
+insult|2|долбоящер
+insult|2|баран
+insult|2|неумеха
+insult|2|нищеброд
+insult|2|крыс
+insult|2|шавк
+insult|2|падл
+insult|3|уебищ
+insult|3|убожеств
+insult|3|ублюд
+insult|3|мраз
+insult|3|твар
+insult|3|скотин
+insult|3|сволоч
+insult|3|гнид
+insult|3|подонок
+insult|3|недоумок
+insult|3|даун
+insult|3|чмош
+insult|3|чмо
+insult|2|соси
+insult|2|отвали
+insult|2|отъебись
+
+# --- Ненависть (hate) ---
+hate|4|ниггер
+hate|4|негр
+hate|4|хач
+hate|4|чурк
+hate|4|узкоглаз
+hate|4|re:\bжид\b
+hate|4|жидовк
+hate|3|фашист
+hate|3|нацист
+hate|4|зигу
+hate|4|рейх
+hate|4|москал
+hate|4|кацап
+hate|4|хохол
+hate|3|ретард
+
+# --- Угрозы (threat) — всегда в журнал даже при block ---
+threat|5|убью
+threat|5|замучу
+threat|5|зарежу
+threat|5|повешу
+threat|5|сожгу
+threat|5|отравлю
+threat|5|изнасилую
+threat|5|найду тебя
+threat|5|знаю где ты живешь
+threat|5|знаю где ты живёшь
+threat|5|приду к тебе
+threat|5|порешу
+threat|5|закопаю
+threat|5|докс
+threat|4|сломаю ноги
+threat|4|сломаю руки
+
+# --- Сексуальное (sexual) ---
+sexual|4|пидор
+sexual|4|пидар
+sexual|3|шлюх
+sexual|3|бля
+sexual|3|сука
+sexual|4|хуй
+sexual|4|хуил
+sexual|4|хуес
+sexual|3|пизд
+sexual|4|еба
+sexual|4|ёба
+sexual|4|выеб
+sexual|4|заеб
+sexual|4|уебать
+sexual|3|долбоёб
+sexual|3|долбоеб
+sexual|4|сперм

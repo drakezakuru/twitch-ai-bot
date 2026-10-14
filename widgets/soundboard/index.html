@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="color-scheme" content="dark"><style>html,body{margin:0;background:transparent;color:#ddd;font:14px sans-serif}#state{background:rgba(15,15,26,var(--widget-opacity,.8));padding:8px;border-radius:6px;display:inline-flex;align-items:center;gap:8px}#state::before{content:'';width:9px;height:9px;border-radius:50%;background:#64748b;flex-shrink:0}#state.on::before{background:#10b981}#state.err::before{background:#fbbf24}</style></head><body><div id="state" class="widget-theme-surface" aria-live="polite"></div><script>
+WidgetI18n.add({
+  "ru": {
+    "soundboard.status": "Звуковая панель: {text}",
+    "soundboard.ready": "Подключено, ожидание биндинга",
+    "soundboard.stopped": "Остановлено",
+    "soundboard.playing": "Играет трек #{id}",
+    "soundboard.unavailable": "Трек #{id} недоступен"
+  },
+  "en": {
+    "soundboard.status": "Soundboard: {text}",
+    "soundboard.ready": "Connected, waiting for a binding",
+    "soundboard.stopped": "Stopped",
+    "soundboard.playing": "Playing track #{id}",
+    "soundboard.unavailable": "Track #{id} is unavailable"
+  },
+  "ua": {
+    "soundboard.status": "Звукова панель: {text}",
+    "soundboard.ready": "Підключено, очікування біндингу",
+    "soundboard.stopped": "Зупинено",
+    "soundboard.playing": "Грає трек №{id}",
+    "soundboard.unavailable": "Трек №{id} недоступний"
+  }
+});
+WidgetI18n.apply();
+
+const _params=new URLSearchParams(location.search),_WIDGET_API_BASE=_params.get('api')||'',_scope={account_id:_params.get('account_id')||'',channel:(_params.get('channel')||'').trim().toLowerCase().replace(/^#/,'')}; let ws, retry=1000, audio=null; const state=document.getElementById('state');
+setState('',WidgetI18n.t('common.loading'));
+function setState(cls,text){state.className='widget-theme-surface '+cls;state.textContent=WidgetI18n.t('soundboard.status',{text})}
+function connect(){const base=_WIDGET_API_BASE?new URL(_WIDGET_API_BASE,location.href):new URL(location.origin),proto=base.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(`${proto}//${base.host}/ws?channel=${encodeURIComponent(_scope.channel)}`);ws.onopen=()=>{retry=1000;setState('on',WidgetI18n.t('soundboard.ready'))};ws.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}if(d.type!=='soundboard')return;if(_scope.account_id?(!d.account_id||String(d.account_id)!==_scope.account_id):false)return;if(d.type!=='soundboard'||d.kind!=='play'){if(d.kind==='stop'){if(audio){audio.pause();audio.currentTime=0}setState('on',WidgetI18n.t('soundboard.stopped'))}return}if(audio)audio.pause();const audioUrl=new URL(`/api/widgets/public/soundboard/tracks/${d.track_id}`,base);for(const key of ['account_id','channel','token']){const value=_params.get(key);if(value)audioUrl.searchParams.set(key,value)}audio=new Audio(audioUrl.href);audio.volume=Math.max(0,Math.min(1,Number(d.volume??1)));audio.onended=()=>{setState('on',WidgetI18n.t('soundboard.stopped'));const endUrl=new URL('/api/widgets/public/soundboard/track-ended',base);for(const k of ['account_id','channel','token']){const val=_params.get(k);if(val)endUrl.searchParams.set(k,val)}fetch(endUrl.href,{method:'POST'}).catch(()=>{})};audio.play().then(()=>setState('on',WidgetI18n.t('soundboard.playing',{id:d.track_id}))).catch(()=>setState('err',WidgetI18n.t('soundboard.unavailable',{id:d.track_id})))};ws.onclose=()=>{setState('',WidgetI18n.t('common.disconnected'));setTimeout(connect,retry=Math.min(retry*2,10000))};ws.onerror=()=>ws.close()}
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  // Карточка не подключается к живому WS: показываем представительное «играет».
+  document.body.style.background='#0f0f1a';
+  setState('on',WidgetI18n.t('soundboard.playing',{id:1}));
+}else{connect()}
+</script></body></html>

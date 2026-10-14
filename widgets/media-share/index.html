@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title data-widget-i18n="media-share.title">Обмен медиа</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:transparent;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;width:100vw;height:100vh}
+.player{position:relative;width:100%;height:100%}
+#player{width:100%;height:100%}
+.overlay-info{position:absolute;top:10px;left:10px;max-width:70%;
+  background:rgba(15,15,25,var(--widget-opacity,0.85));border-radius:10px;padding:8px 14px;color:#fff;
+  font-size:15px;border:1px solid rgba(255,255,255,0.12);opacity:0;
+  transition:opacity 0.4s}
+.overlay-info.show{opacity:1}
+.idle{display:none;align-items:center;justify-content:center;width:100%;height:100%;
+  color:rgba(255,255,255,0.5);font-size:20px;text-align:center}
+.idle.show{display:flex}
+.paused-badge{position:absolute;top:10px;right:10px;display:none;
+  background:rgba(245,158,11,0.9);color:#111;border-radius:8px;padding:4px 12px;
+  font-weight:700;font-size:13px}
+.paused-badge.show{display:block}
+.status{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;
+  max-width:min(680px,85%);padding:14px 18px;border-radius:12px;text-align:center;
+  color:#fff;background:rgba(15,15,25,.94);border:1px solid rgba(245,158,11,.65);
+  font-size:18px;line-height:1.4}
+.status.show{display:block}
+[data-widget-theme] .overlay-info{
+  background:color-mix(in srgb,var(--widget-theme-surface) var(--widget-opacity-percent,100%),transparent);
+  border-color:var(--widget-theme-border);color:var(--widget-theme-text)}
+</style></head><body>
+<div class="player" id="wrap">
+  <div id="player"></div>
+  <div class="overlay-info widget-theme-surface widget-theme-text" id="info"></div>
+  <div class="paused-badge" id="pausedBadge">⏸ TTS говорит</div>
+  <div class="idle widget-theme-muted" id="idle">🎧 Очередь пуста — заказывай через !sr</div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+</div>
+<script src="/widget/_shared/media-share-core.js?v=1"></script>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "media-share.title": "Обмен медиа"
+  },
+  "en": {
+    "media-share.title": "Media sharing"
+  },
+  "ua": {
+    "media-share.title": "Обмін медіа"
+  }
+});
+const wt = (key, vars) => WidgetI18n.t(key, vars);
+
+// Свой видео-виджет (решение владельца 28.08.2026, §4/§9.3):
+// YouTube-плеер поверх очереди song-request (!sr), авто-переход к следующему
+// треку и АВТО-ПАУЗА, когда говорит TTS (сигнал widget_bus pause_media).
+const qs = new URLSearchParams(location.search);
+const API = qs.get('api') || '';
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+const CHANNEL = qs.get('channel') || '';
+const _S = parseFloat(qs.get('scale') || '1');
+const scope = new URLSearchParams();
+if(qs.get('account_id'))scope.set('account_id',qs.get('account_id'));
+if(qs.get('channel'))scope.set('channel',qs.get('channel'));
+const scopeQuery = scope.toString() ? '?' + scope.toString() : '';
+if (_S !== 1) document.body.style.zoom = _S;
+const VOLUME = Math.max(0, Math.min(100, parseInt(qs.get('volume') || '60', 10) || 60)) / 100;
+const YT_RE = /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})|^\s*([A-Za-z0-9_-]{11})\s*$/;
+const TEXT = {
+  ru: {paused:'⏸ TTS говорит',empty:'🎧 Очередь пуста — заказывай через !sr',scope:'⚠️ Укажите Twitch-канал в URL виджета.',offline:'⚠️ Нет связи с очередью. Повторное подключение…',youtubeLoading:'Подключение к YouTube…',youtubeOffline:'⚠️ YouTube IFrame API недоступен. Повторная попытка…',embed:'⚠️ Видео недоступно или запрещено для встраивания. Переход к следующему…',autoplay:'⚠️ Автовоспроизведение заблокировано YouTube, браузером или OBS. Запустите видео вручную.',unsupported:'⚠️ Текущий запрос не содержит поддерживаемую YouTube-ссылку.',bus:'⚠️ Переподключение к панели; автопауза TTS временно недоступна.'},
+  en: {paused:'⏸ TTS is speaking',empty:'🎧 The queue is empty — request with !sr',scope:'⚠️ Add a Twitch channel to the widget URL.',offline:'⚠️ Queue is offline. Reconnecting…',youtubeLoading:'Connecting to YouTube…',youtubeOffline:'⚠️ YouTube IFrame API is unavailable. Retrying…',embed:'⚠️ This video is unavailable or blocked from embedding. Moving to the next item…',autoplay:'⚠️ Autoplay was blocked by YouTube, browser, or OBS policy. Start the video manually.',unsupported:'⚠️ The current request has no supported YouTube URL.',bus:'⚠️ Reconnecting to the panel; TTS auto-pause is temporarily unavailable.'},
+  ua: {paused:'⏸ TTS говорить',empty:'🎧 Черга порожня — замовляйте через !sr',scope:'⚠️ Додайте Twitch-канал до URL віджета.',offline:'⚠️ Немає зв’язку з чергою. Перепідключення…',youtubeLoading:'Підключення до YouTube…',youtubeOffline:'⚠️ YouTube IFrame API недоступний. Повторна спроба…',embed:'⚠️ Відео недоступне або заборонене для вбудовування. Перехід до наступного…',autoplay:'⚠️ Автовідтворення заблоковане YouTube, браузером або OBS. Запустіть відео вручну.',unsupported:'⚠️ Поточний запит не містить підтримуваного YouTube URL.',bus:'⚠️ Перепідключення до панелі; автопауза TTS тимчасово недоступна.'},
+};
+const widgetLang = WidgetI18n.lang;
+const tx = key => (Object.hasOwn(TEXT[widgetLang] || {}, key) && TEXT[widgetLang][key]) || (Object.hasOwn(TEXT.ru, key) && TEXT.ru[key]) || WidgetI18n.t('common.unavailable');
+const info = document.getElementById('info'), idle = document.getElementById('idle'),
+      pausedBadge = document.getElementById('pausedBadge'), status = document.getElementById('status');
+let yt = null, currentVideoId = null, pending = null;
+let advanceTimer = null, youtubeLoadTimer = null, youtubeRetryTimer = null;
+let playbackGeneration = 0, youtubeLoadGeneration = 0;
+const statuses = MediaShareCore.statusStore((key, message) => {
+  status.textContent = message;
+  status.dataset.state = key;
+  status.classList.toggle('show', Boolean(key));
+}, ['scope_required','embed_error','youtube_api','autoplay','queue_offline','unsupported','bus_reconnecting']);
+pausedBadge.textContent = tx('paused');
+idle.textContent = tx('empty');
+
+function extractId(title){
+  if (!title) return null;
+  const m = String(title).match(YT_RE);
+  return m ? (m[1] || m[2]) : null;
+}
+let infoTimer = null;
+function showInfo(text){
+  info.textContent = text;
+  info.classList.add('show');
+  clearTimeout(infoTimer);
+  infoTimer = setTimeout(() => info.classList.remove('show'), 5000);
+}
+async function fetchState(){
+  try{
+    const r = await fetch((API || '') + '/api/widgets/public/song-request' + scopeQuery);
+    if (!r.ok) return {__error: true};
+    return await r.json();
+  }catch(e){ return {__error: true}; }
+}
+function playItem(item){
+  const vid = extractId(item && item.title);
+  if (!vid){ statuses.set('unsupported', tx('unsupported')); return; }
+  playbackGeneration += 1;
+  clearTimeout(advanceTimer);
+  advanceTimer = null;
+  statuses.clear('embed_error');
+  statuses.clear('unsupported');
+  currentVideoId = vid;
+  idle.classList.remove('show');
+  showInfo('▶ ' + (item.title || '').replace(YT_RE, '').trim() + ' — ' + (item.requested_by || ''));
+  if (yt && yt.loadVideoById) {
+    yt.loadVideoById(vid);
+  } else {
+    pending = vid;
+  }
+}
+async function tick(){
+  const st = await fetchState();
+  if (st.__error){
+    statuses.set('queue_offline', tx('offline'));
+    return;
+  }
+  statuses.clear('queue_offline');
+  idle.textContent = tx('empty');
+  const np = st.now_playing;
+  const npId = np ? extractId(np.title) : null;
+  if (np && npId && npId !== currentVideoId){
+    playItem(np);
+  } else if (!np || !npId){
+    if (np && !npId) statuses.set('unsupported', tx('unsupported'));
+    else statuses.clear('unsupported');
+    if (!yt || !yt.getPlayerState || [ -1, 0, 5 ].includes(yt.getPlayerState())){
+      idle.classList.add('show');
+      currentVideoId = null;
+    }
+  }
+}
+async function nextTrack(expectedVideoId = null, expectedGeneration = null){
+  if (expectedVideoId && (currentVideoId !== expectedVideoId || playbackGeneration !== expectedGeneration)) return;
+  clearTimeout(advanceTimer);
+  advanceTimer = null;
+  try{
+    const response = await fetch((API || '') + '/api/widgets/public/song-request/next' + scopeQuery, {method:'POST'});
+    if (!response.ok) throw new Error('queue offline');
+  }catch(e){ statuses.set('queue_offline', tx('offline')); return; }
+  statuses.clear('embed_error');
+  currentVideoId = null;
+  await tick();
+}
+// YouTube IFrame API
+const IS_PREVIEW = qs.get('preview') === '1';
+function loadYouTubeApi(){
+  if (yt) return;
+  const generation = ++youtubeLoadGeneration;
+  statuses.set('youtube_api', tx('youtubeLoading'));
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  const unavailable = () => {
+    if (yt || generation !== youtubeLoadGeneration) return;
+    clearTimeout(youtubeLoadTimer);
+    statuses.set('youtube_api', tx('youtubeOffline'));
+    if (youtubeRetryTimer === null) youtubeRetryTimer = setTimeout(() => {
+      youtubeRetryTimer = null;
+      loadYouTubeApi();
+    }, 5000);
+  };
+  tag.onerror = unavailable;
+  document.head.appendChild(tag);
+  youtubeLoadTimer = setTimeout(unavailable, 10000);
+}
+window.onYouTubeIframeAPIReady = function(){
+  youtubeLoadGeneration += 1;
+  clearTimeout(youtubeLoadTimer);
+  clearTimeout(youtubeRetryTimer);
+  youtubeRetryTimer = null;
+  statuses.clear('youtube_api');
+  if (yt) return;
+  yt = new YT.Player('player', {
+    width: '100%', height: '100%',
+    playerVars: {autoplay: 1, controls: 1, disablekb: 0, modestbranding: 1,
+                 rel: 0, playsinline: 1},
+    events: {
+      onReady: () => { statuses.clear('youtube_api'); yt.setVolume(Math.round(VOLUME * 100)); if (pending) playItem({title: pending}); tick(); },
+      onStateChange: (e) => {
+        if (e.data === 1) {
+          clearTimeout(advanceTimer);
+          advanceTimer = null;
+          statuses.clear('autoplay');
+          statuses.clear('embed_error');
+        }
+        if (e.data === 0) nextTrack();
+      },
+      onAutoplayBlocked: () => statuses.set('autoplay', tx('autoplay')),
+      onError: () => {
+        const failedVideoId = currentVideoId;
+        const failedGeneration = playbackGeneration;
+        statuses.set('embed_error', tx('embed'));
+        clearTimeout(advanceTimer);
+        advanceTimer = setTimeout(() => nextTrack(failedVideoId, failedGeneration), 5000);
+      },
+    },
+  });
+};
+// Widget Bus: авто-пауза, когда говорит TTS (§1/§4)
+function connectBus(){
+  const base = new URL(API || location.origin, location.href);
+  const proto = base.protocol === 'https:' ? 'wss:' : 'ws:';
+  MediaShareCore.reconnectingSocket({
+    url: `${proto}//${base.host}/ws?channel=${encodeURIComponent(CHANNEL)}`,
+    WebSocket,
+    setTimeout,
+    clearTimeout,
+    onState: state => {
+      if (state === 'connected') statuses.clear('bus_reconnecting');
+      else if (state === 'reconnecting') statuses.set('bus_reconnecting', tx('bus'));
+    },
+    onMessage: ev => {
+      let d; try{ d = JSON.parse(ev.data); }catch(e){ return; }
+      if (d.type !== 'widget_bus' || !yt || !yt.getPlayerState) return;
+      if (d.kind === 'pause_media' && yt.getPlayerState() === 1){
+        yt.pauseVideo();
+        pausedBadge.classList.add('show');
+      } else if (d.kind === 'resume_media'){
+        pausedBadge.classList.remove('show');
+        yt.playVideo();
+      }
+    },
+  });
+}
+if (IS_PREVIEW){
+  // Карточка не грузит YouTube и не дёргает очередь: показываем состояние ожидания.
+  document.body.style.background = '#0f0f1a';
+  idle.textContent = tx('empty');
+  idle.classList.add('show');
+} else if (!CHANNEL) {
+  statuses.set('scope_required', tx('scope'));
+} else {
+  loadYouTubeApi();
+  connectBus();
+  tick(); setInterval(tick, 5000);
+}
+</script></body></html>

@@ -1,0 +1,174 @@
+/* ============================================================
+   §11.6 / §12.3 WIDGETS_PLAN: единые дизайн-токены OBS-виджетов.
+   Подключение в index.html:
+     <link rel="stylesheet" href="/widget/_shared/theme.css">
+   (для file://-использования токены опциональны — каждый виджет
+   работает и без внешнего CSS)
+   ============================================================ */
+:root {
+  /* Палитра (контраст AA на полупрозрачных плашках) */
+  --w-bg: rgba(15, 15, 25, 0.85);
+  --w-bg-light: rgba(250, 250, 250, 0.95);
+  --w-border: rgba(255, 255, 255, 0.10);
+  --w-text: #f3f3f8;
+  --w-text-dim: #b8b8c6;
+  --w-accent: #a78bfa;      /* фиолетовый бренда */
+  --w-accent-2: #22c55e;    /* успех / прогресс */
+  --w-gold: #FFD700;        /* TTS-бот (§2) */
+  --w-danger: #f87171;
+
+  /* Форма */
+  --w-radius: 12px;
+  --w-radius-sm: 7px;
+  --w-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+
+  /* Типографика: минимум 18px у body (читаемость в OBS, §11.6) */
+  --w-font: 'Segoe UI', system-ui, sans-serif;
+  --w-size-title: 18px;
+  --w-size-body: 18px;
+  --w-size-small: 13px;
+
+  /* Отступы: безопасные от краёв Browser Source */
+  --w-pad: 14px;
+  --w-gap: 8px;
+
+  /* Анимации: плавные, без мигания поллинга */
+  --w-transition: 0.4s;
+}
+
+/* Opt-in semantic palette contract. Widgets migrate to these tokens in cohorts. */
+[data-widget-theme="dark"] {
+  --widget-theme-surface: #0f0f19;
+  --widget-theme-border: rgba(255, 255, 255, 0.14);
+  --widget-theme-text: #f8fafc;
+  --widget-theme-muted: #a8b0c0;
+  --widget-theme-accent: #a78bfa;
+  --widget-theme-accent-2: #22d3ee;
+  --widget-theme-shadow: rgba(0, 0, 0, 0.5);
+}
+
+[data-widget-theme="light"] {
+  --widget-theme-surface: #f8fafc;
+  --widget-theme-border: rgba(15, 23, 42, 0.16);
+  --widget-theme-text: #0f172a;
+  --widget-theme-muted: #475569;
+  --widget-theme-accent: #7c3aed;
+  --widget-theme-accent-2: #0891b2;
+  --widget-theme-shadow: rgba(15, 23, 42, 0.22);
+}
+
+[data-widget-theme="neon"] {
+  --widget-theme-surface: #090617;
+  --widget-theme-border: rgba(34, 211, 238, 0.5);
+  --widget-theme-text: #f5f3ff;
+  --widget-theme-muted: #c4b5fd;
+  --widget-theme-accent: #d946ef;
+  --widget-theme-accent-2: #22d3ee;
+  --widget-theme-shadow: rgba(217, 70, 239, 0.4);
+}
+
+[data-widget-theme="fire"] {
+  --widget-theme-surface: #1c0b08;
+  --widget-theme-border: rgba(251, 146, 60, 0.5);
+  --widget-theme-text: #fff7ed;
+  --widget-theme-muted: #fdba74;
+  --widget-theme-accent: #f97316;
+  --widget-theme-accent-2: #ef4444;
+  --widget-theme-shadow: rgba(239, 68, 68, 0.38);
+}
+
+[data-widget-theme="glass"] {
+  --widget-theme-surface: rgba(15, 23, 42, 0.55);
+  --widget-theme-border: rgba(255, 255, 255, 0.24);
+  --widget-theme-text: #f8fafc;
+  --widget-theme-muted: #cbd5e1;
+  --widget-theme-accent: #a78bfa;
+  --widget-theme-accent-2: #67e8f9;
+  --widget-theme-shadow: rgba(15, 23, 42, 0.35);
+}
+
+[data-widget-theme="mono"] {
+  --widget-theme-surface: #111111;
+  --widget-theme-border: rgba(255, 255, 255, 0.22);
+  --widget-theme-text: #ffffff;
+  --widget-theme-muted: #b8b8b8;
+  --widget-theme-accent: #ffffff;
+  --widget-theme-accent-2: #d4d4d4;
+  --widget-theme-shadow: rgba(0, 0, 0, 0.55);
+}
+
+[data-widget-theme] .widget-theme-surface {
+  background: color-mix(in srgb, var(--widget-theme-surface) var(--widget-opacity-percent, 100%), transparent);
+  border-color: var(--widget-theme-border);
+  color: var(--widget-theme-text);
+  box-shadow: 0 4px 24px var(--widget-theme-shadow);
+}
+
+[data-widget-theme] .widget-theme-accent {
+  color: var(--widget-theme-accent);
+  text-shadow: none;
+}
+
+[data-widget-theme] .widget-theme-text {
+  color: var(--widget-theme-text);
+}
+
+[data-widget-theme] .widget-theme-muted {
+  color: var(--widget-theme-muted);
+}
+
+[data-widget-theme] .widget-theme-fill {
+  background: linear-gradient(90deg, var(--widget-theme-accent), var(--widget-theme-accent-2));
+}
+
+[data-widget-theme="glass"] .widget-theme-surface {
+  backdrop-filter: blur(12px);
+}
+
+/* Opt-in layout controls for bounded overlays only. */
+.widget-appearance-root {
+  zoom: var(--widget-scale, 1);
+}
+
+html[data-widget-layout="bounded"][data-widget-pos] body {
+  box-sizing: border-box !important;
+  display: flex !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 24px !important;
+  overflow: hidden !important;
+}
+
+html[data-widget-pos] .widget-appearance-root {
+  position: relative !important;
+  inset: auto !important;
+  width: min(var(--widget-natural-width, max-content), 100%) !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+}
+
+html[data-widget-pos^="t"] body { align-items: flex-start !important; }
+html[data-widget-pos^="b"] body { align-items: flex-end !important; }
+html[data-widget-pos$="l"] body { justify-content: flex-start !important; }
+html[data-widget-pos$="c"] body { justify-content: center !important; }
+html[data-widget-pos$="r"] body { justify-content: flex-end !important; }
+
+html[data-widget-root="#tts-container"][data-widget-pos] #tts-container {
+  width: min(800px, 100%) !important;
+}
+
+html[data-widget-root="#tts-chat"][data-widget-pos] #tts-chat {
+  width: min(720px, 100%) !important;
+}
+
+html[data-widget-root="#feed"][data-widget-pos] #feed {
+  width: min(560px, 100%) !important;
+  flex-direction: column !important;
+}
+
+html[data-widget-root="#feed"][data-widget-pos^="t"] #feed {
+  flex-direction: column-reverse !important;
+}

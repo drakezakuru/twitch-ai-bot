@@ -1,0 +1,16 @@
+{
+  "title": "Базовый пресет запретов Twitch (Q03, DEC-OWNER-004)",
+  "hint": "Канал стартует из этого пресета: правила копируются в per-канальную базу и дальше владелец правит их независимо. Паттерны ловят начала слов (стем); 're:' — произвольный regex.",
+  "rules": [
+    {"pattern": "re:\\b(nigger|faggot|kike|tranny)\\b", "category": "hate", "severity": 5, "action": "block", "action_ext": ""},
+    {"pattern": "наци", "category": "hate", "severity": 5, "action": "block", "action_ext": ""},
+    {"pattern": "re:\\b(hitler|holocaust denial)\\b", "category": "hate", "severity": 4, "action": "block", "action_ext": ""},
+    {"pattern": "re:\\bkill (you|u|yourself|yaself)\\b", "category": "threat", "severity": 5, "action": "block", "action_ext": ""},
+    {"pattern": "убью", "category": "threat", "severity": 4, "action": "block", "action_ext": ""},
+    {"pattern": "re:\\bi (will )?find you\\b", "category": "threat", "severity": 4, "action": "block", "action_ext": ""},
+    {"pattern": "retard", "category": "insult", "severity": 4, "action": "block", "action_ext": ""},
+    {"pattern": "идиот", "category": "insult", "severity": 3, "action": "block", "action_ext": ""},
+    {"pattern": "порно", "category": "sexual", "severity": 4, "action": "block", "action_ext": ""},
+    {"pattern": "porn", "category": "sexual", "severity": 4, "action": "block", "action_ext": ""}
+  ]
+}

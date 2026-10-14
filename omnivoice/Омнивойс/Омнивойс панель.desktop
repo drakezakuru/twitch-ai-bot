@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Омнивойс панель
+Comment=Выбор и клонирование голосов (localhost:7860)
+Exec=sh -c '"$(dirname %k)"/start-панель.sh'
+Icon=audio-input-microphone
+Terminal=true
+Categories=AudioVideo;

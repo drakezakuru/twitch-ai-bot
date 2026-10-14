@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTS Widget — OBS Browser Source</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: transparent;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+        }
+        #tts-container {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            max-width: 800px;
+            background: rgba(15, 15, 35, 0.92);
+            border: 2px solid rgba(124, 58, 237, 0.6);
+            border-radius: 16px;
+            padding: 16px 20px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        #speaker {
+            font-size: 14px;
+            font-weight: 600;
+            color: #7c3aed;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #text {
+            font-size: 20px;
+            color: #e2e8f0;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        #emotion {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            background: rgba(124, 58, 237, 0.3);
+            color: #c4b5fd;
+        }
+        #player {
+            display: none;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .visible {
+            display: block !important;
+        }
+        /* Status indicator */
+        #status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #64748b;
+            transition: background 0.3s;
+        }
+        #status.connected {
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+        #status.speaking {
+            background: #7c3aed;
+            box-shadow: 0 0 12px rgba(124, 58, 237, 0.7);
+            animation: pulse 1s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div id="status" class="hidden"></div>
+    <div id="tts-container">
+        <div id="speaker"></div>
+        <div id="text"></div>
+        <div id="emotion"></div>
+    </div>
+    <audio id="player" autoplay></audio>
+
+    <script>
+        const container = document.getElementById('tts-container');
+        const speakerEl = document.getElementById('speaker');
+        const textEl = document.getElementById('text');
+        const emotionEl = document.getElementById('emotion');
+        const player = document.getElementById('player');
+        const statusEl = document.getElementById('status');
+
+        // Emotion labels
+        const emotionLabels = {
+            'neutral': '😐 Нейтрально',
+            'angry': '😠 Злий',
+            'sad': '😢 Сумний',
+            'happy': '😊 Щасливий',
+            'surprised': '😮 Здивований',
+            'fear': '😨 Страх',
+        };
+
+        // WebSocket connection
+        let ws = null;
+        let reconnectTimer = null;
+
+        function connect() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const channel = new URLSearchParams(location.search).get('channel') || '';
+            const url = `${proto}//${location.host}/ws?channel=${encodeURIComponent(channel)}`;
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                statusEl.className = 'connected';
+                console.log('[TTS Widget] Connected');
+            };
+
+            ws.onmessage = async (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type !== 'tts') return;
+
+                    console.log('[TTS Widget] TTS event:', msg.provider, msg.emotion);
+
+                    // Update speaker name
+                    speakerEl.textContent = msg.channel || 'Bot';
+
+                    // Update text
+                    textEl.textContent = msg.text;
+
+                    // Update emotion
+                    emotionEl.textContent = emotionLabels[msg.emotion] || msg.emotion || '';
+
+                    // Show container
+                    container.style.display = 'block';
+                    container.style.animation = 'fadeIn 0.3s ease-out';
+
+                    // Set speaking status
+                    statusEl.className = 'speaking';
+
+                    if (msg.provider === 'web_speech') {
+                        // Web Speech API — синтез в браузері
+                        speakWebSpeech(msg.text, msg.voice, msg.rate || 1.0, msg.pitch || 1.0);
+                    } else if (msg.audio_b64) {
+                        // Audio blob — ElevenLabs / Piper
+                        playAudioBlob(msg.audio_b64, msg.mime, msg.volume || 1.0);
+                    }
+                } catch (err) {
+                    console.error('[TTS Widget] Error:', err);
+                }
+            };
+
+            ws.onclose = () => {
+                statusEl.className = 'hidden';
+                console.log('[TTS Widget] Disconnected, reconnecting...');
+                reconnectTimer = setTimeout(connect, 3000);
+            };
+
+            ws.onerror = (err) => {
+                console.error('[TTS Widget] WebSocket error:', err);
+                ws.close();
+            };
+        }
+
+        function speakWebSpeech(text, voice, rate, pitch) {
+            if (!('speechSynthesis' in window)) {
+                console.warn('[TTS Widget] SpeechSynthesis not supported');
+                hideContainer();
+                return;
+            }
+
+            // Cancel previous
+            speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ru-RU';
+            utterance.rate = rate;
+            utterance.pitch = pitch;
+
+            // Try to find a Russian voice
+            const voices = speechSynthesis.getVoices();
+            const ruVoice = voices.find(v => v.lang.startsWith('ru'));
+            if (ruVoice) {
+                utterance.voice = ruVoice;
+            }
+
+            utterance.onend = () => {
+                hideContainer();
+            };
+            utterance.onerror = () => {
+                hideContainer();
+            };
+
+            speechSynthesis.speak(utterance);
+        }
+
+        function playAudioBlob(base64, mime, volume) {
+            try {
+                const binaryStr = atob(base64);
+                const bytes = new Uint8Array(binaryStr.length);
+                for (let i = 0; i < binaryStr.length; i++) {
+                    bytes[i] = binaryStr.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], { type: mime });
+                const url = URL.createObjectURL(blob);
+
+                player.volume = volume;
+                player.src = url;
+                player.play().catch(err => {
+                    console.warn('[TTS Widget] Audio play failed:', err);
+                    hideContainer();
+                });
+
+                player.onended = () => {
+                    URL.revokeObjectURL(url);
+                    hideContainer();
+                };
+                player.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    hideContainer();
+                };
+            } catch (err) {
+                console.error('[TTS Widget] Audio decode error:', err);
+                hideContainer();
+            }
+        }
+
+        function hideContainer() {
+            container.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => {
+                container.style.display = 'none';
+                statusEl.className = 'connected';
+            }, 300);
+        }
+
+        // Load voices for Web Speech
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+        }
+
+        // Connect
+        connect();
+    </script>
+</body>
+</html>

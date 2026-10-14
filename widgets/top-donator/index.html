@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden;font-family:'Segoe UI',sans-serif;color:#fff}
+.td-wrap{padding:16px;max-width:380px}
+.td-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:3px;margin-bottom:12px;
+  color:rgba(200,200,220,.6)}
+.td-list{display:flex;flex-direction:column;gap:6px}
+.td-item{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;
+  background:rgba(18,18,30,var(--widget-opacity,.75));border:1px solid rgba(100,100,140,.2);
+  transition:all .4s ease;opacity:0;animation:tdSlideIn .5s ease forwards}
+@keyframes tdSlideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.td-item.rank-1{background:rgba(18,18,30,var(--widget-opacity,.9));border-color:rgba(0,255,180,.35);
+  box-shadow:0 0 15px rgba(0,255,180,.15)}
+.td-rank{font-size:14px;font-weight:800;min-width:24px;text-align:center}
+.td-crown{font-size:16px}
+.td-user{flex:1;overflow:hidden}
+.td-username{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.td-item.rank-1 .td-username{font-size:16px;
+  background:linear-gradient(90deg,#fff,#00ffb4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.td-amount{font-size:13px;font-weight:600;color:rgba(0,255,180,.8)}
+.td-empty{font-size:13px;color:rgba(200,200,220,.3);text-align:center;padding:20px}
+
+/* Theme: neon (default) */
+.theme-neon .td-title{color:rgba(0,255,180,.6)}
+.theme-neon .td-item.rank-1{border-color:rgba(0,255,180,.35);box-shadow:0 0 15px rgba(0,255,180,.15)}
+.theme-neon .td-item.rank-1 .td-username{background:linear-gradient(90deg,#fff,#00ffb4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.theme-neon .td-amount{color:rgba(0,255,180,.8)}
+
+/* Theme: glass */
+.theme-glass .td-wrap{backdrop-filter:blur(12px)}
+.theme-glass .td-item{background:rgba(255,255,255,var(--widget-opacity,.08));border-color:rgba(255,255,255,.15);
+  backdrop-filter:blur(8px)}
+.theme-glass .td-item.rank-1{background:rgba(255,255,255,var(--widget-opacity,.12));border-color:rgba(255,255,255,.3);
+  box-shadow:0 4px 20px rgba(255,255,255,.05)}
+.theme-glass .td-item.rank-1 .td-username{background:linear-gradient(90deg,#fff,#c8c8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.theme-glass .td-amount{color:rgba(200,200,255,.8)}
+.theme-glass .td-title{color:rgba(200,200,255,.6)}
+
+/* Theme: fire */
+.theme-fire .td-title{color:rgba(255,150,50,.7)}
+.theme-fire .td-item.rank-1{border-color:rgba(255,120,50,.4);box-shadow:0 0 20px rgba(255,80,30,.2)}
+.theme-fire .td-item.rank-1 .td-username{background:linear-gradient(90deg,#fff,#ff7832);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.theme-fire .td-amount{color:rgba(255,150,50,.8)}
+
+/* Theme: minimal */
+.theme-minimal .td-item{background:rgba(30,30,40,var(--widget-opacity,.6));border-color:rgba(200,200,200,.1)}
+.theme-minimal .td-item.rank-1{background:rgba(40,40,50,var(--widget-opacity,.8));border-color:rgba(200,200,200,.2);box-shadow:none}
+.theme-minimal .td-item.rank-1 .td-username{background:none;-webkit-text-fill-color:#fff}
+.theme-minimal .td-amount{color:rgba(200,200,200,.6)}
+.theme-minimal .td-title{color:rgba(200,200,200,.5)}
+
+/* Rank change animation */
+.td-item.moved{animation:tdPulse .6s ease}
+@keyframes tdPulse{0%{transform:scale(1)}50%{transform:scale(1.03)}100%{transform:scale(1)}}
+</style>
+</head><body>
+<div class="td-wrap" id="wrap">
+  <div class="td-title" id="title"></div>
+  <div class="td-list" id="list" aria-live="polite"></div>
+</div>
+<script>
+WidgetI18n.add({
+  "ru": {
+    "top-donator.title": "Топ донатеров",
+    "top-donator.empty": "Донатов пока нет"
+  },
+  "en": {
+    "top-donator.title": "Top donors",
+    "top-donator.empty": "No donations yet"
+  },
+  "ua": {
+    "top-donator.title": "Топ донаторів",
+    "top-donator.empty": "Донатів поки немає"
+  }
+});
+WidgetI18n.apply();
+document.getElementById('list').textContent=WidgetI18n.t('common.loading');
+
+// §11.0 WIDGETS_PLAN: адрес панели можно переопределить (?api=http://panel:8000);
+const _WIDGET_API_BASE = new URLSearchParams(location.search).get('api') || '';
+const _SCOPE_PARAMS=new URLSearchParams(location.search);
+const _SCOPE_QUERY=['account_id','channel'].filter(k=>_SCOPE_PARAMS.get(k)).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(_SCOPE_PARAMS.get(k))).join('&');
+
+const PERIOD='__PERIOD__';
+const THEME_OVERRIDE='__THEME__';
+const listEl=document.getElementById('list');
+const titleEl=document.getElementById('title');
+const wrap=document.getElementById('wrap');
+let lastData='';
+
+function esc(s){return String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function render(data){
+  const requestedTheme=THEME_OVERRIDE||data.theme;
+  const themes=new Set(['dark','light','neon','fire','glass','mono','minimal']);
+  const theme=themes.has(requestedTheme)?requestedTheme:'neon';
+  wrap.className='td-wrap theme-'+theme;
+  titleEl.textContent=data.title||'';
+  const donors=data.donors||[];
+  if(!donors.length){listEl.innerHTML='<div class="td-empty">'+esc(WidgetI18n.t('top-donator.empty'))+'</div>';return}
+  const newData=JSON.stringify(donors);
+  const changed=newData!==lastData;
+  lastData=newData;
+  listEl.innerHTML=donors.map((d,i)=>{
+    const rank=i+1;
+    const crown=rank===1?'<span class="td-crown">👑</span>':'<span class="td-rank">'+(rank)+'</span>';
+    const amt=data.show_amount?`<span class="td-amount">$${Number(d.total).toFixed(2)}</span>`:'';
+    return `<div class="td-item widget-theme-surface rank-${rank}${changed?' moved':''}" style="animation-delay:${i*0.1}s">
+      ${crown}
+      <div class="td-user"><div class="td-username${rank===1?' widget-theme-accent':''}">${esc(d.username)}</div></div>
+      ${amt.replace('td-amount','td-amount widget-theme-accent')}
+    </div>`;
+  }).join('');
+}
+
+async function poll(){
+  try{
+    const r=await fetch(_WIDGET_API_BASE + '/api/widgets/public/top-donator/'+PERIOD+'?'+(_SCOPE_QUERY?_SCOPE_QUERY+'&':'')+'t='+Date.now());
+    if(!r.ok){listEl.innerHTML='<div class="td-empty">'+esc(WidgetI18n.t('common.unavailable_http',{status:r.status}))+'</div>';return}
+    render(await r.json());
+  }catch(e){listEl.innerHTML='<div class="td-empty">'+esc(WidgetI18n.t('common.disconnected'))+'</div>'}
+}
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  document.body.style.background='#0f0f1a';
+  render({title:WidgetI18n.t('top-donator.title'),show_amount:true,donors:[
+    {username:'DemoViewer',total:120},
+    {username:'Chatter42',total:75.5},
+    {username:'NightOwl',total:30},
+  ]});
+}else{
+  poll();setInterval(poll,5000);
+}
+</script><script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/widget/sw.js',{scope:'/widget/'}).catch(()=>{});}</script></body></html>
